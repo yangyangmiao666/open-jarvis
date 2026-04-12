@@ -13,6 +13,7 @@ import { spawn } from "node:child_process"
 import { randomUUID } from "node:crypto"
 import * as fs from "node:fs/promises"
 import fsSync from "node:fs"
+import path from "node:path"
 import {
   FilesystemBackend,
   type ExecuteResponse,
@@ -29,6 +30,113 @@ const EMPTY_CONTENT_WARNING = "System reminder: File exists but has empty conten
 const MAX_LINE_LENGTH = 10_000
 const LINE_NUMBER_WIDTH = 6
 const SUPPORTS_NOFOLLOW = fsSync.constants.O_NOFOLLOW !== undefined
+const TEXTUTIL_PATH = "/usr/bin/textutil"
+
+const BINARY_MIME_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".tif": "image/tiff",
+  ".tiff": "image/tiff",
+  ".ico": "image/x-icon",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".aiff": "audio/aiff",
+  ".aac": "audio/aac",
+  ".ogg": "audio/ogg",
+  ".flac": "audio/flac",
+  ".m4a": "audio/mp4",
+  ".weba": "audio/webm",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mpeg": "video/mpeg",
+  ".mpg": "video/mpeg",
+  ".mov": "video/quicktime",
+  ".avi": "video/x-msvideo",
+  ".flv": "video/x-flv",
+  ".wmv": "video/x-ms-wmv",
+  ".3gpp": "video/3gpp",
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".odt": "application/vnd.oasis.opendocument.text",
+  ".rtf": "application/rtf",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".zip": "application/zip",
+  ".7z": "application/x-7z-compressed",
+  ".rar": "application/vnd.rar",
+  ".tar": "application/x-tar",
+  ".gz": "application/gzip"
+}
+
+const TEXT_MIME_TYPES: Record<string, string> = {
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".mdx": "text/markdown",
+  ".markdown": "text/markdown",
+  ".csv": "text/csv",
+  ".tsv": "text/tab-separated-values",
+  ".log": "text/plain",
+  ".json": "application/json",
+  ".jsonl": "application/json",
+  ".js": "application/javascript",
+  ".jsx": "application/javascript",
+  ".mjs": "application/javascript",
+  ".cjs": "application/javascript",
+  ".ts": "text/plain",
+  ".tsx": "text/plain",
+  ".py": "text/plain",
+  ".java": "text/plain",
+  ".c": "text/plain",
+  ".cc": "text/plain",
+  ".cpp": "text/plain",
+  ".h": "text/plain",
+  ".hpp": "text/plain",
+  ".cs": "text/plain",
+  ".go": "text/plain",
+  ".rs": "text/plain",
+  ".rb": "text/plain",
+  ".php": "text/plain",
+  ".xml": "application/xml",
+  ".html": "text/html",
+  ".htm": "text/html",
+  ".css": "text/css",
+  ".scss": "text/css",
+  ".sass": "text/css",
+  ".less": "text/css",
+  ".yaml": "text/yaml",
+  ".yml": "text/yaml",
+  ".toml": "text/plain",
+  ".ini": "text/plain",
+  ".cfg": "text/plain",
+  ".conf": "text/plain",
+  ".env": "text/plain",
+  ".sql": "text/plain",
+  ".sh": "text/plain",
+  ".bash": "text/plain",
+  ".zsh": "text/plain",
+  ".fish": "text/plain",
+  ".svg": "image/svg+xml"
+}
+
+const TEXTUTIL_SUPPORTED_EXTENSIONS = new Set([".doc", ".docx", ".odt", ".rtf"])
+const SPECIAL_TEXT_FILENAMES = new Set([
+  "dockerfile",
+  "makefile",
+  ".gitignore",
+  ".editorconfig",
+  ".npmrc",
+  ".yarnrc",
+  ".env"
+])
 
 function checkEmptyContent(content: string): string | null {
   if (!content || content.trim() === "") return EMPTY_CONTENT_WARNING
@@ -65,6 +173,30 @@ function formatContentWithLineNumbers(content: string | string[], startLine = 1)
     }
   }
   return resultLines.join("\n")
+}
+
+function getMimeType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase()
+  const base = path.basename(filePath).toLowerCase()
+  if (!ext || SPECIAL_TEXT_FILENAMES.has(base)) {
+    return "text/plain"
+  }
+  return BINARY_MIME_TYPES[ext] ?? TEXT_MIME_TYPES[ext] ?? "application/octet-stream"
+}
+
+function isTextMimeType(mimeType: string): boolean {
+  return (
+    mimeType.startsWith("text/") ||
+    mimeType === "application/json" ||
+    mimeType === "application/javascript" ||
+    mimeType === "application/xml" ||
+    mimeType === "text/yaml" ||
+    mimeType === "image/svg+xml"
+  )
+}
+
+function supportsTextExtraction(filePath: string): boolean {
+  return TEXTUTIL_SUPPORTED_EXTENSIONS.has(path.extname(filePath).toLowerCase())
 }
 
 /**
@@ -135,6 +267,28 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
     return self.resolvePath(filePath)
   }
 
+  private async extractTextWithTextutil(resolvedPath: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      const proc = spawn(TEXTUTIL_PATH, ["-stdout", "-convert", "txt", "--", resolvedPath], {
+        stdio: ["ignore", "pipe", "pipe"]
+      })
+
+      const stdout: Buffer[] = []
+      const stderr: Buffer[] = []
+
+      proc.stdout.on("data", (chunk: Buffer) => stdout.push(chunk))
+      proc.stderr.on("data", (chunk: Buffer) => stderr.push(chunk))
+      proc.on("error", reject)
+      proc.on("close", (code) => {
+        if (code !== 0) {
+          reject(new Error(Buffer.concat(stderr).toString("utf8") || `textutil exited with code ${code}`))
+          return
+        }
+        resolve(decodeTextBuffer(Buffer.concat(stdout)))
+      })
+    })
+  }
+
   private async readTextFile(filePath: string): Promise<{
     raw: Buffer
     stat: Awaited<ReturnType<typeof fs.lstat>>
@@ -167,11 +321,41 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
    */
   override async read(filePath: string, offset = 0, limit = 500): Promise<ReadResult> {
     try {
-      const { raw } = await this.readTextFile(filePath)
+      const { raw, stat } = await this.readTextFile(filePath)
+      const mimeType = getMimeType(filePath)
+
+      if (!isTextMimeType(mimeType)) {
+        if (supportsTextExtraction(filePath)) {
+          const resolvedPath = this.resolvePathSafe(filePath)
+          const content = await this.extractTextWithTextutil(resolvedPath)
+          const emptyMsg = checkEmptyContent(content)
+          if (emptyMsg) return { content: emptyMsg, mimeType: "text/plain" }
+          const lines = content.split("\n")
+          const startIdx = offset
+          const endIdx = Math.min(startIdx + limit, lines.length)
+          if (startIdx >= lines.length) {
+            return { error: `Line offset ${offset} exceeds file length (${lines.length} lines)` }
+          }
+          return {
+            content: formatContentWithLineNumbers(lines.slice(startIdx, endIdx), startIdx + 1),
+            mimeType: "text/plain"
+          }
+        }
+
+        return {
+          content: new Uint8Array(raw),
+          mimeType
+        }
+      }
+
+      if (!stat.isFile()) {
+        return { error: `File '${filePath}' not found` }
+      }
+
       const content = decodeTextBuffer(raw)
       const emptyMsg = checkEmptyContent(content)
       if (emptyMsg) {
-        return { content: emptyMsg, mimeType: "text/plain" }
+        return { content: emptyMsg, mimeType }
       }
       const lines = content.split("\n")
       const startIdx = offset
@@ -181,7 +365,7 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
       }
       return {
         content: formatContentWithLineNumbers(lines.slice(startIdx, endIdx), startIdx + 1),
-        mimeType: "text/plain"
+        mimeType
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -192,11 +376,37 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
   override async readRaw(filePath: string): Promise<ReadRawResult> {
     try {
       const { raw, stat } = await this.readTextFile(filePath)
+      const mimeType = getMimeType(filePath)
+
+      if (!isTextMimeType(mimeType)) {
+        if (supportsTextExtraction(filePath)) {
+          const resolvedPath = this.resolvePathSafe(filePath)
+          const text = await this.extractTextWithTextutil(resolvedPath)
+          return {
+            data: {
+              content: text,
+              mimeType: "text/plain",
+              created_at: stat.ctime.toISOString(),
+              modified_at: stat.mtime.toISOString()
+            }
+          }
+        }
+
+        return {
+          data: {
+            content: new Uint8Array(raw),
+            mimeType,
+            created_at: stat.ctime.toISOString(),
+            modified_at: stat.mtime.toISOString()
+          }
+        }
+      }
+
       const text = decodeTextBuffer(raw)
       return {
         data: {
           content: text,
-          mimeType: "text/plain",
+          mimeType,
           created_at: stat.ctime.toISOString(),
           modified_at: stat.mtime.toISOString()
         }

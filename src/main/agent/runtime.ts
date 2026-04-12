@@ -15,7 +15,7 @@ import type * as _lcLanggraph from "@langchain/langgraph"
 import type * as _lcZodTypes from "@langchain/core/utils/types"
 
 import { BASE_SYSTEM_PROMPT } from "./system-prompt"
-import { getSkillSources } from "../skill-config"
+import { resolveSkillSourcesForWorkspace } from "../skill-config"
 
 /**
  * Generate the full system prompt for the agent.
@@ -41,28 +41,36 @@ function getSystemPrompt(workspacePath: string): string {
 // Per-thread checkpointer cache
 const checkpointers = new Map<string, SqlJsSaver>()
 
+function sanitizeModelText(value: string): string {
+  if (typeof value.toWellFormed === "function") {
+    return value.toWellFormed()
+  }
+  return value.replace(
+    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,
+    "\uFFFD"
+  )
+}
+
 function stringifyOpenAICompatibleContentPart(part: unknown): string {
-  if (typeof part === "string") return part
+  if (typeof part === "string") return sanitizeModelText(part)
   if (part == null) return ""
   if (typeof part !== "object") return String(part)
 
   const record = part as Record<string, unknown>
-  if (typeof record.text === "string") return record.text
-  if (typeof record.input_text === "string") return record.input_text
-  if (typeof record.output_text === "string") return record.output_text
-  if (typeof record.refusal === "string") return record.refusal
-  if (typeof record.content === "string") return record.content
+  if (typeof record.text === "string") return sanitizeModelText(record.text)
+  if (typeof record.input_text === "string") return sanitizeModelText(record.input_text)
+  if (typeof record.output_text === "string") return sanitizeModelText(record.output_text)
+  if (typeof record.refusal === "string") return sanitizeModelText(record.refusal)
+  if (typeof record.content === "string") return sanitizeModelText(record.content)
 
   const type = typeof record.type === "string" ? record.type : ""
-  if (type.includes("image")) return "[image omitted]"
-  if (type.includes("audio")) return "[audio omitted]"
-  if (type.includes("file")) return "[file omitted]"
+  const mimeType = typeof record.mimeType === "string" ? record.mimeType : "application/octet-stream"
+  if (type.includes("image")) return `[image content omitted: ${mimeType}]`
+  if (type.includes("audio")) return `[audio content omitted: ${mimeType}]`
+  if (type.includes("video")) return `[video content omitted: ${mimeType}]`
+  if (type.includes("file")) return `[file content omitted: ${mimeType}]`
 
-  try {
-    return JSON.stringify(part)
-  } catch {
-    return String(part)
-  }
+  return `[unsupported content block${type ? `: ${type}` : ""}]`
 }
 
 function normalizeOpenAICompatibleMessages(request: unknown): { request: unknown; normalizedCount: number } {
@@ -255,7 +263,7 @@ export async function createAgentRuntime(options: CreateAgentRuntimeOptions) {
 
 The workspace root is: ${workspacePath}`
 
-  const skills = getSkillSources()
+  const skills = resolveSkillSourcesForWorkspace(workspacePath)
 
   const agent = createDeepAgent({
     model,
