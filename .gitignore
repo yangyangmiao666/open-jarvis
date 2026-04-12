@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+# 包管理器以 Bun 为准（见 package.json packageManager）
+package-lock.json
+
+# Build outputs
+out/
+dist/
+release/
+*.tsbuildinfo
+
+# Logs & debug
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.swp
+*.swo
+
+# Cursor (local tooling; optional — uncomment if you want to track rules)
+# .cursor/
+
+# Electron / Vite cache
+.vite/
+.cache/
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.local
