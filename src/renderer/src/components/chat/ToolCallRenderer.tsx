@@ -26,6 +26,8 @@ interface ToolCallRendererProps {
   result?: string | unknown;
   isError?: boolean;
   needsApproval?: boolean;
+  /** 为 false 时仍显示「待审批」样式与预览，但不渲染内联按钮（由对话区底部固定栏操作） */
+  showInlineApprovalActions?: boolean;
   onApprovalDecision?: (decision: "approve" | "reject" | "edit") => void;
 }
 
@@ -294,6 +296,7 @@ export function ToolCallRenderer({
   result,
   isError,
   needsApproval,
+  showInlineApprovalActions = true,
   onApprovalDecision,
 }: ToolCallRendererProps): React.JSX.Element | null {
   // Defensive: ensure args is always an object
@@ -577,6 +580,9 @@ export function ToolCallRenderer({
   const formattedResult = renderFormattedResult();
   const hasFormattedDisplay = formattedContent || formattedResult;
 
+  const inlineApprovalButtons =
+    Boolean(needsApproval && onApprovalDecision) && showInlineApprovalActions;
+
   return (
     <div
       className={cn(
@@ -654,21 +660,26 @@ export function ToolCallRenderer({
             </pre>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-end gap-2">
-            <button
-              className="px-3 py-1.5 text-xs border border-border rounded-sm hover:bg-background-interactive transition-colors"
-              onClick={handleReject}
-            >
-              拒绝
-            </button>
-            <button
-              className="px-3 py-1.5 text-xs bg-status-nominal text-background rounded-sm hover:bg-status-nominal/90 transition-colors"
-              onClick={handleApprove}
-            >
-              批准并执行
-            </button>
-          </div>
+          {inlineApprovalButtons ? (
+            <div className="flex items-center justify-end gap-2">
+              <button
+                className="px-3 py-1.5 text-xs border border-border rounded-sm hover:bg-background-interactive transition-colors"
+                onClick={handleReject}
+              >
+                拒绝
+              </button>
+              <button
+                className="px-3 py-1.5 text-xs bg-status-nominal text-background rounded-sm hover:bg-status-nominal/90 transition-colors"
+                onClick={handleApprove}
+              >
+                批准并执行
+              </button>
+            </div>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">
+              请在对话区底部固定栏批准或拒绝。
+            </p>
+          )}
         </div>
       ) : null}
 

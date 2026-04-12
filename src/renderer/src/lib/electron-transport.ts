@@ -369,15 +369,17 @@ export class ElectronIPCTransport implements UseStreamTransport {
                 (rc: { actionName: string }) =>
                   rc.actionName === firstAction.name,
               );
+              const toolCallId = this.resolveHitlToolCallId(firstAction);
+              const stableId = toolCallId ?? crypto.randomUUID();
 
               events.push({
                 event: "custom",
                 data: {
                   type: "interrupt",
                   request: {
-                    id: firstAction.id || crypto.randomUUID(),
+                    id: stableId,
                     tool_call: {
-                      id: firstAction.id,
+                      id: stableId,
                       name: firstAction.name,
                       args: firstAction.args || {},
                     },
@@ -430,6 +432,31 @@ export class ElectronIPCTransport implements UseStreamTransport {
       events.map((e) => e.event),
     );
     return events;
+  }
+
+  /**
+   * Resolve LangGraph tool_call id for HITL: prefer id on the interrupt payload
+   * (subgraphs / parallel tools), then fall back to the last streamed tool call
+   * with the same name.
+   */
+  private resolveHitlToolCallId(action: {
+    name: string;
+    id?: string;
+    args?: Record<string, unknown>;
+  }): string | undefined {
+    const raw = action as Record<string, unknown>;
+    const fromPayload =
+      (typeof action.id === "string" && action.id) ||
+      (typeof raw.tool_call_id === "string" && raw.tool_call_id) ||
+      (typeof raw.toolCallId === "string" && raw.toolCallId);
+    if (typeof fromPayload === "string" && fromPayload.length > 0) {
+      return fromPayload;
+    }
+    const tracked = this.completedToolCallsByName.get(action.name);
+    if (tracked && tracked.length > 0) {
+      return tracked[tracked.length - 1]?.id;
+    }
+    return undefined;
   }
 
   /**
@@ -592,8 +619,8 @@ export class ElectronIPCTransport implements UseStreamTransport {
           value?: {
             actionRequests?: Array<{
               name: string;
-              id: string;
-              args: Record<string, unknown>;
+              id?: string;
+              args?: Record<string, unknown>;
             }>;
             reviewConfigs?: Array<{
               actionName: string;
@@ -744,28 +771,17 @@ export class ElectronIPCTransport implements UseStreamTransport {
             (rc) => rc.actionName === firstAction.name,
           );
 
-          // The actionRequest doesn't include tool_call.id - look up from tracked tool calls
-          let toolCallId: string | undefined;
-
-          // Find the tool call ID from our tracked completed tool calls
-          const trackedToolCalls = this.completedToolCallsByName.get(
-            firstAction.name,
-          );
-
-          if (trackedToolCalls && trackedToolCalls.length > 0) {
-            // Get the most recent tool call with this name
-            const lastTracked = trackedToolCalls[trackedToolCalls.length - 1];
-            toolCallId = lastTracked.id;
-          }
+          const toolCallId = this.resolveHitlToolCallId(firstAction);
+          const stableId = toolCallId ?? crypto.randomUUID();
 
           events.push({
             event: "custom",
             data: {
               type: "interrupt",
               request: {
-                id: toolCallId || crypto.randomUUID(),
+                id: stableId,
                 tool_call: {
-                  id: toolCallId,
+                  id: stableId,
                   name: firstAction.name,
                   args: firstAction.args || {},
                 },

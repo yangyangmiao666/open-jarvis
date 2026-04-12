@@ -183,6 +183,7 @@ export function MessageBubble({
                   result={result?.content}
                   isError={result?.is_error}
                   needsApproval={needsApproval}
+                  showInlineApprovalActions={!pendingApproval}
                   onApprovalDecision={
                     needsApproval ? onApprovalDecision : undefined
                   }

@@ -56,6 +56,7 @@ export function SubagentPanel(): React.JSX.Element {
   const { currentThreadId } = useAppStore();
   const threadState = useThreadState(currentThreadId);
   const subagents = threadState?.subagents ?? [];
+  const pendingApproval = threadState?.pendingApproval;
 
   // Count by status
   const runningCount = subagents.filter((s) => s.status === "running").length;
@@ -79,6 +80,12 @@ export function SubagentPanel(): React.JSX.Element {
           </div>
         </div>
       </div>
+
+      {pendingApproval && runningCount > 0 && (
+        <div className="px-4 py-2 text-xs text-amber-700 dark:text-amber-300/90 border-b border-amber-500/25 bg-amber-500/[0.06]">
+          当前有工具调用在等待审批；在对话区批准或拒绝前，相关子任务会保持「运行中」。
+        </div>
+      )}
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-4 space-y-3">

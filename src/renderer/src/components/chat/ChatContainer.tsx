@@ -1,5 +1,13 @@
 import { useRef, useEffect, useMemo, useCallback, useState } from "react";
-import { Send, Square, Loader2, AlertCircle, X, Copy } from "lucide-react";
+import {
+  Send,
+  Square,
+  Loader2,
+  AlertCircle,
+  X,
+  Copy,
+  ShieldAlert,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/lib/store";
@@ -519,6 +527,42 @@ export function ChatContainer({
           </div>
         </div>
       </ScrollArea>
+
+      {/* HITL：流结束后 isLoading 为 false，但子图可能仍在等待审批；避免「无按钮可点」 */}
+      {pendingApproval && (
+        <div className="shrink-0 border-t border-amber-500/35 bg-amber-500/[0.07] px-4 py-3">
+          <div className="max-w-3xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2 min-w-0 text-sm">
+              <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="min-w-0">
+                <div className="font-medium text-amber-800 dark:text-amber-200">
+                  等待你确认：{pendingApproval.tool_call.name}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5 break-all">
+                  主进程或子智能体已暂停；批准或拒绝后才会继续并汇总结果。
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handleApprovalDecision("reject")}
+              >
+                拒绝
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void handleApprovalDecision("approve")}
+              >
+                批准
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t border-border p-4">
