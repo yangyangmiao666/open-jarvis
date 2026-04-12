@@ -301,10 +301,10 @@ export function ThreadSidebar(): React.JSX.Element {
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2 text-xs h-7"
+            className="w-full justify-center gap-2 text-xs h-7"
             onClick={() => setBulkMode(true)}
           >
-            多选删除
+            多选
           </Button>
         )}
       </div>

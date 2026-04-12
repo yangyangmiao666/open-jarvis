@@ -553,7 +553,14 @@ export function ChatContainer({ threadId }: ChatContainerProps): React.JSX.Eleme
               )}
               <div className="flex items-center justify-center shrink-0 h-12">
                 {isLoading ? (
-                  <Button type="button" variant="ghost" size="icon" onClick={handleCancel}>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="rounded-md"
+                    onClick={handleCancel}
+                    title="停止生成"
+                  >
                     <Square className="size-4" />
                   </Button>
                 ) : (

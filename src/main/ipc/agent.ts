@@ -1,6 +1,7 @@
 import { IpcMain, BrowserWindow } from "electron"
 import { HumanMessage } from "@langchain/core/messages"
 import { Command } from "@langchain/langgraph"
+import type { StreamMode } from "@langchain/langgraph"
 import { createAgentRuntime } from "../agent/runtime"
 import { getThread } from "../db"
 import type {
@@ -12,6 +13,7 @@ import type {
 
 // Track active runs for cancellation
 const activeRuns = new Map<string, AbortController>()
+const DEFAULT_STREAM_MODES: StreamMode[] = ["messages", "values"]
 
 export function registerAgentHandlers(ipcMain: IpcMain): void {
   console.log("[Agent] Registering agent handlers...")
@@ -171,7 +173,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
       const config = {
         configurable: { thread_id: threadId },
         signal: abortController.signal,
-        streamMode: ["messages", "values"] as const,
+        streamMode: DEFAULT_STREAM_MODES,
         recursionLimit: 1000
       }
 
@@ -253,7 +255,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
       const config = {
         configurable: { thread_id: threadId },
         signal: abortController.signal,
-        streamMode: ["messages", "values"] as const,
+        streamMode: DEFAULT_STREAM_MODES,
         recursionLimit: 1000
       }
 

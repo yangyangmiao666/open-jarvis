@@ -13,7 +13,15 @@ import { spawn } from "node:child_process"
 import { randomUUID } from "node:crypto"
 import * as fs from "node:fs/promises"
 import fsSync from "node:fs"
-import { FilesystemBackend, type ExecuteResponse, type SandboxBackendProtocol } from "deepagents"
+import {
+  FilesystemBackend,
+  type ExecuteResponse,
+  type FileInfo,
+  type GrepMatch,
+  type ReadRawResult,
+  type ReadResult,
+  type SandboxBackendProtocolV2
+} from "deepagents"
 import { decodeTextBuffer } from "../text-encoding"
 
 /** Match deepagents FilesystemBackend formatting (read tool UX). */
@@ -96,7 +104,7 @@ export interface LocalSandboxOptions {
  * console.log('Exit code:', result.exitCode);
  * ```
  */
-export class LocalSandbox extends FilesystemBackend implements SandboxBackendProtocol {
+export class LocalSandbox extends FilesystemBackend implements SandboxBackendProtocolV2 {
   /** Unique identifier for this sandbox instance */
   readonly id: string
 
@@ -127,74 +135,91 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
     return self.resolvePath(filePath)
   }
 
+  private async readTextFile(filePath: string): Promise<{
+    raw: Buffer
+    stat: Awaited<ReturnType<typeof fs.lstat>>
+  }> {
+    const resolvedPath = this.resolvePathSafe(filePath)
+
+    if (SUPPORTS_NOFOLLOW) {
+      const stat = await fs.stat(resolvedPath)
+      if (!stat.isFile()) {
+        throw new Error(`File '${filePath}' not found`)
+      }
+      const fd = await fs.open(resolvedPath, fsSync.constants.O_RDONLY | fsSync.constants.O_NOFOLLOW)
+      try {
+        const raw = await fd.readFile()
+        return { raw, stat }
+      } finally {
+        await fd.close()
+      }
+    }
+
+    const stat = await fs.lstat(resolvedPath)
+    if (stat.isSymbolicLink()) throw new Error(`Symlinks are not allowed: ${filePath}`)
+    if (!stat.isFile()) throw new Error(`File '${filePath}' not found`)
+    const raw = await fs.readFile(resolvedPath)
+    return { raw, stat }
+  }
+
   /**
    * Read file using UTF-8 with GB18030 fallback (matches workspace:readFile).
    */
-  override async read(filePath: string, offset = 0, limit = 500): Promise<string> {
+  override async read(filePath: string, offset = 0, limit = 500): Promise<ReadResult> {
     try {
-      const resolvedPath = this.resolvePathSafe(filePath)
-      let raw: Buffer
-      if (SUPPORTS_NOFOLLOW) {
-        if (!(await fs.stat(resolvedPath)).isFile()) {
-          return `Error: File '${filePath}' not found`
-        }
-        const fd = await fs.open(resolvedPath, fsSync.constants.O_RDONLY | fsSync.constants.O_NOFOLLOW)
-        try {
-          raw = await fd.readFile()
-        } finally {
-          await fd.close()
-        }
-      } else {
-        const stat = await fs.lstat(resolvedPath)
-        if (stat.isSymbolicLink()) return `Error: Symlinks are not allowed: ${filePath}`
-        if (!stat.isFile()) return `Error: File '${filePath}' not found`
-        raw = await fs.readFile(resolvedPath)
-      }
+      const { raw } = await this.readTextFile(filePath)
       const content = decodeTextBuffer(raw)
       const emptyMsg = checkEmptyContent(content)
-      if (emptyMsg) return emptyMsg
+      if (emptyMsg) {
+        return { content: emptyMsg, mimeType: "text/plain" }
+      }
       const lines = content.split("\n")
       const startIdx = offset
       const endIdx = Math.min(startIdx + limit, lines.length)
       if (startIdx >= lines.length) {
-        return `Error: Line offset ${offset} exceeds file length (${lines.length} lines)`
+        return { error: `Line offset ${offset} exceeds file length (${lines.length} lines)` }
       }
-      return formatContentWithLineNumbers(lines.slice(startIdx, endIdx), startIdx + 1)
+      return {
+        content: formatContentWithLineNumbers(lines.slice(startIdx, endIdx), startIdx + 1),
+        mimeType: "text/plain"
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      return `Error reading file '${filePath}': ${msg}`
+      return { error: `Error reading file '${filePath}': ${msg}` }
     }
   }
 
-  override async readRaw(filePath: string): Promise<{
-    content: string[]
-    created_at: string
-    modified_at: string
-  }> {
-    const resolvedPath = this.resolvePathSafe(filePath)
-    let raw: Buffer
-    let stat: Awaited<ReturnType<typeof fs.lstat>>
-    if (SUPPORTS_NOFOLLOW) {
-      stat = await fs.stat(resolvedPath)
-      if (!stat.isFile()) throw new Error(`File '${filePath}' not found`)
-      const fd = await fs.open(resolvedPath, fsSync.constants.O_RDONLY | fsSync.constants.O_NOFOLLOW)
-      try {
-        raw = await fd.readFile()
-      } finally {
-        await fd.close()
+  override async readRaw(filePath: string): Promise<ReadRawResult> {
+    try {
+      const { raw, stat } = await this.readTextFile(filePath)
+      const text = decodeTextBuffer(raw)
+      return {
+        data: {
+          content: text,
+          mimeType: "text/plain",
+          created_at: stat.ctime.toISOString(),
+          modified_at: stat.mtime.toISOString()
+        }
       }
-    } else {
-      stat = await fs.lstat(resolvedPath)
-      if (stat.isSymbolicLink()) throw new Error(`Symlinks are not allowed: ${filePath}`)
-      if (!stat.isFile()) throw new Error(`File '${filePath}' not found`)
-      raw = await fs.readFile(resolvedPath)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return { error: `Error reading file '${filePath}': ${msg}` }
     }
-    const text = decodeTextBuffer(raw)
-    return {
-      content: text.split("\n"),
-      created_at: stat.ctime.toISOString(),
-      modified_at: stat.mtime.toISOString()
-    }
+  }
+
+  async lsInfo(dirPath: string): Promise<FileInfo[]> {
+    const result = await this.ls(dirPath)
+    return result.files ?? []
+  }
+
+  async grepRaw(pattern: string, dirPath?: string | null, glob?: string | null): Promise<GrepMatch[] | string> {
+    const result = await this.grep(pattern, dirPath ?? undefined, glob)
+    return result.error ?? result.matches ?? []
+  }
+
+  async globInfo(pattern: string, searchPath = "/"): Promise<FileInfo[]> {
+    const result = await this.glob(pattern, searchPath)
+    return result.files ?? []
   }
 
   /**

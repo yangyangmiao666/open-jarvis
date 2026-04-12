@@ -41,7 +41,7 @@ export function ChatTodos({ todos }: ChatTodosProps): React.JSX.Element | null {
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
         <ListTodo className="size-4 text-status-info" />
-        <span className="text-xs font-medium">Agent Tasks</span>
+        <span className="text-xs font-medium">Jarvis的任务</span>
         <span className="ml-auto text-xs text-muted-foreground">
           {completedCount}/{totalCount}
         </span>
@@ -73,7 +73,8 @@ export function ChatTodos({ todos }: ChatTodosProps): React.JSX.Element | null {
       {/* Completed summary (collapsed) */}
       {completedCount > 0 && activeTodos.length > 0 && (
         <div className="px-3 py-1.5 text-xs text-muted-foreground border-t border-border bg-background">
-          {completedCount} task{completedCount !== 1 ? "s" : ""} completed
+          {/*{completedCount} task{completedCount !== 1 ? "s" : ""} completed*/}
+          {completedCount} 个任务已完成
         </div>
       )}
     </div>

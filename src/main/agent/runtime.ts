@@ -4,7 +4,7 @@ import { getDefaultModel } from "../ipc/models"
 import { getOpenAICompatibleProfileByModelId } from "../openai-compatible-profiles"
 import { getApiKey, getThreadCheckpointPath } from "../storage"
 import { ChatAnthropic } from "@langchain/anthropic"
-import { ChatOpenAI } from "@langchain/openai"
+import { ChatOpenAI, ChatOpenAICompletions } from "@langchain/openai"
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai"
 import { SqlJsSaver } from "../checkpointer/sqljs-saver"
 import { LocalSandbox } from "./local-sandbox"
@@ -40,6 +40,74 @@ function getSystemPrompt(workspacePath: string): string {
 
 // Per-thread checkpointer cache
 const checkpointers = new Map<string, SqlJsSaver>()
+
+function stringifyOpenAICompatibleContentPart(part: unknown): string {
+  if (typeof part === "string") return part
+  if (part == null) return ""
+  if (typeof part !== "object") return String(part)
+
+  const record = part as Record<string, unknown>
+  if (typeof record.text === "string") return record.text
+  if (typeof record.input_text === "string") return record.input_text
+  if (typeof record.output_text === "string") return record.output_text
+  if (typeof record.refusal === "string") return record.refusal
+  if (typeof record.content === "string") return record.content
+
+  const type = typeof record.type === "string" ? record.type : ""
+  if (type.includes("image")) return "[image omitted]"
+  if (type.includes("audio")) return "[audio omitted]"
+  if (type.includes("file")) return "[file omitted]"
+
+  try {
+    return JSON.stringify(part)
+  } catch {
+    return String(part)
+  }
+}
+
+function normalizeOpenAICompatibleMessages(request: unknown): { request: unknown; normalizedCount: number } {
+  if (!request || typeof request !== "object") return { request, normalizedCount: 0 }
+  const messages = (request as { messages?: unknown }).messages
+  if (!Array.isArray(messages)) return { request, normalizedCount: 0 }
+
+  let normalizedCount = 0
+  const normalizedMessages = messages.map((message) => {
+    if (!message || typeof message !== "object") return message
+    const content = (message as { content?: unknown }).content
+    if (!Array.isArray(content)) return message
+    normalizedCount += 1
+
+    return {
+      ...message,
+      content: content
+        .map(stringifyOpenAICompatibleContentPart)
+        .filter((value) => value.length > 0)
+        .join("\n")
+    }
+  })
+
+  return {
+    request: {
+      ...(request as Record<string, unknown>),
+      messages: normalizedMessages
+    },
+    normalizedCount
+  }
+}
+
+class OpenAICompatibleChatCompletions extends ChatOpenAICompletions {
+  override async completionWithRetry(request: any, requestOptions?: any) {
+    const { request: normalizedRequest, normalizedCount } = normalizeOpenAICompatibleMessages(request)
+    if (normalizedCount > 0) {
+      console.log(`[Runtime] Normalized ${normalizedCount} array-format message(s) for OpenAI-compatible API`)
+    }
+    return (ChatOpenAICompletions.prototype.completionWithRetry as any).call(
+      this,
+      normalizedRequest as any,
+      requestOptions
+    )
+  }
+}
 
 export async function getCheckpointer(threadId: string): Promise<SqlJsSaver> {
   let checkpointer = checkpointers.get(threadId)
@@ -117,7 +185,13 @@ function getModelInstance(
     return new ChatOpenAI({
       model: profile.model,
       apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
-      configuration: { baseURL }
+      configuration: { baseURL },
+      useResponsesApi: false,
+      completions: new OpenAICompatibleChatCompletions({
+        model: profile.model,
+        apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
+        configuration: { baseURL }
+      })
     })
   }
 

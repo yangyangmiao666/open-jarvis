@@ -507,8 +507,8 @@ function TaskItem({ todo }: { todo: Todo }): React.JSX.Element {
         isDone && "opacity-50"
       )}
     >
-      <Icon className={cn("size-4 shrink-0 mt-0.5", config.color)} />
-      <span className={cn("flex-1 text-sm", isDone && "line-through")}>{todo.content}</span>
+      <Icon className={cn("size-3.5 shrink-0 mt-0.5", config.color)} />
+      <span className={cn("flex-1 text-xs leading-snug", isDone && "line-through")}>{todo.content}</span>
       <Badge variant={config.badge} className="shrink-0 text-[10px]">
         {config.label}
       </Badge>
