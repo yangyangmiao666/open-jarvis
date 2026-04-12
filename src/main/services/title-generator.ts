@@ -11,41 +11,41 @@
  */
 export function generateTitle(message: string): string {
   // Clean up the message
-  const cleaned = message.trim().replace(/\s+/g, " ")
+  const cleaned = message.trim().replace(/\s+/g, " ");
 
   // If already short enough, use as-is
   if (cleaned.length <= 50) {
-    return cleaned
+    return cleaned;
   }
 
   // Try to extract first sentence/question
-  const sentenceMatch = cleaned.match(/^[^.!?]+[.!?]/)
+  const sentenceMatch = cleaned.match(/^[^.!?]+[.!?]/);
   if (sentenceMatch && sentenceMatch[0].length <= 60) {
-    return sentenceMatch[0].trim()
+    return sentenceMatch[0].trim();
   }
 
   // Extract first N words
-  const words = cleaned.split(/\s+/)
-  let title = ""
+  const words = cleaned.split(/\s+/);
+  let title = "";
 
   for (const word of words) {
     if ((title + " " + word).length > 47) {
-      break
+      break;
     }
-    title = title ? title + " " + word : word
+    title = title ? title + " " + word : word;
   }
 
   // Add ellipsis if we truncated
   if (words.join(" ").length > title.length) {
-    title += "..."
+    title += "...";
   }
 
-  return title
+  return title;
 }
 
 /**
  * Check if the title generator is ready (always true for heuristic approach)
  */
 export function isModelReady(): boolean {
-  return true
+  return true;
 }

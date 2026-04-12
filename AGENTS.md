@@ -11,26 +11,26 @@
 
 ## 目录地图
 
-| 路径 | 职责 |
-|------|------|
-| `src/main/index.ts` | 创建窗口、注册全部 IPC、`initializeDatabase` |
-| `src/main/agent/runtime.ts` | 模型实例、system prompt、组装 DeepAgent |
-| `src/main/agent/local-sandbox.ts` | 继承 deepagents 沙箱：**覆盖 `read`/`readRaw`**，用 `fs` + `decodeTextBuffer` 读文件，与 UI 侧 `workspace:readFile` 编码策略一致 |
-| `src/main/text-encoding.ts` | `decodeTextBuffer`：UTF-8，含替换符时回退 GB18030 |
-| `src/main/ipc/agent.ts` | 流式调用、取消、人机审批 resume |
-| `src/main/ipc/threads.ts` | 会话 CRUD、历史、标题生成 |
-| `src/main/ipc/models.ts` | 模型列表、密钥、**workspace:get/set/select、loadFromDisk、readFile** 等 |
-| `src/main/ipc/skills.ts` | Skills 路径、创建/读/写/重命名/删除（`.deepagents/skills`） |
-| `src/preload/index.ts` | 暴露 `window.api`；改 IPC 必须同步 **index.d.ts** |
-| `src/renderer/src/App.tsx` | 顶层布局：左侧会话栏与中间区同列起点（相对 macOS 标题栏/标签行对齐）、可拖拽分栏宽度 |
-| `src/renderer/src/lib/store.ts` | 全局：线程列表、**`createThread`（可从当前会话继承 model/workspacePath metadata）**、主题、看板开关等 |
-| `src/renderer/src/lib/thread-context.tsx` | 每线程：消息草稿、工作区文件、流、pendingApproval、todos、`currentModel` 与 metadata 同步 |
-| `src/renderer/src/lib/shiki-highlighter.ts` | Shiki 按需语言包与扩展名 → 语言 id（预览与工具代码块共用） |
-| `src/renderer/src/lib/file-types.ts` | 按扩展名区分图片/音视频/PDF/**代码与文本**（决定走二进制还是 `CodeViewer`） |
-| `src/renderer/src/lib/chat-markdown.ts` | 单条 / 整会话导出 Markdown |
-| `src/renderer/src/lib/workspace-file-tree.ts` | 工作区文件列表建树（与右侧面板共用） |
-| `src/renderer/src/components/tabs/CodeViewer.tsx` | 代码预览（Shiki）；**CSV/TSV** 走纯文本截断预览，避免大文件卡顿 |
-| `src/renderer/src/components/tabs/PDFViewer.tsx` | PDF 内嵌预览布局（中间栏撑满） |
+| 路径                                              | 职责                                                                                                                             |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main/index.ts`                               | 创建窗口、注册全部 IPC、`initializeDatabase`                                                                                     |
+| `src/main/agent/runtime.ts`                       | 模型实例、system prompt、组装 DeepAgent                                                                                          |
+| `src/main/agent/local-sandbox.ts`                 | 继承 deepagents 沙箱：**覆盖 `read`/`readRaw`**，用 `fs` + `decodeTextBuffer` 读文件，与 UI 侧 `workspace:readFile` 编码策略一致 |
+| `src/main/text-encoding.ts`                       | `decodeTextBuffer`：UTF-8，含替换符时回退 GB18030                                                                                |
+| `src/main/ipc/agent.ts`                           | 流式调用、取消、人机审批 resume                                                                                                  |
+| `src/main/ipc/threads.ts`                         | 会话 CRUD、历史、标题生成                                                                                                        |
+| `src/main/ipc/models.ts`                          | 模型列表、密钥、**workspace:get/set/select、loadFromDisk、readFile** 等                                                          |
+| `src/main/ipc/skills.ts`                          | Skills 路径、创建/读/写/重命名/删除（`.deepagents/skills`）                                                                      |
+| `src/preload/index.ts`                            | 暴露 `window.api`；改 IPC 必须同步 **index.d.ts**                                                                                |
+| `src/renderer/src/App.tsx`                        | 顶层布局：左侧会话栏与中间区同列起点（相对 macOS 标题栏/标签行对齐）、可拖拽分栏宽度                                             |
+| `src/renderer/src/lib/store.ts`                   | 全局：线程列表、**`createThread`（可从当前会话继承 model/workspacePath metadata）**、主题、看板开关等                            |
+| `src/renderer/src/lib/thread-context.tsx`         | 每线程：消息草稿、工作区文件、流、pendingApproval、todos、`currentModel` 与 metadata 同步                                        |
+| `src/renderer/src/lib/shiki-highlighter.ts`       | Shiki 按需语言包与扩展名 → 语言 id（预览与工具代码块共用）                                                                       |
+| `src/renderer/src/lib/file-types.ts`              | 按扩展名区分图片/音视频/PDF/**代码与文本**（决定走二进制还是 `CodeViewer`）                                                      |
+| `src/renderer/src/lib/chat-markdown.ts`           | 单条 / 整会话导出 Markdown                                                                                                       |
+| `src/renderer/src/lib/workspace-file-tree.ts`     | 工作区文件列表建树（与右侧面板共用）                                                                                             |
+| `src/renderer/src/components/tabs/CodeViewer.tsx` | 代码预览（Shiki）；**CSV/TSV** 走纯文本截断预览，避免大文件卡顿                                                                  |
+| `src/renderer/src/components/tabs/PDFViewer.tsx`  | PDF 内嵌预览布局（中间栏撑满）                                                                                                   |
 
 ## 修改功能时的入口
 

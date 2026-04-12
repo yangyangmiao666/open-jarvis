@@ -9,11 +9,11 @@
  * handled via HITL configuration.
  */
 
-import { spawn } from "node:child_process"
-import { randomUUID } from "node:crypto"
-import * as fs from "node:fs/promises"
-import fsSync from "node:fs"
-import path from "node:path"
+import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import * as fs from "node:fs/promises";
+import fsSync from "node:fs";
+import path from "node:path";
 import {
   FilesystemBackend,
   type ExecuteResponse,
@@ -21,16 +21,17 @@ import {
   type GrepMatch,
   type ReadRawResult,
   type ReadResult,
-  type SandboxBackendProtocolV2
-} from "deepagents"
-import { decodeTextBuffer } from "../text-encoding"
+  type SandboxBackendProtocolV2,
+} from "deepagents";
+import { decodeTextBuffer } from "../text-encoding";
 
 /** Match deepagents FilesystemBackend formatting (read tool UX). */
-const EMPTY_CONTENT_WARNING = "System reminder: File exists but has empty contents"
-const MAX_LINE_LENGTH = 10_000
-const LINE_NUMBER_WIDTH = 6
-const SUPPORTS_NOFOLLOW = fsSync.constants.O_NOFOLLOW !== undefined
-const TEXTUTIL_PATH = "/usr/bin/textutil"
+const EMPTY_CONTENT_WARNING =
+  "System reminder: File exists but has empty contents";
+const MAX_LINE_LENGTH = 10_000;
+const LINE_NUMBER_WIDTH = 6;
+const SUPPORTS_NOFOLLOW = fsSync.constants.O_NOFOLLOW !== undefined;
+const TEXTUTIL_PATH = "/usr/bin/textutil";
 
 const BINARY_MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
@@ -63,19 +64,21 @@ const BINARY_MIME_TYPES: Record<string, string> = {
   ".3gpp": "video/3gpp",
   ".pdf": "application/pdf",
   ".doc": "application/msword",
-  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".docx":
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".odt": "application/vnd.oasis.opendocument.text",
   ".rtf": "application/rtf",
   ".ppt": "application/vnd.ms-powerpoint",
-  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".pptx":
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   ".xls": "application/vnd.ms-excel",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ".zip": "application/zip",
   ".7z": "application/x-7z-compressed",
   ".rar": "application/vnd.rar",
   ".tar": "application/x-tar",
-  ".gz": "application/gzip"
-}
+  ".gz": "application/gzip",
+};
 
 const TEXT_MIME_TYPES: Record<string, string> = {
   ".txt": "text/plain",
@@ -124,10 +127,15 @@ const TEXT_MIME_TYPES: Record<string, string> = {
   ".bash": "text/plain",
   ".zsh": "text/plain",
   ".fish": "text/plain",
-  ".svg": "image/svg+xml"
-}
+  ".svg": "image/svg+xml",
+};
 
-const TEXTUTIL_SUPPORTED_EXTENSIONS = new Set([".doc", ".docx", ".odt", ".rtf"])
+const TEXTUTIL_SUPPORTED_EXTENSIONS = new Set([
+  ".doc",
+  ".docx",
+  ".odt",
+  ".rtf",
+]);
 const SPECIAL_TEXT_FILENAMES = new Set([
   "dockerfile",
   "makefile",
@@ -135,57 +143,69 @@ const SPECIAL_TEXT_FILENAMES = new Set([
   ".editorconfig",
   ".npmrc",
   ".yarnrc",
-  ".env"
-])
+  ".env",
+]);
 const PYTHON_COMMAND_PATTERN =
-  /(^|[\s(;|&])(?:python|python3|pip|pip3|pytest|py\.test|uv)(?=$|[\s);|&])/
+  /(^|[\s(;|&])(?:python|python3|pip|pip3|pytest|py\.test|uv)(?=$|[\s);|&])/;
 const JS_COMMAND_PATTERN =
-  /(^|[\s(;|&])(?:bun|node|npm|npx|pnpm|yarn|tsx|ts-node|tsc|vite|vitest|jest|eslint|prettier|webpack|rollup|parcel|next|nuxt)(?=$|[\s);|&])/
+  /(^|[\s(;|&])(?:bun|node|npm|npx|pnpm|yarn|tsx|ts-node|tsc|vite|vitest|jest|eslint|prettier|webpack|rollup|parcel|next|nuxt)(?=$|[\s);|&])/;
 
 function checkEmptyContent(content: string): string | null {
-  if (!content || content.trim() === "") return EMPTY_CONTENT_WARNING
-  return null
+  if (!content || content.trim() === "") return EMPTY_CONTENT_WARNING;
+  return null;
 }
 
-function formatContentWithLineNumbers(content: string | string[], startLine = 1): string {
-  let lines: string[]
+function formatContentWithLineNumbers(
+  content: string | string[],
+  startLine = 1,
+): string {
+  let lines: string[];
   if (typeof content === "string") {
-    lines = content.split("\n")
-    if (lines.length > 0 && lines[lines.length - 1] === "") lines = lines.slice(0, -1)
+    lines = content.split("\n");
+    if (lines.length > 0 && lines[lines.length - 1] === "")
+      lines = lines.slice(0, -1);
   } else {
-    lines = content
+    lines = content;
   }
-  const resultLines: string[] = []
+  const resultLines: string[] = [];
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    const lineNum = i + startLine
+    const line = lines[i];
+    const lineNum = i + startLine;
     if (line.length <= MAX_LINE_LENGTH) {
-      resultLines.push(`${lineNum.toString().padStart(LINE_NUMBER_WIDTH)}\t${line}`)
+      resultLines.push(
+        `${lineNum.toString().padStart(LINE_NUMBER_WIDTH)}\t${line}`,
+      );
     } else {
-      const numChunks = Math.ceil(line.length / MAX_LINE_LENGTH)
+      const numChunks = Math.ceil(line.length / MAX_LINE_LENGTH);
       for (let chunkIdx = 0; chunkIdx < numChunks; chunkIdx++) {
-        const start = chunkIdx * MAX_LINE_LENGTH
-        const end = Math.min(start + MAX_LINE_LENGTH, line.length)
-        const chunk = line.substring(start, end)
+        const start = chunkIdx * MAX_LINE_LENGTH;
+        const end = Math.min(start + MAX_LINE_LENGTH, line.length);
+        const chunk = line.substring(start, end);
         if (chunkIdx === 0) {
-          resultLines.push(`${lineNum.toString().padStart(LINE_NUMBER_WIDTH)}\t${chunk}`)
+          resultLines.push(
+            `${lineNum.toString().padStart(LINE_NUMBER_WIDTH)}\t${chunk}`,
+          );
         } else {
-          const continuationMarker = `${lineNum}.${chunkIdx}`
-          resultLines.push(`${continuationMarker.padStart(LINE_NUMBER_WIDTH)}\t${chunk}`)
+          const continuationMarker = `${lineNum}.${chunkIdx}`;
+          resultLines.push(
+            `${continuationMarker.padStart(LINE_NUMBER_WIDTH)}\t${chunk}`,
+          );
         }
       }
     }
   }
-  return resultLines.join("\n")
+  return resultLines.join("\n");
 }
 
 function getMimeType(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase()
-  const base = path.basename(filePath).toLowerCase()
+  const ext = path.extname(filePath).toLowerCase();
+  const base = path.basename(filePath).toLowerCase();
   if (!ext || SPECIAL_TEXT_FILENAMES.has(base)) {
-    return "text/plain"
+    return "text/plain";
   }
-  return BINARY_MIME_TYPES[ext] ?? TEXT_MIME_TYPES[ext] ?? "application/octet-stream"
+  return (
+    BINARY_MIME_TYPES[ext] ?? TEXT_MIME_TYPES[ext] ?? "application/octet-stream"
+  );
 }
 
 function isTextMimeType(mimeType: string): boolean {
@@ -196,19 +216,21 @@ function isTextMimeType(mimeType: string): boolean {
     mimeType === "application/xml" ||
     mimeType === "text/yaml" ||
     mimeType === "image/svg+xml"
-  )
+  );
 }
 
 function supportsTextExtraction(filePath: string): boolean {
-  return TEXTUTIL_SUPPORTED_EXTENSIONS.has(path.extname(filePath).toLowerCase())
+  return TEXTUTIL_SUPPORTED_EXTENSIONS.has(
+    path.extname(filePath).toLowerCase(),
+  );
 }
 
 function needsPythonWorkspaceRuntime(command: string): boolean {
-  return PYTHON_COMMAND_PATTERN.test(command)
+  return PYTHON_COMMAND_PATTERN.test(command);
 }
 
 function needsJavaScriptWorkspaceRuntime(command: string): boolean {
-  return JS_COMMAND_PATTERN.test(command)
+  return JS_COMMAND_PATTERN.test(command);
 }
 
 /**
@@ -216,17 +238,17 @@ function needsJavaScriptWorkspaceRuntime(command: string): boolean {
  */
 export interface LocalSandboxOptions {
   /** Root directory for file operations and command execution (default: process.cwd()) */
-  rootDir?: string
+  rootDir?: string;
   /** Enable virtual path mode where "/" maps to rootDir (default: false) */
-  virtualMode?: boolean
+  virtualMode?: boolean;
   /** Maximum file size in MB for file operations (default: 10) */
-  maxFileSizeMb?: number
+  maxFileSizeMb?: number;
   /** Command timeout in milliseconds (default: 120000 = 2 minutes) */
-  timeout?: number
+  timeout?: number;
   /** Maximum output bytes before truncation (default: 100000 = ~100KB) */
-  maxOutputBytes?: number
+  maxOutputBytes?: number;
   /** Environment variables to pass to commands (default: process.env) */
-  env?: Record<string, string>
+  env?: Record<string, string>;
 }
 
 /**
@@ -248,45 +270,46 @@ export interface LocalSandboxOptions {
  * console.log('Exit code:', result.exitCode);
  * ```
  */
-export class LocalSandbox extends FilesystemBackend implements SandboxBackendProtocolV2 {
+export class LocalSandbox
+  extends FilesystemBackend
+  implements SandboxBackendProtocolV2
+{
   /** Unique identifier for this sandbox instance */
-  readonly id: string
+  readonly id: string;
 
-  private readonly timeout: number
-  private readonly maxOutputBytes: number
-  private readonly env: Record<string, string>
-  private readonly workingDir: string
+  private readonly timeout: number;
+  private readonly maxOutputBytes: number;
+  private readonly env: Record<string, string>;
+  private readonly workingDir: string;
 
   constructor(options: LocalSandboxOptions = {}) {
     super({
       rootDir: options.rootDir,
       virtualMode: options.virtualMode,
-      maxFileSizeMb: options.maxFileSizeMb
-    })
+      maxFileSizeMb: options.maxFileSizeMb,
+    });
 
-    this.id = `local-sandbox-${randomUUID().slice(0, 8)}`
-    this.timeout = options.timeout ?? 120_000 // 2 minutes default
-    this.maxOutputBytes = options.maxOutputBytes ?? 100_000 // ~100KB default
-    this.env = options.env ?? ({ ...process.env } as Record<string, string>)
-    this.workingDir = options.rootDir ?? process.cwd()
+    this.id = `local-sandbox-${randomUUID().slice(0, 8)}`;
+    this.timeout = options.timeout ?? 120_000; // 2 minutes default
+    this.maxOutputBytes = options.maxOutputBytes ?? 100_000; // ~100KB default
+    this.env = options.env ?? ({ ...process.env } as Record<string, string>);
+    this.workingDir = options.rootDir ?? process.cwd();
   }
 
   /**
    * Resolve path like deepagents FilesystemBackend (private in typings; exists at runtime).
    */
   private resolvePathSafe(filePath: string): string {
-    const self = this as unknown as { resolvePath: (k: string) => string }
-    return self.resolvePath(filePath)
+    const self = this as unknown as { resolvePath: (k: string) => string };
+    return self.resolvePath(filePath);
   }
 
   private buildWorkspaceRuntimeCommand(command: string): string {
-    const prelude: string[] = [
-      'export PATH="$PWD/node_modules/.bin:$PATH"'
-    ]
+    const prelude: string[] = ['export PATH="$PWD/node_modules/.bin:$PATH"'];
 
     if (needsPythonWorkspaceRuntime(command)) {
       prelude.push(
-        'if ! command -v uv >/dev/null 2>&1; then',
+        "if ! command -v uv >/dev/null 2>&1; then",
         "  printf '%s\\n' 'Error: uv is required for Python commands so Jarvis can use a workspace-local .venv. Install uv on this machine, then retry.' >&2",
         "  printf '%s\\n' 'Suggested macOS command: brew install uv' >&2",
         "  exit 127",
@@ -295,186 +318,213 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
         '  uv venv "$PWD/.venv" >/dev/null',
         "fi",
         'export VIRTUAL_ENV="$PWD/.venv"',
-        'export PATH="$VIRTUAL_ENV/bin:$PATH"'
-      )
+        'export PATH="$VIRTUAL_ENV/bin:$PATH"',
+      );
     }
 
     if (needsJavaScriptWorkspaceRuntime(command)) {
       prelude.push(
-        'if ! command -v bun >/dev/null 2>&1; then',
+        "if ! command -v bun >/dev/null 2>&1; then",
         "  printf '%s\\n' 'Error: bun is required for JS/TS commands so Jarvis can use workspace-local tooling. Install bun on this machine, then retry.' >&2",
         "  printf '%s\\n' 'Suggested macOS command: brew install bun' >&2",
         "  exit 127",
         "fi",
-        'npm() {',
+        "npm() {",
         '  case "${1-}" in',
         '    install|i) shift; bun install "$@" ;;',
         '    ci) shift; bun install --frozen-lockfile "$@" ;;',
         '    run) shift; bun run "$@" ;;',
         '    test|start|dev|build|lint) cmd="$1"; shift; bun run "$cmd" "$@" ;;',
         '    exec) shift; bun x "$@" ;;',
-        '    *) printf \'%s\\n\' \'Error: npm is redirected to bun in this workspace. Use a bun-compatible command.\' >&2; return 127 ;;',
-        '  esac',
-        '}',
+        "    *) printf '%s\\n' 'Error: npm is redirected to bun in this workspace. Use a bun-compatible command.' >&2; return 127 ;;",
+        "  esac",
+        "}",
         'npx() { bun x "$@"; }',
-        'pnpm() {',
+        "pnpm() {",
         '  case "${1-}" in',
         '    install|i) shift; bun install "$@" ;;',
         '    run) shift; bun run "$@" ;;',
         '    test|start|dev|build|lint) cmd="$1"; shift; bun run "$cmd" "$@" ;;',
         '    exec|dlx) shift; bun x "$@" ;;',
-        '    *) printf \'%s\\n\' \'Error: pnpm is redirected to bun in this workspace. Use a bun-compatible command.\' >&2; return 127 ;;',
-        '  esac',
-        '}',
-        'yarn() {',
+        "    *) printf '%s\\n' 'Error: pnpm is redirected to bun in this workspace. Use a bun-compatible command.' >&2; return 127 ;;",
+        "  esac",
+        "}",
+        "yarn() {",
         '  case "${1-}" in',
         '    install) shift; bun install "$@" ;;',
         '    run) shift; bun run "$@" ;;',
         '    test|start|dev|build|lint) cmd="$1"; shift; bun run "$cmd" "$@" ;;',
         '    dlx) shift; bun x "$@" ;;',
-        '    *) printf \'%s\\n\' \'Error: yarn is redirected to bun in this workspace. Use a bun-compatible command.\' >&2; return 127 ;;',
-        '  esac',
-        '}',
-        'node() {',
+        "    *) printf '%s\\n' 'Error: yarn is redirected to bun in this workspace. Use a bun-compatible command.' >&2; return 127 ;;",
+        "  esac",
+        "}",
+        "node() {",
         '  if [ "${1-}" = "-e" ] || [ "${1-}" = "--eval" ]; then',
-        '    shift',
+        "    shift",
         '    bun -e "$@"',
-        '  else',
+        "  else",
         '    bun "$@"',
-        '  fi',
-        '}',
+        "  fi",
+        "}",
         'tsx() { bun "$@"; }',
-        'ts-node() { bun "$@"; }'
-      )
+        'ts-node() { bun "$@"; }',
+      );
     }
 
-    prelude.push(command)
-    return prelude.join("\n")
+    prelude.push(command);
+    return prelude.join("\n");
   }
 
   private async extractTextWithTextutil(resolvedPath: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      const proc = spawn(TEXTUTIL_PATH, ["-stdout", "-convert", "txt", "--", resolvedPath], {
-        stdio: ["ignore", "pipe", "pipe"]
-      })
+      const proc = spawn(
+        TEXTUTIL_PATH,
+        ["-stdout", "-convert", "txt", "--", resolvedPath],
+        {
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
 
-      const stdout: Buffer[] = []
-      const stderr: Buffer[] = []
+      const stdout: Buffer[] = [];
+      const stderr: Buffer[] = [];
 
-      proc.stdout.on("data", (chunk: Buffer) => stdout.push(chunk))
-      proc.stderr.on("data", (chunk: Buffer) => stderr.push(chunk))
-      proc.on("error", reject)
+      proc.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+      proc.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
+      proc.on("error", reject);
       proc.on("close", (code) => {
         if (code !== 0) {
-          reject(new Error(Buffer.concat(stderr).toString("utf8") || `textutil exited with code ${code}`))
-          return
+          reject(
+            new Error(
+              Buffer.concat(stderr).toString("utf8") ||
+                `textutil exited with code ${code}`,
+            ),
+          );
+          return;
         }
-        resolve(decodeTextBuffer(Buffer.concat(stdout)))
-      })
-    })
+        resolve(decodeTextBuffer(Buffer.concat(stdout)));
+      });
+    });
   }
 
   private async readTextFile(filePath: string): Promise<{
-    raw: Buffer
-    stat: Awaited<ReturnType<typeof fs.lstat>>
+    raw: Buffer;
+    stat: Awaited<ReturnType<typeof fs.lstat>>;
   }> {
-    const resolvedPath = this.resolvePathSafe(filePath)
+    const resolvedPath = this.resolvePathSafe(filePath);
 
     if (SUPPORTS_NOFOLLOW) {
-      const stat = await fs.stat(resolvedPath)
+      const stat = await fs.stat(resolvedPath);
       if (!stat.isFile()) {
-        throw new Error(`File '${filePath}' not found`)
+        throw new Error(`File '${filePath}' not found`);
       }
-      const fd = await fs.open(resolvedPath, fsSync.constants.O_RDONLY | fsSync.constants.O_NOFOLLOW)
+      const fd = await fs.open(
+        resolvedPath,
+        fsSync.constants.O_RDONLY | fsSync.constants.O_NOFOLLOW,
+      );
       try {
-        const raw = await fd.readFile()
-        return { raw, stat }
+        const raw = await fd.readFile();
+        return { raw, stat };
       } finally {
-        await fd.close()
+        await fd.close();
       }
     }
 
-    const stat = await fs.lstat(resolvedPath)
-    if (stat.isSymbolicLink()) throw new Error(`Symlinks are not allowed: ${filePath}`)
-    if (!stat.isFile()) throw new Error(`File '${filePath}' not found`)
-    const raw = await fs.readFile(resolvedPath)
-    return { raw, stat }
+    const stat = await fs.lstat(resolvedPath);
+    if (stat.isSymbolicLink())
+      throw new Error(`Symlinks are not allowed: ${filePath}`);
+    if (!stat.isFile()) throw new Error(`File '${filePath}' not found`);
+    const raw = await fs.readFile(resolvedPath);
+    return { raw, stat };
   }
 
   /**
    * Read file using UTF-8 with GB18030 fallback (matches workspace:readFile).
    */
-  override async read(filePath: string, offset = 0, limit = 500): Promise<ReadResult> {
+  override async read(
+    filePath: string,
+    offset = 0,
+    limit = 500,
+  ): Promise<ReadResult> {
     try {
-      const { raw, stat } = await this.readTextFile(filePath)
-      const mimeType = getMimeType(filePath)
+      const { raw, stat } = await this.readTextFile(filePath);
+      const mimeType = getMimeType(filePath);
 
       if (!isTextMimeType(mimeType)) {
         if (supportsTextExtraction(filePath)) {
-          const resolvedPath = this.resolvePathSafe(filePath)
-          const content = await this.extractTextWithTextutil(resolvedPath)
-          const emptyMsg = checkEmptyContent(content)
-          if (emptyMsg) return { content: emptyMsg, mimeType: "text/plain" }
-          const lines = content.split("\n")
-          const startIdx = offset
-          const endIdx = Math.min(startIdx + limit, lines.length)
+          const resolvedPath = this.resolvePathSafe(filePath);
+          const content = await this.extractTextWithTextutil(resolvedPath);
+          const emptyMsg = checkEmptyContent(content);
+          if (emptyMsg) return { content: emptyMsg, mimeType: "text/plain" };
+          const lines = content.split("\n");
+          const startIdx = offset;
+          const endIdx = Math.min(startIdx + limit, lines.length);
           if (startIdx >= lines.length) {
-            return { error: `Line offset ${offset} exceeds file length (${lines.length} lines)` }
+            return {
+              error: `Line offset ${offset} exceeds file length (${lines.length} lines)`,
+            };
           }
           return {
-            content: formatContentWithLineNumbers(lines.slice(startIdx, endIdx), startIdx + 1),
-            mimeType: "text/plain"
-          }
+            content: formatContentWithLineNumbers(
+              lines.slice(startIdx, endIdx),
+              startIdx + 1,
+            ),
+            mimeType: "text/plain",
+          };
         }
 
         return {
           content: new Uint8Array(raw),
-          mimeType
-        }
+          mimeType,
+        };
       }
 
       if (!stat.isFile()) {
-        return { error: `File '${filePath}' not found` }
+        return { error: `File '${filePath}' not found` };
       }
 
-      const content = decodeTextBuffer(raw)
-      const emptyMsg = checkEmptyContent(content)
+      const content = decodeTextBuffer(raw);
+      const emptyMsg = checkEmptyContent(content);
       if (emptyMsg) {
-        return { content: emptyMsg, mimeType }
+        return { content: emptyMsg, mimeType };
       }
-      const lines = content.split("\n")
-      const startIdx = offset
-      const endIdx = Math.min(startIdx + limit, lines.length)
+      const lines = content.split("\n");
+      const startIdx = offset;
+      const endIdx = Math.min(startIdx + limit, lines.length);
       if (startIdx >= lines.length) {
-        return { error: `Line offset ${offset} exceeds file length (${lines.length} lines)` }
+        return {
+          error: `Line offset ${offset} exceeds file length (${lines.length} lines)`,
+        };
       }
       return {
-        content: formatContentWithLineNumbers(lines.slice(startIdx, endIdx), startIdx + 1),
-        mimeType
-      }
+        content: formatContentWithLineNumbers(
+          lines.slice(startIdx, endIdx),
+          startIdx + 1,
+        ),
+        mimeType,
+      };
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      return { error: `Error reading file '${filePath}': ${msg}` }
+      const msg = e instanceof Error ? e.message : String(e);
+      return { error: `Error reading file '${filePath}': ${msg}` };
     }
   }
 
   override async readRaw(filePath: string): Promise<ReadRawResult> {
     try {
-      const { raw, stat } = await this.readTextFile(filePath)
-      const mimeType = getMimeType(filePath)
+      const { raw, stat } = await this.readTextFile(filePath);
+      const mimeType = getMimeType(filePath);
 
       if (!isTextMimeType(mimeType)) {
         if (supportsTextExtraction(filePath)) {
-          const resolvedPath = this.resolvePathSafe(filePath)
-          const text = await this.extractTextWithTextutil(resolvedPath)
+          const resolvedPath = this.resolvePathSafe(filePath);
+          const text = await this.extractTextWithTextutil(resolvedPath);
           return {
             data: {
               content: text,
               mimeType: "text/plain",
               created_at: stat.ctime.toISOString(),
-              modified_at: stat.mtime.toISOString()
-            }
-          }
+              modified_at: stat.mtime.toISOString(),
+            },
+          };
         }
 
         return {
@@ -482,39 +532,43 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
             content: new Uint8Array(raw),
             mimeType,
             created_at: stat.ctime.toISOString(),
-            modified_at: stat.mtime.toISOString()
-          }
-        }
+            modified_at: stat.mtime.toISOString(),
+          },
+        };
       }
 
-      const text = decodeTextBuffer(raw)
+      const text = decodeTextBuffer(raw);
       return {
         data: {
           content: text,
           mimeType,
           created_at: stat.ctime.toISOString(),
-          modified_at: stat.mtime.toISOString()
-        }
-      }
+          modified_at: stat.mtime.toISOString(),
+        },
+      };
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      return { error: `Error reading file '${filePath}': ${msg}` }
+      const msg = e instanceof Error ? e.message : String(e);
+      return { error: `Error reading file '${filePath}': ${msg}` };
     }
   }
 
   async lsInfo(dirPath: string): Promise<FileInfo[]> {
-    const result = await this.ls(dirPath)
-    return result.files ?? []
+    const result = await this.ls(dirPath);
+    return result.files ?? [];
   }
 
-  async grepRaw(pattern: string, dirPath?: string | null, glob?: string | null): Promise<GrepMatch[] | string> {
-    const result = await this.grep(pattern, dirPath ?? undefined, glob)
-    return result.error ?? result.matches ?? []
+  async grepRaw(
+    pattern: string,
+    dirPath?: string | null,
+    glob?: string | null,
+  ): Promise<GrepMatch[] | string> {
+    const result = await this.grep(pattern, dirPath ?? undefined, glob);
+    return result.error ?? result.matches ?? [];
   }
 
   async globInfo(pattern: string, searchPath = "/"): Promise<FileInfo[]> {
-    const result = await this.glob(pattern, searchPath)
-    return result.files ?? []
+    const result = await this.glob(pattern, searchPath);
+    return result.files ?? [];
   }
 
   /**
@@ -532,136 +586,136 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
    * ```
    */
   async execute(command: string): Promise<ExecuteResponse> {
-    if (!command || typeof command !== "string") {
+    if (!command) {
       return {
         output: "Error: Shell tool expects a non-empty command string.",
         exitCode: 1,
-        truncated: false
-      }
+        truncated: false,
+      };
     }
 
-    const preparedCommand = this.buildWorkspaceRuntimeCommand(command)
+    const preparedCommand = this.buildWorkspaceRuntimeCommand(command);
 
     return new Promise<ExecuteResponse>((resolve) => {
-      const outputParts: string[] = []
-      let totalBytes = 0
-      let truncated = false
-      let resolved = false
+      const outputParts: string[] = [];
+      let totalBytes = 0;
+      let truncated = false;
+      let resolved = false;
 
       // Determine shell based on platform
-      const isWindows = process.platform === "win32"
-      const shell = isWindows ? "cmd.exe" : "/bin/sh"
-      const shellArgs = isWindows ? ["/c", command] : ["-c", preparedCommand]
+      const isWindows = process.platform === "win32";
+      const shell = isWindows ? "cmd.exe" : "/bin/sh";
+      const shellArgs = isWindows ? ["/c", command] : ["-c", preparedCommand];
 
       const proc = spawn(shell, shellArgs, {
         cwd: this.workingDir,
         env: this.env,
-        stdio: ["ignore", "pipe", "pipe"]
-      })
+        stdio: ["ignore", "pipe", "pipe"],
+      });
 
       // Handle timeout
       const timeoutId = setTimeout(() => {
         if (!resolved) {
-          resolved = true
-          proc.kill("SIGTERM")
+          resolved = true;
+          proc.kill("SIGTERM");
           // Give it a moment, then force kill
-          setTimeout(() => proc.kill("SIGKILL"), 1000)
+          setTimeout(() => proc.kill("SIGKILL"), 1000);
           resolve({
             output: `Error: Command timed out after ${(this.timeout / 1000).toFixed(1)} seconds.`,
             exitCode: null,
-            truncated: false
-          })
+            truncated: false,
+          });
         }
-      }, this.timeout)
+      }, this.timeout);
 
       // Collect stdout
       proc.stdout.on("data", (data: Buffer) => {
-        if (truncated) return
+        if (truncated) return;
 
-        const chunk = data.toString()
-        const newTotal = totalBytes + chunk.length
+        const chunk = data.toString();
+        const newTotal = totalBytes + chunk.length;
 
         if (newTotal > this.maxOutputBytes) {
           // Truncate to fit within limit
-          const remaining = this.maxOutputBytes - totalBytes
+          const remaining = this.maxOutputBytes - totalBytes;
           if (remaining > 0) {
-            outputParts.push(chunk.slice(0, remaining))
+            outputParts.push(chunk.slice(0, remaining));
           }
-          truncated = true
-          totalBytes = this.maxOutputBytes
+          truncated = true;
+          totalBytes = this.maxOutputBytes;
         } else {
-          outputParts.push(chunk)
-          totalBytes = newTotal
+          outputParts.push(chunk);
+          totalBytes = newTotal;
         }
-      })
+      });
 
       // Collect stderr with [stderr] prefix per line
       proc.stderr.on("data", (data: Buffer) => {
-        if (truncated) return
+        if (truncated) return;
 
-        const chunk = data.toString()
+        const chunk = data.toString();
         // Prefix each line with [stderr]
         const prefixedLines = chunk
           .split("\n")
           .filter((line) => line.length > 0)
           .map((line) => `[stderr] ${line}`)
-          .join("\n")
+          .join("\n");
 
-        if (prefixedLines.length === 0) return
+        if (prefixedLines.length === 0) return;
 
-        const withNewline = prefixedLines + (chunk.endsWith("\n") ? "\n" : "")
-        const newTotal = totalBytes + withNewline.length
+        const withNewline = prefixedLines + (chunk.endsWith("\n") ? "\n" : "");
+        const newTotal = totalBytes + withNewline.length;
 
         if (newTotal > this.maxOutputBytes) {
-          const remaining = this.maxOutputBytes - totalBytes
+          const remaining = this.maxOutputBytes - totalBytes;
           if (remaining > 0) {
-            outputParts.push(withNewline.slice(0, remaining))
+            outputParts.push(withNewline.slice(0, remaining));
           }
-          truncated = true
-          totalBytes = this.maxOutputBytes
+          truncated = true;
+          totalBytes = this.maxOutputBytes;
         } else {
-          outputParts.push(withNewline)
-          totalBytes = newTotal
+          outputParts.push(withNewline);
+          totalBytes = newTotal;
         }
-      })
+      });
 
       // Handle process exit
       proc.on("close", (code, signal) => {
-        if (resolved) return
-        resolved = true
-        clearTimeout(timeoutId)
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeoutId);
 
-        let output = outputParts.join("")
+        let output = outputParts.join("");
 
         // Add truncation notice if needed
         if (truncated) {
-          output += `\n\n... Output truncated at ${this.maxOutputBytes} bytes.`
+          output += `\n\n... Output truncated at ${this.maxOutputBytes} bytes.`;
         }
 
         // If no output, show placeholder
         if (!output.trim()) {
-          output = "<no output>"
+          output = "<no output>";
         }
 
         resolve({
           output,
           exitCode: signal ? null : code,
-          truncated
-        })
-      })
+          truncated,
+        });
+      });
 
       // Handle spawn errors
       proc.on("error", (err) => {
-        if (resolved) return
-        resolved = true
-        clearTimeout(timeoutId)
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeoutId);
 
         resolve({
           output: `Error: Failed to execute command: ${err.message}`,
           exitCode: 1,
-          truncated: false
-        })
-      })
-    })
+          truncated: false,
+        });
+      });
+    });
   }
 }

@@ -1,40 +1,46 @@
-import { Bot, X, FileCode, FileText, FileJson, File } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useAppStore } from "@/lib/store"
-import { useThreadState, type OpenFile } from "@/lib/thread-context"
+import { Bot, X, FileCode, FileText, FileJson, File } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAppStore } from "@/lib/store";
+import { useThreadState, type OpenFile } from "@/lib/thread-context";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuTrigger
-} from "@/components/ui/context-menu"
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 interface TabBarProps {
-  className?: string
-  threadId?: string
+  className?: string;
+  threadId?: string;
 }
 
 export function TabBar({
   className,
-  threadId: propThreadId
+  threadId: propThreadId,
 }: TabBarProps): React.JSX.Element | null {
-  const { currentThreadId } = useAppStore()
-  const threadId = propThreadId ?? currentThreadId
-  const threadState = useThreadState(threadId)
+  const { currentThreadId } = useAppStore();
+  const threadId = propThreadId ?? currentThreadId;
+  const threadState = useThreadState(threadId);
 
   if (!threadState) {
-    return null
+    return null;
   }
 
-  const { openFiles, activeTab, setActiveTab, closeFile, closeOtherFiles, closeAllFiles } =
-    threadState
+  const {
+    openFiles,
+    activeTab,
+    setActiveTab,
+    closeFile,
+    closeOtherFiles,
+    closeAllFiles,
+  } = threadState;
 
   return (
     <div
       className={cn(
         "flex items-center h-9 border-b border-border bg-sidebar overflow-x-auto scrollbar-hide",
-        className
+        className,
       )}
     >
       {/* Agent Tab - Always first and prominent */}
@@ -44,7 +50,7 @@ export function TabBar({
           "flex items-center gap-2 px-4 h-full text-sm font-medium transition-colors shrink-0 border-r border-border",
           activeTab === "agent"
             ? "bg-primary/15 text-primary border-b-2 border-b-primary"
-            : "text-muted-foreground hover:text-foreground hover:bg-background-interactive"
+            : "text-muted-foreground hover:text-foreground hover:bg-background-interactive",
         )}
       >
         <Bot className="size-4" />
@@ -67,16 +73,16 @@ export function TabBar({
       {/* Spacer to fill remaining space */}
       <div className="flex-1 min-w-0" />
     </div>
-  )
+  );
 }
 
 interface FileTabProps {
-  file: OpenFile
-  isActive: boolean
-  onSelect: () => void
-  onClose: () => void
-  onCloseOthers: () => void
-  onCloseAll: () => void
+  file: OpenFile;
+  isActive: boolean;
+  onSelect: () => void;
+  onClose: () => void;
+  onCloseOthers: () => void;
+  onCloseAll: () => void;
 }
 
 function FileTab({
@@ -85,20 +91,20 @@ function FileTab({
   onSelect,
   onClose,
   onCloseOthers,
-  onCloseAll
+  onCloseAll,
 }: FileTabProps): React.JSX.Element {
   const handleClose = (e: React.MouseEvent): void => {
-    e.stopPropagation()
-    onClose()
-  }
+    e.stopPropagation();
+    onClose();
+  };
 
   const handleMouseDown = (e: React.MouseEvent): void => {
     // Middle click to close
     if (e.button === 1) {
-      e.preventDefault()
-      onClose()
+      e.preventDefault();
+      onClose();
     }
-  }
+  };
 
   return (
     <ContextMenu>
@@ -110,7 +116,7 @@ function FileTab({
             "group flex items-center gap-2 px-3 h-full text-sm transition-colors shrink-0 border-r border-border max-w-[200px]",
             isActive
               ? "bg-background text-foreground border-b-2 border-b-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-background-interactive"
+              : "text-muted-foreground hover:text-foreground hover:bg-background-interactive",
           )}
           title={file.path}
         >
@@ -122,13 +128,13 @@ function FileTab({
             onClick={handleClose}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                handleClose(e as unknown as React.MouseEvent)
+                e.preventDefault();
+                handleClose(e as unknown as React.MouseEvent);
               }
             }}
             className={cn(
               "size-4 flex items-center justify-center rounded-sm hover:bg-background-interactive transition-colors",
-              isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}
           >
             <X className="size-3" />
@@ -142,11 +148,11 @@ function FileTab({
         <ContextMenuItem onClick={onCloseAll}>全部关闭</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
-  )
+  );
 }
 
 function FileIcon({ name }: { name: string }): React.JSX.Element {
-  const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : ""
+  const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
 
   switch (ext) {
     case "ts":
@@ -157,14 +163,14 @@ function FileIcon({ name }: { name: string }): React.JSX.Element {
     case "css":
     case "scss":
     case "html":
-      return <FileCode className="size-3.5 text-blue-400 shrink-0" />
+      return <FileCode className="size-3.5 text-blue-400 shrink-0" />;
     case "json":
-      return <FileJson className="size-3.5 text-yellow-500 shrink-0" />
+      return <FileJson className="size-3.5 text-yellow-500 shrink-0" />;
     case "md":
     case "mdx":
     case "txt":
-      return <FileText className="size-3.5 text-muted-foreground shrink-0" />
+      return <FileText className="size-3.5 text-muted-foreground shrink-0" />;
     default:
-      return <File className="size-3.5 text-muted-foreground shrink-0" />
+      return <File className="size-3.5 text-muted-foreground shrink-0" />;
   }
 }

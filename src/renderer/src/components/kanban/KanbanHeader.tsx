@@ -1,20 +1,25 @@
-import { Bot } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useAppStore } from "@/lib/store"
-import { cn } from "@/lib/utils"
+import { Bot } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAppStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
-export function KanbanHeader({ className }: { className?: string }): React.JSX.Element {
-  const { showSubagentsInKanban, setShowSubagentsInKanban, threads } = useAppStore()
+export function KanbanHeader({
+  className,
+}: {
+  className?: string;
+}): React.JSX.Element {
+  const { showSubagentsInKanban, setShowSubagentsInKanban, threads } =
+    useAppStore();
 
   const activeCount = threads.filter(
-    (t) => t.status === "busy" || t.status === "interrupted"
-  ).length
+    (t) => t.status === "busy" || t.status === "interrupted",
+  ).length;
 
   return (
     <div
       className={cn(
         "flex items-center justify-between px-3 app-no-drag relative overflow-hidden",
-        className
+        className,
       )}
     >
       {/* Scan line effect */}
@@ -24,7 +29,7 @@ export function KanbanHeader({ className }: { className?: string }): React.JSX.E
           style={{
             backgroundImage:
               "repeating-linear-gradient(0deg, transparent, transparent 2px, currentColor 2px, currentColor 3px)",
-            backgroundSize: "100% 3px"
+            backgroundSize: "100% 3px",
           }}
         />
       </div>
@@ -34,10 +39,14 @@ export function KanbanHeader({ className }: { className?: string }): React.JSX.E
         <div
           className={cn(
             "size-1.5 rounded-full",
-            activeCount > 0 ? "bg-status-nominal animate-tactical-pulse" : "bg-muted-foreground"
+            activeCount > 0
+              ? "bg-status-nominal animate-tactical-pulse"
+              : "bg-muted-foreground",
           )}
         />
-        <span className="tabular-nums">{activeCount > 0 ? `${activeCount} 活跃` : "空闲"}</span>
+        <span className="tabular-nums">
+          {activeCount > 0 ? `${activeCount} 活跃` : "空闲"}
+        </span>
       </div>
 
       {/* Right side - Controls */}
@@ -51,5 +60,5 @@ export function KanbanHeader({ className }: { className?: string }): React.JSX.E
         {showSubagentsInKanban ? "隐藏" : "显示"}子智能体
       </Button>
     </div>
-  )
+  );
 }

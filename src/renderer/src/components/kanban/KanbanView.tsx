@@ -1,126 +1,140 @@
-import { useMemo } from "react"
-import { useAppStore } from "@/lib/store"
-import { useAllThreadStates, useAllStreamLoadingStates } from "@/lib/thread-context"
-import { KanbanColumn } from "./KanbanColumn"
-import { ThreadKanbanCard, SubagentKanbanCard } from "./KanbanCard"
-import type { Thread, Subagent } from "@/types"
+import { useMemo } from "react";
+import { useAppStore } from "@/lib/store";
+import {
+  useAllThreadStates,
+  useAllStreamLoadingStates,
+} from "@/lib/thread-context";
+import { KanbanColumn } from "./KanbanColumn";
+import { ThreadKanbanCard, SubagentKanbanCard } from "./KanbanCard";
+import type { Thread, Subagent } from "@/types";
 
-type KanbanStatus = "pending" | "in_progress" | "interrupted" | "done"
+type KanbanStatus = "pending" | "in_progress" | "interrupted" | "done";
 
 interface ThreadWithStatus {
-  thread: Thread
-  status: KanbanStatus
+  thread: Thread;
+  status: KanbanStatus;
 }
 
 interface SubagentWithParent {
-  subagent: Subagent
-  parentThread: Thread
-  status: KanbanStatus
+  subagent: Subagent;
+  parentThread: Thread;
+  status: KanbanStatus;
 }
 
 function getThreadKanbanStatus(
   thread: Thread,
   isLoading: boolean,
   hasDraft: boolean,
-  hasPendingApproval: boolean
+  hasPendingApproval: boolean,
 ): KanbanStatus {
-  if (hasPendingApproval || thread.status === "interrupted") return "interrupted"
-  if (thread.status === "busy" || isLoading) return "in_progress"
-  if (hasDraft) return "pending"
-  return "done"
+  if (hasPendingApproval || thread.status === "interrupted")
+    return "interrupted";
+  if (thread.status === "busy" || isLoading) return "in_progress";
+  if (hasDraft) return "pending";
+  return "done";
 }
 
 export function KanbanView(): React.JSX.Element {
-  const { threads, selectThread, showSubagentsInKanban } = useAppStore()
-  const allThreadStates = useAllThreadStates()
-  const loadingStates = useAllStreamLoadingStates()
+  const { threads, selectThread, showSubagentsInKanban } = useAppStore();
+  const allThreadStates = useAllThreadStates();
+  const loadingStates = useAllStreamLoadingStates();
 
   const handleCardClick = (threadId: string): void => {
-    selectThread(threadId)
-  }
+    selectThread(threadId);
+  };
 
   const categorizedThreads = useMemo(() => {
     const result: Record<KanbanStatus, ThreadWithStatus[]> = {
       pending: [],
       in_progress: [],
       interrupted: [],
-      done: []
-    }
+      done: [],
+    };
 
     for (const thread of threads) {
-      const isLoading = loadingStates[thread.thread_id] ?? false
-      const threadState = allThreadStates[thread.thread_id]
-      const hasDraft = Boolean(threadState?.draftInput?.trim())
-      const hasPendingApproval = Boolean(threadState?.pendingApproval)
-      const status = getThreadKanbanStatus(thread, isLoading, hasDraft, hasPendingApproval)
-      result[status].push({ thread, status })
+      const isLoading = loadingStates[thread.thread_id] ?? false;
+      const threadState = allThreadStates[thread.thread_id];
+      const hasDraft = Boolean(threadState?.draftInput?.trim());
+      const hasPendingApproval = Boolean(threadState?.pendingApproval);
+      const status = getThreadKanbanStatus(
+        thread,
+        isLoading,
+        hasDraft,
+        hasPendingApproval,
+      );
+      result[status].push({ thread, status });
     }
 
-    return result
-  }, [threads, loadingStates, allThreadStates])
+    return result;
+  }, [threads, loadingStates, allThreadStates]);
 
   const categorizedSubagents = useMemo(() => {
     if (!showSubagentsInKanban) {
-      return { pending: [], in_progress: [], interrupted: [], done: [] }
+      return { pending: [], in_progress: [], interrupted: [], done: [] };
     }
 
     const result: Record<KanbanStatus, SubagentWithParent[]> = {
       pending: [],
       in_progress: [],
       interrupted: [],
-      done: []
-    }
+      done: [],
+    };
 
-    const threadMap = new Map(threads.map((t) => [t.thread_id, t]))
+    const threadMap = new Map(threads.map((t) => [t.thread_id, t]));
 
     for (const [threadId, state] of Object.entries(allThreadStates)) {
-      const parentThread = threadMap.get(threadId)
-      if (!parentThread || !state.subagents) continue
+      const parentThread = threadMap.get(threadId);
+      if (!parentThread || !state.subagents) continue;
 
       for (const subagent of state.subagents) {
-        let status: KanbanStatus
+        let status: KanbanStatus;
         switch (subagent.status) {
           case "pending":
-            status = "pending"
-            break
+            status = "pending";
+            break;
           case "running":
-            status = "in_progress"
-            break
+            status = "in_progress";
+            break;
           case "completed":
-            status = "done"
-            break
+            status = "done";
+            break;
           case "failed":
-            status = "done"
-            break
+            status = "done";
+            break;
           default:
-            status = "pending"
+            status = "pending";
         }
 
-        result[status].push({ subagent, parentThread, status })
+        result[status].push({ subagent, parentThread, status });
       }
     }
 
-    return result
-  }, [threads, allThreadStates, showSubagentsInKanban])
+    return result;
+  }, [threads, allThreadStates, showSubagentsInKanban]);
 
   const columnData: { status: KanbanStatus; title: string }[] = [
     { status: "pending", title: "待处理" },
     { status: "in_progress", title: "进行中" },
     { status: "interrupted", title: "阻塞" },
-    { status: "done", title: "已完成" }
-  ]
+    { status: "done", title: "已完成" },
+  ];
 
   return (
     <div className="flex flex-col h-full bg-background">
       <div className="flex-1 overflow-x-auto p-2">
         <div className="flex h-full min-w-max gap-2">
           {columnData.map(({ status, title }) => {
-            const threadItems = categorizedThreads[status]
-            const subagentItems = categorizedSubagents[status]
-            const totalCount = threadItems.length + subagentItems.length
+            const threadItems = categorizedThreads[status];
+            const subagentItems = categorizedSubagents[status];
+            const totalCount = threadItems.length + subagentItems.length;
 
             return (
-              <KanbanColumn key={status} title={title} status={status} count={totalCount}>
+              <KanbanColumn
+                key={status}
+                title={title}
+                status={status}
+                count={totalCount}
+              >
                 {threadItems.map(({ thread, status: threadStatus }) => (
                   <ThreadKanbanCard
                     key={thread.thread_id}
@@ -138,13 +152,15 @@ export function KanbanView(): React.JSX.Element {
                   />
                 ))}
                 {totalCount === 0 && (
-                  <div className="text-center text-sm text-muted-foreground py-8">暂无条目</div>
+                  <div className="text-center text-sm text-muted-foreground py-8">
+                    暂无条目
+                  </div>
                 )}
               </KanbanColumn>
-            )
+            );
           })}
         </div>
       </div>
     </div>
-  )
+  );
 }

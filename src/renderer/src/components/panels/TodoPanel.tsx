@@ -1,60 +1,67 @@
-import { useState } from "react"
-import { CheckCircle2, Circle, Clock, XCircle, ChevronRight, ChevronDown } from "lucide-react"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { useAppStore } from "@/lib/store"
-import { useThreadState } from "@/lib/thread-context"
-import { cn } from "@/lib/utils"
-import type { Todo } from "@/types"
+import { useState } from "react";
+import {
+  CheckCircle2,
+  Circle,
+  Clock,
+  XCircle,
+  ChevronRight,
+  ChevronDown,
+} from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { useAppStore } from "@/lib/store";
+import { useThreadState } from "@/lib/thread-context";
+import { cn } from "@/lib/utils";
+import type { Todo } from "@/types";
 
 const STATUS_CONFIG = {
   pending: {
     icon: Circle,
     badge: "outline" as const,
     label: "PENDING",
-    color: "text-muted-foreground"
+    color: "text-muted-foreground",
   },
   in_progress: {
     icon: Clock,
     badge: "info" as const,
     label: "IN PROGRESS",
-    color: "text-status-info"
+    color: "text-status-info",
   },
   completed: {
     icon: CheckCircle2,
     badge: "nominal" as const,
     label: "DONE",
-    color: "text-status-nominal"
+    color: "text-status-nominal",
   },
   cancelled: {
     icon: XCircle,
     badge: "critical" as const,
     label: "CANCELLED",
-    color: "text-muted-foreground"
-  }
-}
+    color: "text-muted-foreground",
+  },
+};
 
 export function TodoPanel(): React.JSX.Element {
-  const { currentThreadId } = useAppStore()
-  const threadState = useThreadState(currentThreadId)
-  const todos = threadState?.todos ?? []
-  const [completedExpanded, setCompletedExpanded] = useState(false)
+  const { currentThreadId } = useAppStore();
+  const threadState = useThreadState(currentThreadId);
+  const todos = threadState?.todos ?? [];
+  const [completedExpanded, setCompletedExpanded] = useState(false);
 
   // Group todos by status
-  const inProgress = todos.filter((t) => t.status === "in_progress")
-  const pending = todos.filter((t) => t.status === "pending")
-  const completed = todos.filter((t) => t.status === "completed")
-  const cancelled = todos.filter((t) => t.status === "cancelled")
+  const inProgress = todos.filter((t) => t.status === "in_progress");
+  const pending = todos.filter((t) => t.status === "pending");
+  const completed = todos.filter((t) => t.status === "completed");
+  const cancelled = todos.filter((t) => t.status === "cancelled");
 
   // Completed section includes both completed and cancelled
-  const doneItems = [...completed, ...cancelled]
+  const doneItems = [...completed, ...cancelled];
 
   // Calculate progress
-  const total = todos.length
-  const done = completed.length
-  const progress = total > 0 ? Math.round((done / total) * 100) : 0
+  const total = todos.length;
+  const done = completed.length;
+  const progress = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const hasAnyTodos = todos.length > 0
+  const hasAnyTodos = todos.length > 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -78,7 +85,9 @@ export function TodoPanel(): React.JSX.Element {
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-4 space-y-2">
           {!hasAnyTodos ? (
-            <div className="text-center text-sm text-muted-foreground py-8">No tasks yet</div>
+            <div className="text-center text-sm text-muted-foreground py-8">
+              No tasks yet
+            </div>
           ) : (
             <>
               {/* Completed/Cancelled Section (Collapsible) */}
@@ -129,19 +138,19 @@ export function TodoPanel(): React.JSX.Element {
         </div>
       </ScrollArea>
     </div>
-  )
+  );
 }
 
 function TodoItem({ todo }: { todo: Todo }): React.JSX.Element {
-  const config = STATUS_CONFIG[todo.status]
-  const Icon = config.icon
+  const config = STATUS_CONFIG[todo.status];
+  const Icon = config.icon;
 
   return (
     <div
       className={cn(
         "flex items-start gap-3 rounded-sm border border-border p-3 transition-colors",
         todo.status === "completed" && "opacity-60",
-        todo.status === "cancelled" && "opacity-40"
+        todo.status === "cancelled" && "opacity-40",
       )}
     >
       <Icon className={cn("size-4 shrink-0 mt-0.5", config.color)} />
@@ -149,7 +158,8 @@ function TodoItem({ todo }: { todo: Todo }): React.JSX.Element {
         <div
           className={cn(
             "text-sm",
-            (todo.status === "completed" || todo.status === "cancelled") && "line-through"
+            (todo.status === "completed" || todo.status === "cancelled") &&
+              "line-through",
           )}
         >
           {todo.content}
@@ -159,5 +169,5 @@ function TodoItem({ todo }: { todo: Todo }): React.JSX.Element {
         {config.label}
       </Badge>
     </div>
-  )
+  );
 }

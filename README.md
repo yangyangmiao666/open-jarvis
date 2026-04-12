@@ -49,13 +49,13 @@ bun run dev
 
 其他常用命令：
 
-| 命令 | 说明 |
-|------|------|
-| `bun run dev` | electron-vite 开发模式（热更新） |
-| `bun run build` | 类型检查 + 打包到 `out/` |
-| `bun run start` | 预览已构建产物 |
+| 命令                  | 说明                       |
+|---------------------|--------------------------|
+| `bun run dev`       | electron-vite 开发模式（热更新）  |
+| `bun run build`     | 类型检查 + 打包到 `out/`        |
+| `bun run start`     | 预览已构建产物                  |
 | `bun run typecheck` | 主进程 + 渲染进程 TypeScript 检查 |
-| `bun run lint` | ESLint |
+| `bun run lint`      | ESLint                   |
 
 ## 项目结构（精简）
 
@@ -88,11 +88,11 @@ AGENTS.md               # 给 AI / 协作者的架构与修改入口说明
 
 ## 支持的模型（与上游能力一致）
 
-| 提供商 | 示例 |
-|--------|------|
-| Anthropic | Claude 系列 |
-| OpenAI | GPT / o 系列等 |
-| Google | Gemini 系列 |
+| 提供商    | 示例           |
+| --------- | -------------- |
+| Anthropic | Claude 系列    |
+| OpenAI    | GPT / o 系列等 |
+| Google    | Gemini 系列    |
 
 具体列表以应用内模型配置为准。
 

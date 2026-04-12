@@ -1,100 +1,101 @@
-import { useEffect, useState, useCallback, useRef } from "react"
-import { ThreadSidebar } from "@/components/sidebar/ThreadSidebar"
-import { TabbedPanel, TabBar } from "@/components/tabs"
-import { RightPanel } from "@/components/panels/RightPanel"
-import { KanbanView, KanbanHeader } from "@/components/kanban"
-import { ResizeHandle } from "@/components/ui/resizable"
-import { ThemeToggle } from "@/components/ThemeToggle"
-import { WindowTitleBar } from "@/components/WindowTitleBar"
-import { useAppStore } from "@/lib/store"
-import { ThreadProvider } from "@/lib/thread-context"
+import { useEffect, useState, useCallback, useRef } from "react";
+import { ThreadSidebar } from "@/components/sidebar/ThreadSidebar";
+import { TabbedPanel, TabBar } from "@/components/tabs";
+import { RightPanel } from "@/components/panels/RightPanel";
+import { KanbanView, KanbanHeader } from "@/components/kanban";
+import { ResizeHandle } from "@/components/ui/resizable";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { WindowTitleBar } from "@/components/WindowTitleBar";
+import { useAppStore } from "@/lib/store";
+import { ThreadProvider } from "@/lib/thread-context";
 
 // 左侧栏最小宽度（会话列表 + 品牌区）
-const BADGE_MIN_SCREEN_WIDTH = 235
-const LEFT_MAX = 350
-const LEFT_DEFAULT = 240
+const BADGE_MIN_SCREEN_WIDTH = 235;
+const LEFT_MAX = 350;
+const LEFT_DEFAULT = 240;
 
-const RIGHT_MIN = 250
-const RIGHT_MAX = 450
-const RIGHT_DEFAULT = 320
+const RIGHT_MIN = 250;
+const RIGHT_MAX = 450;
+const RIGHT_DEFAULT = 320;
 
 function isDarwin(): boolean {
-  return window.electron?.process?.platform === "darwin"
+  return window.electron?.process?.platform === "darwin";
 }
 
 function App(): React.JSX.Element {
-  const { currentThreadId, loadThreads, createThread, showKanbanView } = useAppStore()
-  const [isLoading, setIsLoading] = useState(true)
-  const [leftWidth, setLeftWidth] = useState(LEFT_DEFAULT)
-  const [rightWidth, setRightWidth] = useState(RIGHT_DEFAULT)
+  const { currentThreadId, loadThreads, createThread, showKanbanView } =
+    useAppStore();
+  const [isLoading, setIsLoading] = useState(true);
+  const [leftWidth, setLeftWidth] = useState(LEFT_DEFAULT);
+  const [rightWidth, setRightWidth] = useState(RIGHT_DEFAULT);
 
   // Track drag start widths
-  const dragStartWidths = useRef<{ left: number; right: number } | null>(null)
+  const dragStartWidths = useRef<{ left: number; right: number } | null>(null);
 
-  const leftMinWidth = BADGE_MIN_SCREEN_WIDTH
+  const leftMinWidth = BADGE_MIN_SCREEN_WIDTH;
 
   // Enforce minimum width when zoom changes
   useEffect(() => {
     if (leftWidth < leftMinWidth) {
-      setLeftWidth(leftMinWidth)
+      setLeftWidth(leftMinWidth);
     }
-  }, [leftMinWidth, leftWidth])
+  }, [leftMinWidth, leftWidth]);
 
   const handleLeftResize = useCallback(
     (totalDelta: number) => {
       if (!dragStartWidths.current) {
-        dragStartWidths.current = { left: leftWidth, right: rightWidth }
+        dragStartWidths.current = { left: leftWidth, right: rightWidth };
       }
-      const newWidth = dragStartWidths.current.left + totalDelta
-      setLeftWidth(Math.min(LEFT_MAX, Math.max(leftMinWidth, newWidth)))
+      const newWidth = dragStartWidths.current.left + totalDelta;
+      setLeftWidth(Math.min(LEFT_MAX, Math.max(leftMinWidth, newWidth)));
     },
-    [leftWidth, rightWidth, leftMinWidth]
-  )
+    [leftWidth, rightWidth, leftMinWidth],
+  );
 
   const handleRightResize = useCallback(
     (totalDelta: number) => {
       if (!dragStartWidths.current) {
-        dragStartWidths.current = { left: leftWidth, right: rightWidth }
+        dragStartWidths.current = { left: leftWidth, right: rightWidth };
       }
-      const newWidth = dragStartWidths.current.right - totalDelta
-      setRightWidth(Math.min(RIGHT_MAX, Math.max(RIGHT_MIN, newWidth)))
+      const newWidth = dragStartWidths.current.right - totalDelta;
+      setRightWidth(Math.min(RIGHT_MAX, Math.max(RIGHT_MIN, newWidth)));
     },
-    [leftWidth, rightWidth]
-  )
+    [leftWidth, rightWidth],
+  );
 
   // Reset drag start on mouse up
   useEffect(() => {
     const handleMouseUp = (): void => {
-      dragStartWidths.current = null
-    }
-    document.addEventListener("mouseup", handleMouseUp)
-    return () => document.removeEventListener("mouseup", handleMouseUp)
-  }, [])
+      dragStartWidths.current = null;
+    };
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => document.removeEventListener("mouseup", handleMouseUp);
+  }, []);
 
   useEffect(() => {
     async function init(): Promise<void> {
       try {
-        await loadThreads()
+        await loadThreads();
         // Create a default thread if none exist
-        const threads = useAppStore.getState().threads
+        const threads = useAppStore.getState().threads;
         if (threads.length === 0) {
-          await createThread()
+          await createThread();
         }
       } catch (error) {
-        console.error("Failed to initialize:", error)
+        console.error("Failed to initialize:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
-    init()
-  }, [loadThreads, createThread])
+    init();
+  }, [loadThreads, createThread]);
 
   if (isLoading) {
     return (
-        <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-muted-foreground">正在初始化…</div>
       </div>
-    )
+    );
   }
 
   return (
@@ -138,7 +139,10 @@ function App(): React.JSX.Element {
                 <>
                   <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     {currentThreadId ? (
-                      <TabbedPanel threadId={currentThreadId} showTabBar={false} />
+                      <TabbedPanel
+                        threadId={currentThreadId}
+                        showTabBar={false}
+                      />
                     ) : (
                       <div className="flex flex-1 items-center justify-center text-muted-foreground">
                         请选择或新建会话以开始
@@ -156,7 +160,7 @@ function App(): React.JSX.Element {
         </div>
       </div>
     </ThreadProvider>
-  )
+  );
 }
 
-export default App
+export default App;

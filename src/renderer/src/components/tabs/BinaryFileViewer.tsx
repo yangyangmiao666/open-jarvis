@@ -1,22 +1,28 @@
-import { File, Download } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { File, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface BinaryFileViewerProps {
-  filePath: string
-  size?: number
+  filePath: string;
+  size?: number;
 }
 
-export function BinaryFileViewer({ filePath, size }: BinaryFileViewerProps): React.JSX.Element {
-  const fileName = filePath.split("/").pop() || filePath
-  const ext = fileName.includes(".") ? fileName.split(".").pop()?.toUpperCase() : "FILE"
+export function BinaryFileViewer({
+  filePath,
+  size,
+}: BinaryFileViewerProps): React.JSX.Element {
+  const fileName = filePath.split("/").pop() || filePath;
+  const ext = fileName.includes(".")
+    ? fileName.split(".").pop()?.toUpperCase()
+    : "FILE";
 
   const formatSize = (bytes?: number): string => {
-    if (!bytes) return "Unknown size"
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
-  }
+    if (!bytes) return "Unknown size";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024)
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
 
   return (
     <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
@@ -45,8 +51,8 @@ export function BinaryFileViewer({ filePath, size }: BinaryFileViewerProps): Rea
             {ext} file • {formatSize(size)}
           </div>
           <div className="text-xs text-muted-foreground max-w-md">
-            This file type cannot be previewed in the viewer. You can open it with an external
-            application.
+            This file type cannot be previewed in the viewer. You can open it
+            with an external application.
           </div>
         </div>
 
@@ -56,5 +62,5 @@ export function BinaryFileViewer({ filePath, size }: BinaryFileViewerProps): Rea
         </Button>
       </div>
     </div>
-  )
+  );
 }

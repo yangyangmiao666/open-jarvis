@@ -1,45 +1,58 @@
-import { selectWorkspaceFolder } from "@/lib/workspace-utils"
-import { Check, ChevronDown, Folder } from "lucide-react"
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useCurrentThread } from "@/lib/thread-context"
-import { cn } from "@/lib/utils"
+import { selectWorkspaceFolder } from "@/lib/workspace-utils";
+import { Check, ChevronDown, Folder } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useCurrentThread } from "@/lib/thread-context";
+import { cn } from "@/lib/utils";
 
 interface WorkspacePickerProps {
-  threadId: string
+  threadId: string;
 }
 
-export function WorkspacePicker({ threadId }: WorkspacePickerProps): React.JSX.Element {
-  const { workspacePath, setWorkspacePath, setWorkspaceFiles } = useCurrentThread(threadId)
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
+export function WorkspacePicker({
+  threadId,
+}: WorkspacePickerProps): React.JSX.Element {
+  const { workspacePath, setWorkspacePath, setWorkspaceFiles } =
+    useCurrentThread(threadId);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Load workspace path and files for current thread
   useEffect(() => {
     async function loadWorkspace(): Promise<void> {
       if (threadId) {
-        const path = await window.api.workspace.get(threadId)
-        setWorkspacePath(path)
+        const path = await window.api.workspace.get(threadId);
+        setWorkspacePath(path);
 
         // If a folder is linked, load files from disk
         if (path) {
-          const result = await window.api.workspace.loadFromDisk(threadId)
+          const result = await window.api.workspace.loadFromDisk(threadId);
           if (result.success && result.files) {
-            setWorkspaceFiles(result.files)
+            setWorkspaceFiles(result.files);
           }
         }
       }
     }
-    loadWorkspace()
+    loadWorkspace();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId])
+  }, [threadId]);
 
   async function handleSelectFolder(): Promise<void> {
-    await selectWorkspaceFolder(threadId, setWorkspacePath, setWorkspaceFiles, setLoading, setOpen)
+    await selectWorkspaceFolder(
+      threadId,
+      setWorkspacePath,
+      setWorkspaceFiles,
+      setLoading,
+      setOpen,
+    );
   }
 
-  const folderName = workspacePath?.split("/").pop()
+  const folderName = workspacePath?.split("/").pop();
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,7 +62,7 @@ export function WorkspacePicker({ threadId }: WorkspacePickerProps): React.JSX.E
           size="sm"
           className={cn(
             "h-7 px-2 text-xs gap-1.5",
-            workspacePath ? "text-foreground" : "text-amber-500"
+            workspacePath ? "text-foreground" : "text-amber-500",
           )}
           disabled={!threadId}
         >
@@ -107,5 +120,5 @@ export function WorkspacePicker({ threadId }: WorkspacePickerProps): React.JSX.E
         </div>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

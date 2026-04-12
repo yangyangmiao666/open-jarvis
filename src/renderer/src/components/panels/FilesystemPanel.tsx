@@ -1,215 +1,209 @@
-import { useState, useEffect } from "react"
-import {
-  Folder,
-  File,
-  ChevronRight,
-  ChevronDown,
-  FolderOpen,
-  Loader2,
-  RefreshCw
-} from "lucide-react"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import { useAppStore } from "@/lib/store"
-import { useThreadState } from "@/lib/thread-context"
-import type { FileInfo } from "@/types"
+import {useEffect, useState} from "react";
+import {ChevronDown, ChevronRight, File, Folder, FolderOpen, Loader2, RefreshCw,} from "lucide-react";
+import {ScrollArea} from "@/components/ui/scroll-area";
+import {Button} from "@/components/ui/button";
+import {cn} from "@/lib/utils";
+import {useAppStore} from "@/lib/store";
+import {useThreadState} from "@/lib/thread-context";
+import type {FileInfo} from "@/types";
 
 export function FilesystemPanel() {
-  const { currentThreadId } = useAppStore()
-  const threadState = useThreadState(currentThreadId)
-  const workspaceFiles = threadState?.workspaceFiles ?? []
-  const workspacePath = threadState?.workspacePath ?? null
-  const setWorkspacePath = threadState?.setWorkspacePath
-  const setWorkspaceFiles = threadState?.setWorkspaceFiles
-  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set())
-  const [loading, setLoading] = useState(false)
+  const { currentThreadId } = useAppStore();
+  const threadState = useThreadState(currentThreadId);
+  const workspaceFiles = threadState?.workspaceFiles ?? [];
+  const workspacePath = threadState?.workspacePath ?? null;
+  const setWorkspacePath = threadState?.setWorkspacePath;
+  const setWorkspaceFiles = threadState?.setWorkspaceFiles;
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
 
   // Load workspace path for current thread
   useEffect(() => {
     async function loadWorkspacePath() {
       if (currentThreadId && setWorkspacePath) {
-        const path = await window.api.workspace.get(currentThreadId)
-        setWorkspacePath(path)
+        const path = await window.api.workspace.get(currentThreadId);
+        setWorkspacePath(path);
       }
     }
-    loadWorkspacePath()
+    loadWorkspacePath();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentThreadId])
+  }, [currentThreadId]);
 
   // Auto-expand root when workspace path changes
   useEffect(() => {
     if (workspacePath) {
-      setExpandedDirs(new Set([]))
+      setExpandedDirs(new Set([]));
     }
-  }, [workspacePath])
+  }, [workspacePath]);
 
   // Listen for file changes from the main process
   useEffect(() => {
-    if (!setWorkspaceFiles) return
+    if (!setWorkspaceFiles) return;
 
-    const cleanup = window.api.workspace.onFilesChanged(async (data) => {
+    return window.api.workspace.onFilesChanged(async (data) => {
       // Only refresh if this is the current thread
       if (data.threadId === currentThreadId) {
-        console.log("[FilesystemPanel] Files changed, refreshing...")
+        console.log("[FilesystemPanel] Files changed, refreshing...");
         try {
-          const result = await window.api.workspace.loadFromDisk(data.threadId)
+          const result = await window.api.workspace.loadFromDisk(data.threadId);
           if (result.success) {
-            setWorkspaceFiles(result.files)
+            setWorkspaceFiles(result.files);
           }
         } catch (e) {
-          console.error("[FilesystemPanel] Error refreshing files:", e)
+          console.error("[FilesystemPanel] Error refreshing files:", e);
         }
       }
-    })
-
-    return cleanup
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentThreadId])
+  }, [currentThreadId]);
 
   // Handle selecting a workspace folder
   async function handleSelectFolder() {
-    if (!currentThreadId || !setWorkspacePath || !setWorkspaceFiles) return
+    if (!currentThreadId || !setWorkspacePath || !setWorkspaceFiles) return;
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const path = await window.api.workspace.select(currentThreadId)
+      const path = await window.api.workspace.select(currentThreadId);
       if (path) {
-        setWorkspacePath(path)
+        setWorkspacePath(path);
         // Load files from disk
-        const result = await window.api.workspace.loadFromDisk(currentThreadId)
+        const result = await window.api.workspace.loadFromDisk(currentThreadId);
         if (result.success) {
-          setWorkspaceFiles(result.files)
+          setWorkspaceFiles(result.files);
         }
       }
     } catch (e) {
-      console.error("[FilesystemPanel] Select folder error:", e)
+      console.error("[FilesystemPanel] Select folder error:", e);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   // Handle refreshing files from disk
   async function handleRefresh() {
-    if (!currentThreadId || !setWorkspaceFiles) return
+    if (!currentThreadId || !setWorkspaceFiles) return;
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await window.api.workspace.loadFromDisk(currentThreadId)
+      const result = await window.api.workspace.loadFromDisk(currentThreadId);
       if (result.success) {
-        setWorkspaceFiles(result.files)
+        setWorkspaceFiles(result.files);
       }
     } catch (e) {
-      console.error("[FilesystemPanel] Refresh error:", e)
+      console.error("[FilesystemPanel] Refresh error:", e);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   // Normalize path to always start with /
-  const normalizePath = (p: string) => (p.startsWith("/") ? p : "/" + p)
+  const normalizePath = (p: string) => (p.startsWith("/") ? p : "/" + p);
 
   // Get parent path, always returns / for root-level items
   const getParentPath = (p: string) => {
-    const normalized = normalizePath(p)
-    const lastSlash = normalized.lastIndexOf("/")
-    if (lastSlash <= 0) return "/"
-    return normalized.substring(0, lastSlash)
-  }
+    const normalized = normalizePath(p);
+    const lastSlash = normalized.lastIndexOf("/");
+    if (lastSlash <= 0) return "/";
+    return normalized.substring(0, lastSlash);
+  };
 
   // Build tree structure with proper path normalization
   const buildTree = (files: FileInfo[]) => {
-    const tree: Map<string, FileInfo[]> = new Map()
-    const allDirs = new Set<string>()
+    const tree: Map<string, FileInfo[]> = new Map();
+    const allDirs = new Set<string>();
 
     // First pass: collect all directories (both explicit and implicit)
     files.forEach((file) => {
-      const normalized = normalizePath(file.path)
+      const normalized = normalizePath(file.path);
 
       // Walk up the path to collect all parent directories
-      let current = getParentPath(normalized)
+      let current = getParentPath(normalized);
       while (current !== "/") {
-        allDirs.add(current)
-        current = getParentPath(current)
+        allDirs.add(current);
+        current = getParentPath(current);
       }
 
       // If this is an explicit directory entry, add it
       if (file.is_dir) {
-        const dirPath = normalized.endsWith("/") ? normalized.slice(0, -1) : normalized
-        allDirs.add(dirPath)
+        const dirPath = normalized.endsWith("/")
+          ? normalized.slice(0, -1)
+          : normalized;
+        allDirs.add(dirPath);
       }
-    })
+    });
 
     // Second pass: add files and directories to their parent's children list
     files.forEach((file) => {
-      const normalized = normalizePath(file.path.endsWith("/") ? file.path.slice(0, -1) : file.path)
-      const parentPath = getParentPath(normalized)
+      const normalized = normalizePath(
+        file.path.endsWith("/") ? file.path.slice(0, -1) : file.path,
+      );
+      const parentPath = getParentPath(normalized);
 
       if (!tree.has(parentPath)) {
-        tree.set(parentPath, [])
+        tree.set(parentPath, []);
       }
 
       // Use normalized path in the file info for consistent tree lookups
       tree.get(parentPath)!.push({
         ...file,
-        path: normalized
-      })
-    })
+        path: normalized,
+      });
+    });
 
     // Third pass: add implicit directories as entries
     allDirs.forEach((dir) => {
-      const parentPath = getParentPath(dir)
+      const parentPath = getParentPath(dir);
 
       // Check if this directory is already in parent's children
-      const siblings = tree.get(parentPath) || []
+      const siblings = tree.get(parentPath) || [];
       if (!siblings.some((f) => f.path === dir)) {
         if (!tree.has(parentPath)) {
-          tree.set(parentPath, [])
+          tree.set(parentPath, []);
         }
         tree.get(parentPath)!.push({
           path: dir,
-          is_dir: true
-        })
+          is_dir: true,
+        });
       }
-    })
+    });
 
     // Sort children: directories first, then alphabetically
     tree.forEach((children) => {
       children.sort((a, b) => {
-        if (a.is_dir && !b.is_dir) return -1
-        if (!a.is_dir && b.is_dir) return 1
-        return a.path.localeCompare(b.path)
-      })
-    })
+        if (a.is_dir && !b.is_dir) return -1;
+        if (!a.is_dir && b.is_dir) return 1;
+        return a.path.localeCompare(b.path);
+      });
+    });
 
-    return tree
-  }
+    return tree;
+  };
 
-  const tree = buildTree(workspaceFiles)
+  const tree = buildTree(workspaceFiles);
 
   const toggleDir = (path: string) => {
     setExpandedDirs((prev) => {
-      const next = new Set(prev)
+      const next = new Set(prev);
       if (next.has(path)) {
-        next.delete(path)
+        next.delete(path);
       } else {
-        next.add(path)
+        next.add(path);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const renderNode = (file: FileInfo, depth: number = 0) => {
-    const name = file.path.split("/").pop() || file.path
-    const isExpanded = expandedDirs.has(file.path)
-    const children = tree.get(file.path) || []
+    const name = file.path.split("/").pop() || file.path;
+    const isExpanded = expandedDirs.has(file.path);
+    const children = tree.get(file.path) || [];
 
     return (
       <div key={file.path}>
         <button
           onClick={() => file.is_dir && toggleDir(file.path)}
           className={cn(
-            "flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-background-interactive transition-colors"
+            "flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-background-interactive transition-colors",
           )}
           style={{ paddingLeft: `${depth * 16 + 12}px` }}
         >
@@ -236,13 +230,15 @@ export function FilesystemPanel() {
           )}
         </button>
 
-        {file.is_dir && isExpanded && children.map((child) => renderNode(child, depth + 1))}
+        {file.is_dir &&
+          isExpanded &&
+          children.map((child) => renderNode(child, depth + 1))}
       </div>
-    )
-  }
+    );
+  };
 
   // Get root level items (all paths are normalized to start with /)
-  const rootItems = tree.get("/") || []
+  const rootItems = tree.get("/") || [];
 
   // If no workspace is selected, show selection prompt
   if (!workspacePath) {
@@ -253,7 +249,9 @@ export function FilesystemPanel() {
         </div>
         <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
           <FolderOpen className="size-12 mb-4 text-muted-foreground opacity-50" />
-          <span className="text-sm font-medium mb-2">No workspace selected</span>
+          <span className="text-sm font-medium mb-2">
+            No workspace selected
+          </span>
           <span className="text-xs text-muted-foreground mb-4">
             Select a folder for the agent to work in
           </span>
@@ -273,7 +271,7 @@ export function FilesystemPanel() {
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -332,11 +330,11 @@ export function FilesystemPanel() {
         </div>
       </ScrollArea>
     </div>
-  )
+  );
 }
 
 function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState } from "react";
 import {
   Plus,
   MessageSquare,
@@ -7,43 +7,49 @@ import {
   Loader2,
   LayoutGrid,
   AlertCircle,
-  Cpu
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
+  Cpu,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog"
-import { useAppStore } from "@/lib/store"
-import { useThreadStream, useCurrentThread } from "@/lib/thread-context"
-import { cn, formatRelativeTime, truncate } from "@/lib/utils"
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useAppStore } from "@/lib/store";
+import { useThreadStream, useCurrentThread } from "@/lib/thread-context";
+import { cn, formatRelativeTime, truncate } from "@/lib/utils";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuTrigger
-} from "@/components/ui/context-menu"
-import type { Thread } from "@/types"
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import type { Thread } from "@/types";
 
 // Thread status indicator that shows loading, interrupted, or default state
-function ThreadStatusIcon({ threadId }: { threadId: string }): React.JSX.Element {
-  const { isLoading } = useThreadStream(threadId)
-  const { pendingApproval } = useCurrentThread(threadId)
+function ThreadStatusIcon({
+  threadId,
+}: {
+  threadId: string;
+}): React.JSX.Element {
+  const { isLoading } = useThreadStream(threadId);
+  const { pendingApproval } = useCurrentThread(threadId);
 
   if (isLoading) {
-    return <Loader2 className="size-4 shrink-0 text-status-info animate-spin" />
+    return (
+      <Loader2 className="size-4 shrink-0 text-status-info animate-spin" />
+    );
   }
-  
+
   if (pendingApproval) {
-    return <AlertCircle className="size-4 shrink-0 text-status-warning" />
+    return <AlertCircle className="size-4 shrink-0 text-status-warning" />;
   }
-  
-  return <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
+
+  return <MessageSquare className="size-4 shrink-0 text-muted-foreground" />;
 }
 
 // Individual thread list item component
@@ -60,21 +66,21 @@ function ThreadListItem({
   onSaveTitle,
   onCancelEditing,
   onEditingTitleChange,
-  onToggleBulk
+  onToggleBulk,
 }: {
-  thread: Thread
-  isSelected: boolean
-  isEditing: boolean
-  editingTitle: string
-  bulkMode: boolean
-  isBulkChecked: boolean
-  onSelect: () => void
-  onDelete: () => void
-  onStartEditing: () => void
-  onSaveTitle: () => void
-  onCancelEditing: () => void
-  onEditingTitleChange: (value: string) => void
-  onToggleBulk: () => void
+  thread: Thread;
+  isSelected: boolean;
+  isEditing: boolean;
+  editingTitle: string;
+  bulkMode: boolean;
+  isBulkChecked: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  onStartEditing: () => void;
+  onSaveTitle: () => void;
+  onCancelEditing: () => void;
+  onEditingTitleChange: (value: string) => void;
+  onToggleBulk: () => void;
 }): React.JSX.Element {
   return (
     <ContextMenu>
@@ -84,14 +90,14 @@ function ThreadListItem({
             "group flex items-center gap-2 rounded-sm px-3 py-2 cursor-pointer transition-colors overflow-hidden",
             isSelected
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "hover:bg-sidebar-accent/50"
+              : "hover:bg-sidebar-accent/50",
           )}
           onClick={() => {
             if (!isEditing) {
               if (bulkMode) {
-                onToggleBulk()
+                onToggleBulk();
               } else {
-                onSelect()
+                onSelect();
               }
             }
           }}
@@ -114,8 +120,8 @@ function ThreadListItem({
                 onChange={(e) => onEditingTitleChange(e.target.value)}
                 onBlur={onSaveTitle}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") onSaveTitle()
-                  if (e.key === "Escape") onCancelEditing()
+                  if (e.key === "Enter") onSaveTitle();
+                  if (e.key === "Escape") onCancelEditing();
                 }}
                 className="w-full bg-background border border-border rounded px-1 py-0.5 text-sm outline-none focus:ring-1 focus:ring-ring"
                 autoFocus
@@ -137,8 +143,8 @@ function ThreadListItem({
             size="icon-sm"
             className="opacity-0 group-hover:opacity-100 shrink-0"
             onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
+              e.stopPropagation();
+              onDelete();
             }}
           >
             <Trash2 className="size-3" />
@@ -157,7 +163,7 @@ function ThreadListItem({
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
-  )
+  );
 }
 
 export function ThreadSidebar(): React.JSX.Element {
@@ -169,73 +175,73 @@ export function ThreadSidebar(): React.JSX.Element {
     deleteThread,
     deleteThreads,
     updateThread,
-    setShowKanbanView
-  } = useAppStore()
+    setShowKanbanView,
+  } = useAppStore();
 
-  const [editingThreadId, setEditingThreadId] = useState<string | null>(null)
-  const [editingTitle, setEditingTitle] = useState("")
-  const [bulkMode, setBulkMode] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<
     null | { type: "single"; id: string } | { type: "bulk" }
-  >(null)
+  >(null);
 
   const startEditing = (threadId: string, currentTitle: string): void => {
-    setEditingThreadId(threadId)
-    setEditingTitle(currentTitle || "")
-  }
+    setEditingThreadId(threadId);
+    setEditingTitle(currentTitle || "");
+  };
 
   const saveTitle = async (): Promise<void> => {
     if (editingThreadId && editingTitle.trim()) {
-      await updateThread(editingThreadId, { title: editingTitle.trim() })
+      await updateThread(editingThreadId, { title: editingTitle.trim() });
     }
-    setEditingThreadId(null)
-    setEditingTitle("")
-  }
+    setEditingThreadId(null);
+    setEditingTitle("");
+  };
 
   const cancelEditing = (): void => {
-    setEditingThreadId(null)
-    setEditingTitle("")
-  }
+    setEditingThreadId(null);
+    setEditingTitle("");
+  };
 
   const handleNewThread = async (): Promise<void> => {
-    await createThread({ title: `新会话 ${new Date().toLocaleDateString()}` })
-  }
+    await createThread({ title: `新会话 ${new Date().toLocaleDateString()}` });
+  };
 
   const toggleBulk = (threadId: string): void => {
     setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(threadId)) next.delete(threadId)
-      else next.add(threadId)
-      return next
-    })
-  }
+      const next = new Set(prev);
+      if (next.has(threadId)) next.delete(threadId);
+      else next.add(threadId);
+      return next;
+    });
+  };
 
   const exitBulkMode = (): void => {
-    setBulkMode(false)
-    setSelectedIds(new Set())
-  }
+    setBulkMode(false);
+    setSelectedIds(new Set());
+  };
 
   const handleBulkDeleteRequest = (): void => {
-    if (selectedIds.size === 0) return
-    setDeleteConfirm({ type: "bulk" })
-  }
+    if (selectedIds.size === 0) return;
+    setDeleteConfirm({ type: "bulk" });
+  };
 
   const executeConfirmedDelete = async (): Promise<void> => {
-    if (!deleteConfirm) return
+    if (!deleteConfirm) return;
     if (deleteConfirm.type === "single") {
-      await deleteThread(deleteConfirm.id)
+      await deleteThread(deleteConfirm.id);
     } else {
-      const ids = [...selectedIds]
+      const ids = [...selectedIds];
       if (ids.length === 0) {
-        setDeleteConfirm(null)
-        return
+        setDeleteConfirm(null);
+        return;
       }
-      await deleteThreads(ids)
-      exitBulkMode()
+      await deleteThreads(ids);
+      exitBulkMode();
     }
-    setDeleteConfirm(null)
-  }
+    setDeleteConfirm(null);
+  };
 
   return (
     <aside className="flex h-full w-full flex-col overflow-hidden bg-sidebar">
@@ -251,7 +257,9 @@ export function ThreadSidebar(): React.JSX.Element {
           <p className="truncate text-xs font-semibold uppercase tracking-wide text-sidebar-foreground">
             Open-Jarvis
           </p>
-          <p className="font-mono text-[10px] text-muted-foreground">{__APP_VERSION__}</p>
+          <p className="font-mono text-[10px] text-muted-foreground">
+            {__APP_VERSION__}
+          </p>
         </div>
       </div>
 
@@ -274,16 +282,25 @@ export function ThreadSidebar(): React.JSX.Element {
               disabled={threads.length === 0}
               onClick={() => {
                 const allSelected =
-                  threads.length > 0 && selectedIds.size === threads.length
+                  threads.length > 0 && selectedIds.size === threads.length;
                 setSelectedIds(
-                  allSelected ? new Set() : new Set(threads.map((t) => t.thread_id))
-                )
+                  allSelected
+                    ? new Set()
+                    : new Set(threads.map((t) => t.thread_id)),
+                );
               }}
             >
-              {threads.length > 0 && selectedIds.size === threads.length ? "取消全选" : "全选"}
+              {threads.length > 0 && selectedIds.size === threads.length
+                ? "取消全选"
+                : "全选"}
             </Button>
             <div className="flex gap-1">
-              <Button variant="secondary" size="sm" className="flex-1 text-xs h-7" onClick={exitBulkMode}>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1 text-xs h-7"
+                onClick={exitBulkMode}
+              >
                 完成
               </Button>
               <Button
@@ -322,8 +339,12 @@ export function ThreadSidebar(): React.JSX.Element {
               bulkMode={bulkMode}
               isBulkChecked={selectedIds.has(thread.thread_id)}
               onSelect={() => selectThread(thread.thread_id)}
-              onDelete={() => setDeleteConfirm({ type: "single", id: thread.thread_id })}
-              onStartEditing={() => startEditing(thread.thread_id, thread.title || "")}
+              onDelete={() =>
+                setDeleteConfirm({ type: "single", id: thread.thread_id })
+              }
+              onStartEditing={() =>
+                startEditing(thread.thread_id, thread.title || "")
+              }
               onSaveTitle={saveTitle}
               onCancelEditing={cancelEditing}
               onEditingTitleChange={setEditingTitle}
@@ -352,11 +373,16 @@ export function ThreadSidebar(): React.JSX.Element {
         </Button>
       </div>
 
-      <Dialog open={deleteConfirm !== null} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
+      <Dialog
+        open={deleteConfirm !== null}
+        onOpenChange={(o) => !o && setDeleteConfirm(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {deleteConfirm?.type === "bulk" ? "确认删除多个会话？" : "确认删除会话？"}
+              {deleteConfirm?.type === "bulk"
+                ? "确认删除多个会话？"
+                : "确认删除会话？"}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
@@ -365,15 +391,23 @@ export function ThreadSidebar(): React.JSX.Element {
               : "将永久删除该会话及其消息记录，此操作不可恢复。"}
           </p>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="secondary" onClick={() => setDeleteConfirm(null)}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setDeleteConfirm(null)}
+            >
               取消
             </Button>
-            <Button type="button" variant="destructive" onClick={() => void executeConfirmedDelete()}>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void executeConfirmedDelete()}
+            >
               删除
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </aside>
-  )
+  );
 }

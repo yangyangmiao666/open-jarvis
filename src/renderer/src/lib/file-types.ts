@@ -1,9 +1,16 @@
-export type FileType = "image" | "video" | "audio" | "pdf" | "code" | "text" | "binary"
+export type FileType =
+  | "image"
+  | "video"
+  | "audio"
+  | "pdf"
+  | "code"
+  | "text"
+  | "binary";
 
 interface FileTypeInfo {
-  type: FileType
-  mimeType?: string
-  canPreview: boolean
+  type: FileType;
+  mimeType?: string;
+  canPreview: boolean;
 }
 
 const IMAGE_EXTENSIONS = new Set([
@@ -16,14 +23,33 @@ const IMAGE_EXTENSIONS = new Set([
   "bmp",
   "ico",
   "tiff",
-  "tif"
-])
+  "tif",
+]);
 
-const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "ogg", "ogv", "mov", "avi", "wmv", "flv", "mkv"])
+const VIDEO_EXTENSIONS = new Set([
+  "mp4",
+  "webm",
+  "ogg",
+  "ogv",
+  "mov",
+  "avi",
+  "wmv",
+  "flv",
+  "mkv",
+]);
 
-const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "ogg", "oga", "m4a", "flac", "aac", "weba"])
+const AUDIO_EXTENSIONS = new Set([
+  "mp3",
+  "wav",
+  "ogg",
+  "oga",
+  "m4a",
+  "flac",
+  "aac",
+  "weba",
+]);
 
-const PDF_EXTENSIONS = new Set(["pdf"])
+const PDF_EXTENSIONS = new Set(["pdf"]);
 
 const CODE_EXTENSIONS = new Set([
   "ts",
@@ -70,8 +96,8 @@ const CODE_EXTENSIONS = new Set([
   "makefile",
   /** MATLAB / Octave */
   "m",
-  "mlx"
-])
+  "mlx",
+]);
 
 const TEXT_EXTENSIONS = new Set([
   "txt",
@@ -84,66 +110,68 @@ const TEXT_EXTENSIONS = new Set([
   "conf",
   "config",
   "ini",
-  "cfg"
-])
+  "cfg",
+]);
 
 export function getFileType(fileName: string): FileTypeInfo {
-  const ext = fileName.includes(".") ? fileName.split(".").pop()?.toLowerCase() : undefined
+  const ext = fileName.includes(".")
+    ? fileName.split(".").pop()?.toLowerCase()
+    : undefined;
 
   if (!ext) {
-    return { type: "text", canPreview: true }
+    return { type: "text", canPreview: true };
   }
 
   if (IMAGE_EXTENSIONS.has(ext)) {
     return {
       type: "image",
       mimeType: getMimeType(ext),
-      canPreview: true
-    }
+      canPreview: true,
+    };
   }
 
   if (VIDEO_EXTENSIONS.has(ext)) {
     return {
       type: "video",
       mimeType: getMimeType(ext),
-      canPreview: true
-    }
+      canPreview: true,
+    };
   }
 
   if (AUDIO_EXTENSIONS.has(ext)) {
     return {
       type: "audio",
       mimeType: getMimeType(ext),
-      canPreview: true
-    }
+      canPreview: true,
+    };
   }
 
   if (PDF_EXTENSIONS.has(ext)) {
     return {
       type: "pdf",
       mimeType: "application/pdf",
-      canPreview: true
-    }
+      canPreview: true,
+    };
   }
 
   if (CODE_EXTENSIONS.has(ext)) {
     return {
       type: "code",
-      canPreview: true
-    }
+      canPreview: true,
+    };
   }
 
   if (TEXT_EXTENSIONS.has(ext)) {
     return {
       type: "text",
-      canPreview: true
-    }
+      canPreview: true,
+    };
   }
 
   return {
     type: "binary",
-    canPreview: false
-  }
+    canPreview: false,
+  };
 }
 
 function getMimeType(ext: string): string {
@@ -181,15 +209,19 @@ function getMimeType(ext: string): string {
     weba: "audio/webm",
 
     // PDF
-    pdf: "application/pdf"
-  }
+    pdf: "application/pdf",
+  };
 
-  return mimeTypes[ext] || "application/octet-stream"
+  return mimeTypes[ext] || "application/octet-stream";
 }
 
 export function isBinaryFile(fileName: string): boolean {
-  const { type } = getFileType(fileName)
+  const { type } = getFileType(fileName);
   return (
-    type === "image" || type === "video" || type === "audio" || type === "pdf" || type === "binary"
-  )
+    type === "image" ||
+    type === "video" ||
+    type === "audio" ||
+    type === "pdf" ||
+    type === "binary"
+  );
 }

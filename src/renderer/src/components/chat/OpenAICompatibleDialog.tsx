@@ -1,68 +1,72 @@
-import { useState, useEffect } from "react"
-import { Plus, Trash2, Pencil } from "lucide-react"
+import { useState, useEffect } from "react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import type { OpenAICompatibleProfile } from "@/types"
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { OpenAICompatibleProfile } from "@/types";
 
 interface OpenAICompatibleDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSaved: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
 }
 
-const emptyForm = (): Omit<OpenAICompatibleProfile, "id"> & { id?: string } => ({
+const emptyForm = (): Omit<OpenAICompatibleProfile, "id"> & {
+  id?: string;
+} => ({
   name: "",
   baseUrl: "",
   apiKey: "",
-  model: ""
-})
+  model: "",
+});
 
 export function OpenAICompatibleDialog({
   open,
   onOpenChange,
-  onSaved
+  onSaved,
 }: OpenAICompatibleDialogProps): React.JSX.Element {
-  const [profiles, setProfiles] = useState<OpenAICompatibleProfile[]>([])
-  const [editing, setEditing] = useState<(Omit<OpenAICompatibleProfile, "id"> & { id?: string }) | null>(
-    null
-  )
+  const [profiles, setProfiles] = useState<OpenAICompatibleProfile[]>([]);
+  const [editing, setEditing] = useState<
+    (Omit<OpenAICompatibleProfile, "id"> & { id?: string }) | null
+  >(null);
 
   const load = async (): Promise<void> => {
-    const list = await window.api.models.openaiCompatibleList()
-    setProfiles(list)
-  }
+    const list = await window.api.models.openaiCompatibleList();
+    setProfiles(list);
+  };
 
   useEffect(() => {
     if (open) {
-      void load()
-      setEditing(null)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void load();
+
+      setEditing(null);
     }
-  }, [open])
+  }, [open]);
 
   const handleSave = async (): Promise<void> => {
-    if (!editing) return
+    if (!editing) return;
     if (!editing.baseUrl.trim() || !editing.model.trim()) {
-      return
+      return;
     }
-    await window.api.models.openaiCompatibleUpsert(editing)
-    await load()
-    onSaved()
-    setEditing(null)
-  }
+    await window.api.models.openaiCompatibleUpsert(editing);
+    await load();
+    onSaved();
+    setEditing(null);
+  };
 
   const handleDelete = async (id: string): Promise<void> => {
-    await window.api.models.openaiCompatibleDelete(id)
-    await load()
-    onSaved()
-  }
+    await window.api.models.openaiCompatibleDelete(id);
+    await load();
+    onSaved();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,7 +96,9 @@ export function OpenAICompatibleDialog({
                 <Input
                   id="oac-name"
                   value={editing.name}
-                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, name: e.target.value })
+                  }
                   placeholder="例如：本地 vLLM"
                 />
               </div>
@@ -103,7 +109,9 @@ export function OpenAICompatibleDialog({
                 <Input
                   id="oac-base"
                   value={editing.baseUrl}
-                  onChange={(e) => setEditing({ ...editing, baseUrl: e.target.value })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, baseUrl: e.target.value })
+                  }
                   placeholder="https://api.example.com 或 http://127.0.0.1:11434/v1"
                 />
               </div>
@@ -115,7 +123,9 @@ export function OpenAICompatibleDialog({
                   id="oac-key"
                   type="password"
                   value={editing.apiKey}
-                  onChange={(e) => setEditing({ ...editing, apiKey: e.target.value })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, apiKey: e.target.value })
+                  }
                   placeholder="可填占位符，若网关不要求密钥"
                 />
               </div>
@@ -126,15 +136,26 @@ export function OpenAICompatibleDialog({
                 <Input
                   id="oac-model"
                   value={editing.model}
-                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, model: e.target.value })
+                  }
                   placeholder="例如：gpt-4o、Qwen/Qwen2.5-7B-Instruct"
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(null)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditing(null)}
+                >
                   取消
                 </Button>
-                <Button type="button" size="sm" onClick={() => void handleSave()}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void handleSave()}
+                >
                   保存
                 </Button>
               </div>
@@ -144,7 +165,9 @@ export function OpenAICompatibleDialog({
           <ScrollArea className="h-[200px] rounded-md border border-border">
             <div className="p-2 space-y-1">
               {profiles.length === 0 && !editing && (
-                <p className="text-sm text-muted-foreground px-2 py-6 text-center">暂无配置</p>
+                <p className="text-sm text-muted-foreground px-2 py-6 text-center">
+                  暂无配置
+                </p>
               )}
               {profiles.map((p) => (
                 <div
@@ -152,9 +175,15 @@ export function OpenAICompatibleDialog({
                   className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-muted/50"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{p.name || p.model}</div>
-                    <div className="text-muted-foreground truncate font-mono">{p.baseUrl}</div>
-                    <div className="text-muted-foreground truncate font-mono">模型：{p.model}</div>
+                    <div className="font-medium truncate">
+                      {p.name || p.model}
+                    </div>
+                    <div className="text-muted-foreground truncate font-mono">
+                      {p.baseUrl}
+                    </div>
+                    <div className="text-muted-foreground truncate font-mono">
+                      模型：{p.model}
+                    </div>
                   </div>
                   <Button
                     type="button"
@@ -181,11 +210,15 @@ export function OpenAICompatibleDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+          >
             关闭
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

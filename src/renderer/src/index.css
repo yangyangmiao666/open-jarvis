@@ -61,8 +61,9 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Monospace with CJK fallbacks for code blocks and tool output */
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "JetBrains Mono", "Fira Code",
-    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", monospace;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, "JetBrains Mono",
+    "Fira Code", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", monospace;
 }
 
 /* 深色（默认，由 html.dark 与 initTheme 应用） */
@@ -159,14 +160,24 @@ html.light {
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC",
-      "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "PingFang SC",
+      "Hiragino Sans GB",
+      "Microsoft YaHei",
+      "Noto Sans CJK SC",
+      sans-serif;
   }
 
   pre,
   code {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "JetBrains Mono", "Fira Code",
-      "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", monospace;
+    font-family:
+      ui-monospace, SFMono-Regular, "SF Mono", Menlo, "JetBrains Mono",
+      "Fira Code", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC",
+      monospace;
   }
   button,
   [role="button"],
@@ -477,7 +488,8 @@ html.light {
 }
 
 .shiki-content code {
-  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", "Fira Code", "PingFang SC",
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", "Fira Code", "PingFang SC",
     "Microsoft YaHei", "Noto Sans CJK SC", monospace;
   font-size: inherit;
   background: transparent !important;

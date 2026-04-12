@@ -1,7 +1,11 @@
-import { CircleGauge, Zap, ArrowDown, ArrowUp, Database } from "lucide-react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import type { TokenUsage } from "@/lib/thread-context"
+import { CircleGauge, Zap, ArrowDown, ArrowUp, Database } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import type { TokenUsage } from "@/lib/thread-context";
 
 // Context window limits by model (in tokens)
 // These are approximate and may vary
@@ -31,90 +35,96 @@ const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   "gemini-2.5-flash-lite": 1_000_000,
   "gemini-2.0-flash": 1_000_000,
   "gemini-1.5-pro": 2_000_000,
-  "gemini-1.5-flash": 1_000_000
-}
+  "gemini-1.5-flash": 1_000_000,
+};
 
 // Default limit if model not found
-const DEFAULT_CONTEXT_LIMIT = 128_000
+const DEFAULT_CONTEXT_LIMIT = 128_000;
 
 function getContextLimit(modelId: string): number {
   // Try exact match first
   if (MODEL_CONTEXT_LIMITS[modelId]) {
-    return MODEL_CONTEXT_LIMITS[modelId]
+    return MODEL_CONTEXT_LIMITS[modelId];
   }
 
   // Try prefix match for model families
   for (const [key, limit] of Object.entries(MODEL_CONTEXT_LIMITS)) {
     if (modelId.startsWith(key)) {
-      return limit
+      return limit;
     }
   }
 
   // Infer from model name patterns
-  if (modelId.includes("claude")) return 200_000
-  if (modelId.includes("gpt-4o") || modelId.includes("o1") || modelId.includes("o3")) return 128_000
-  if (modelId.includes("gemini")) return 1_000_000
+  if (modelId.includes("claude")) return 200_000;
+  if (
+    modelId.includes("gpt-4o") ||
+    modelId.includes("o1") ||
+    modelId.includes("o3")
+  )
+    return 128_000;
+  if (modelId.includes("gemini")) return 1_000_000;
 
-  return DEFAULT_CONTEXT_LIMIT
+  return DEFAULT_CONTEXT_LIMIT;
 }
 
 function formatTokenCount(tokens: number): string {
   if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(1)}M`
+    return `${(tokens / 1_000_000).toFixed(1)}M`;
   }
   if (tokens >= 1_000) {
-    return `${Math.round(tokens / 1_000)}K`
+    return `${Math.round(tokens / 1_000)}K`;
   }
-  return tokens.toString()
+  return tokens.toString();
 }
 
 function formatTokenCountFull(tokens: number): string {
-  return tokens.toLocaleString()
+  return tokens.toLocaleString();
 }
 
 interface ContextUsageIndicatorProps {
-  tokenUsage: TokenUsage | null
-  modelId: string
-  className?: string
+  tokenUsage: TokenUsage | null;
+  modelId: string;
+  className?: string;
 }
 
 export function ContextUsageIndicator({
   tokenUsage,
   modelId,
-  className
+  className,
 }: ContextUsageIndicatorProps): React.JSX.Element | null {
   if (!tokenUsage) {
-    return null
+    return null;
   }
 
-  const contextLimit = getContextLimit(modelId)
-  const usedTokens = tokenUsage.inputTokens
-  const usagePercent = Math.min((usedTokens / contextLimit) * 100, 100)
+  const contextLimit = getContextLimit(modelId);
+  const usedTokens = tokenUsage.inputTokens;
+  const usagePercent = Math.min((usedTokens / contextLimit) * 100, 100);
 
   // Determine color based on usage
-  let colorClass = "text-blue-500"
-  let bgColorClass = "bg-blue-500/20"
-  let barColorClass = "bg-blue-500"
-  let statusText = "正常"
+  let colorClass = "text-blue-500";
+  let bgColorClass = "bg-blue-500/20";
+  let barColorClass = "bg-blue-500";
+  let statusText = "正常";
 
   if (usagePercent >= 90) {
-    colorClass = "text-red-500"
-    bgColorClass = "bg-red-500/20"
-    barColorClass = "bg-red-500"
-    statusText = "危急"
+    colorClass = "text-red-500";
+    bgColorClass = "bg-red-500/20";
+    barColorClass = "bg-red-500";
+    statusText = "危急";
   } else if (usagePercent >= 75) {
-    colorClass = "text-orange-500"
-    bgColorClass = "bg-orange-500/20"
-    barColorClass = "bg-orange-500"
-    statusText = "警告"
+    colorClass = "text-orange-500";
+    bgColorClass = "bg-orange-500/20";
+    barColorClass = "bg-orange-500";
+    statusText = "警告";
   } else if (usagePercent >= 50) {
-    colorClass = "text-yellow-500"
-    bgColorClass = "bg-yellow-500/20"
-    barColorClass = "bg-yellow-500"
-    statusText = "中等"
+    colorClass = "text-yellow-500";
+    bgColorClass = "bg-yellow-500/20";
+    barColorClass = "bg-yellow-500";
+    statusText = "中等";
   }
 
-  const hasCacheData = tokenUsage.cacheReadTokens || tokenUsage.cacheCreationTokens
+  const hasCacheData =
+    tokenUsage.cacheReadTokens || tokenUsage.cacheCreationTokens;
 
   return (
     <Popover>
@@ -124,26 +134,34 @@ export function ContextUsageIndicator({
             "flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs transition-colors hover:opacity-80",
             bgColorClass,
             colorClass,
-            className
+            className,
           )}
         >
           <CircleGauge className="size-3.5" />
           <span className="font-mono">
             {formatTokenCount(usedTokens)} / {formatTokenCount(contextLimit)}
           </span>
-          <span className="text-[10px] opacity-70">({usagePercent.toFixed(0)}%)</span>
+          <span className="text-[10px] opacity-70">
+            ({usagePercent.toFixed(0)}%)
+          </span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-0 bg-background border-border" align="end" sideOffset={8}>
+      <PopoverContent
+        className="w-72 p-0 bg-background border-border"
+        align="end"
+        sideOffset={8}
+      >
         <div className="p-3 space-y-3">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground">上下文窗口</span>
+            <span className="text-xs font-medium text-foreground">
+              上下文窗口
+            </span>
             <span
               className={cn(
                 "text-[10px] font-medium px-1.5 py-0.5 rounded",
                 bgColorClass,
-                colorClass
+                colorClass,
               )}
             >
               {statusText}
@@ -154,7 +172,10 @@ export function ContextUsageIndicator({
           <div className="space-y-1">
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
-                className={cn("h-full rounded-full transition-all", barColorClass)}
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  barColorClass,
+                )}
                 style={{ width: `${usagePercent}%` }}
               />
             </div>
@@ -177,7 +198,9 @@ export function ContextUsageIndicator({
                   <ArrowUp className="size-3" />
                   <span>输入</span>
                 </div>
-                <span className="font-mono">{formatTokenCountFull(tokenUsage.inputTokens)}</span>
+                <span className="font-mono">
+                  {formatTokenCountFull(tokenUsage.inputTokens)}
+                </span>
               </div>
 
               {/* Output tokens */}
@@ -186,7 +209,9 @@ export function ContextUsageIndicator({
                   <ArrowDown className="size-3" />
                   <span>输出</span>
                 </div>
-                <span className="font-mono">{formatTokenCountFull(tokenUsage.outputTokens)}</span>
+                <span className="font-mono">
+                  {formatTokenCountFull(tokenUsage.outputTokens)}
+                </span>
               </div>
 
               {/* Total */}
@@ -195,7 +220,9 @@ export function ContextUsageIndicator({
                   <Zap className="size-3" />
                   <span>总计</span>
                 </div>
-                <span className="font-mono">{formatTokenCountFull(tokenUsage.totalTokens)}</span>
+                <span className="font-mono">
+                  {formatTokenCountFull(tokenUsage.totalTokens)}
+                </span>
               </div>
             </div>
           </div>
@@ -209,17 +236,18 @@ export function ContextUsageIndicator({
             <div className="space-y-1">
               {hasCacheData ? (
                 <>
-                  {tokenUsage.cacheReadTokens !== undefined && tokenUsage.cacheReadTokens > 0 && (
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5 text-green-500">
-                        <Database className="size-3" />
-                        <span>缓存命中</span>
+                  {tokenUsage.cacheReadTokens !== undefined &&
+                    tokenUsage.cacheReadTokens > 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 text-green-500">
+                          <Database className="size-3" />
+                          <span>缓存命中</span>
+                        </div>
+                        <span className="font-mono text-green-500">
+                          {formatTokenCountFull(tokenUsage.cacheReadTokens)}
+                        </span>
                       </div>
-                      <span className="font-mono text-green-500">
-                        {formatTokenCountFull(tokenUsage.cacheReadTokens)}
-                      </span>
-                    </div>
-                  )}
+                    )}
 
                   {tokenUsage.cacheCreationTokens !== undefined &&
                     tokenUsage.cacheCreationTokens > 0 && (
@@ -243,11 +271,14 @@ export function ContextUsageIndicator({
           {/* Last updated */}
           <div className="pt-2 border-t border-border">
             <div className="text-[10px] text-muted-foreground">
-              最后更新：{tokenUsage.lastUpdated.toLocaleTimeString('zh-CN', { hour12: false })}
+              最后更新：
+              {tokenUsage.lastUpdated.toLocaleTimeString("zh-CN", {
+                hour12: false,
+              })}
             </div>
           </div>
         </div>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

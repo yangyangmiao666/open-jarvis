@@ -47,3 +47,7 @@ coverage/
 
 # Misc
 *.local
+
+.eslintcache
+bun.lock
+

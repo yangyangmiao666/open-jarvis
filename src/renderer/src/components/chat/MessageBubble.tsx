@@ -1,23 +1,23 @@
-import { useCallback } from "react"
-import { User, Cpu, Copy } from "lucide-react"
-import { cn } from "@/lib/utils"
-import type { Message, HITLRequest } from "@/types"
-import { singleMessageToMarkdown } from "@/lib/chat-markdown"
-import { Button } from "@/components/ui/button"
-import { ToolCallRenderer } from "./ToolCallRenderer"
-import { ThinkAwareMarkdown } from "./ThinkAwareMarkdown"
+import { useCallback } from "react";
+import { User, Cpu, Copy } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Message, HITLRequest } from "@/types";
+import { singleMessageToMarkdown } from "@/lib/chat-markdown";
+import { Button } from "@/components/ui/button";
+import { ToolCallRenderer } from "./ToolCallRenderer";
+import { ThinkAwareMarkdown } from "./ThinkAwareMarkdown";
 
 interface ToolResultInfo {
-  content: string | unknown
-  is_error?: boolean
+  content: string | unknown;
+  is_error?: boolean;
 }
 
 interface MessageBubbleProps {
-  message: Message
-  isStreaming?: boolean
-  toolResults?: Map<string, ToolResultInfo>
-  pendingApproval?: HITLRequest | null
-  onApprovalDecision?: (decision: "approve" | "reject" | "edit") => void
+  message: Message;
+  isStreaming?: boolean;
+  toolResults?: Map<string, ToolResultInfo>;
+  pendingApproval?: HITLRequest | null;
+  onApprovalDecision?: (decision: "approve" | "reject" | "edit") => void;
 }
 
 export function MessageBubble({
@@ -25,43 +25,49 @@ export function MessageBubble({
   isStreaming,
   toolResults,
   pendingApproval,
-  onApprovalDecision
+  onApprovalDecision,
 }: MessageBubbleProps): React.JSX.Element | null {
-  const isUser = message.role === "user"
-  const isTool = message.role === "tool"
+  const isUser = message.role === "user";
+  const isTool = message.role === "tool";
 
   const copyAsMarkdown = useCallback(async (): Promise<void> => {
-    const md = singleMessageToMarkdown(message, toolResults)
-    if (!md) return
+    const md = singleMessageToMarkdown(message, toolResults);
+    if (!md) return;
     try {
-      await navigator.clipboard.writeText(md)
+      await navigator.clipboard.writeText(md);
     } catch (e) {
-      console.error("[MessageBubble] Copy failed:", e)
+      console.error("[MessageBubble] Copy failed:", e);
     }
-  }, [message, toolResults])
+  }, [message, toolResults]);
 
   // Hide tool result messages - they're shown inline with tool calls
   if (isTool) {
-    return null
+    return null;
   }
 
   const getLabel = (): string => {
-    if (isUser) return "你"
-    return "Jarvis"
-  }
+    if (isUser) return "你";
+    return "Jarvis";
+  };
 
   const renderContent = (): React.ReactNode => {
     if (typeof message.content === "string") {
       // Empty content
       if (!message.content.trim()) {
-        return null
+        return null;
       }
 
       // Use streaming markdown for assistant messages, plain text for user messages
       if (isUser) {
-        return <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+        return (
+          <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+        );
       }
-      return <ThinkAwareMarkdown isStreaming={isStreaming}>{message.content}</ThinkAwareMarkdown>
+      return (
+        <ThinkAwareMarkdown isStreaming={isStreaming}>
+          {message.content}
+        </ThinkAwareMarkdown>
+      );
     }
 
     // Handle content blocks
@@ -74,27 +80,27 @@ export function MessageBubble({
               <div key={index} className="whitespace-pre-wrap text-sm">
                 {block.text}
               </div>
-            )
+            );
           }
           return (
             <ThinkAwareMarkdown key={index} isStreaming={isStreaming}>
               {block.text}
             </ThinkAwareMarkdown>
-          )
+          );
         }
-        return null
+        return null;
       })
-      .filter(Boolean)
+      .filter(Boolean);
 
-    return renderedBlocks.length > 0 ? renderedBlocks : null
-  }
+    return renderedBlocks.length > 0 ? renderedBlocks : null;
+  };
 
-  const content = renderContent()
-  const hasToolCalls = message.tool_calls && message.tool_calls.length > 0
+  const content = renderContent();
+  const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
 
   // Don't render if there's no content and no tool calls
   if (!content && !hasToolCalls) {
-    return null
+    return null;
   }
 
   return (
@@ -116,7 +122,7 @@ export function MessageBubble({
         <div
           className={cn(
             "flex items-center gap-1",
-            isUser ? "justify-end" : "justify-between"
+            isUser ? "justify-end" : "justify-between",
           )}
         >
           {isUser ? (
@@ -152,7 +158,10 @@ export function MessageBubble({
 
         {content && (
           <div
-            className={cn("rounded-sm p-3 overflow-hidden", isUser ? "bg-primary/10" : "bg-card")}
+            className={cn(
+              "rounded-sm p-3 overflow-hidden",
+              isUser ? "bg-primary/10" : "bg-card",
+            )}
           >
             {content}
           </div>
@@ -162,9 +171,11 @@ export function MessageBubble({
         {hasToolCalls && (
           <div className="space-y-2 overflow-hidden">
             {message.tool_calls!.map((toolCall, index) => {
-              const result = toolResults?.get(toolCall.id)
-              const pendingId = pendingApproval?.tool_call?.id
-              const needsApproval = Boolean(pendingId && pendingId === toolCall.id)
+              const result = toolResults?.get(toolCall.id);
+              const pendingId = pendingApproval?.tool_call?.id;
+              const needsApproval = Boolean(
+                pendingId && pendingId === toolCall.id,
+              );
               return (
                 <ToolCallRenderer
                   key={`${toolCall.id || `tc-${index}`}-${needsApproval ? "pending" : "done"}`}
@@ -172,9 +183,11 @@ export function MessageBubble({
                   result={result?.content}
                   isError={result?.is_error}
                   needsApproval={needsApproval}
-                  onApprovalDecision={needsApproval ? onApprovalDecision : undefined}
+                  onApprovalDecision={
+                    needsApproval ? onApprovalDecision : undefined
+                  }
                 />
-              )
+              );
             })}
           </div>
         )}
@@ -183,11 +196,14 @@ export function MessageBubble({
       {/* Right avatar column - shows for user */}
       <div className="w-8 shrink-0">
         {isUser && (
-          <div className="flex size-8 items-center justify-center rounded-sm bg-primary/10 text-primary" title="你">
+          <div
+            className="flex size-8 items-center justify-center rounded-sm bg-primary/10 text-primary"
+            title="你"
+          >
             <User className="size-4" />
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }

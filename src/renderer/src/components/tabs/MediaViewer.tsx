@@ -1,24 +1,24 @@
-import { Music, Video } from "lucide-react"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { useObjectUrlFromBase64 } from "@/lib/media-blob"
+import { Music, Video } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useObjectUrlFromBase64 } from "@/lib/media-blob";
 
 interface MediaViewerProps {
-  filePath: string
-  base64Content: string
-  mimeType: string
-  mediaType: "video" | "audio"
+  filePath: string;
+  base64Content: string;
+  mimeType: string;
+  mediaType: "video" | "audio";
 }
 
 export function MediaViewer({
   filePath,
   base64Content,
   mimeType,
-  mediaType
+  mediaType,
 }: MediaViewerProps): React.JSX.Element {
-  const fileName = filePath.split("/").pop() || filePath
-  const mediaUrl = useObjectUrlFromBase64(base64Content, mimeType)
-  const fallbackDataUrl = `data:${mimeType};base64,${base64Content}`
-  const src = mediaUrl ?? fallbackDataUrl
+  const fileName = filePath.split("/").pop() || filePath;
+  const mediaUrl = useObjectUrlFromBase64(base64Content, mimeType);
+  const fallbackDataUrl = `data:${mimeType};base64,${base64Content}`;
+  const src = mediaUrl ?? fallbackDataUrl;
 
   return (
     <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
@@ -52,7 +52,9 @@ export function MediaViewer({
                 </div>
                 <div className="text-center">
                   <div className="font-medium text-foreground">{fileName}</div>
-                  <div className="text-sm text-muted-foreground">Audio File</div>
+                  <div className="text-sm text-muted-foreground">
+                    Audio File
+                  </div>
                 </div>
               </div>
               <audio controls className="w-full max-w-md" preload="metadata">
@@ -64,5 +66,5 @@ export function MediaViewer({
         </div>
       </ScrollArea>
     </div>
-  )
+  );
 }

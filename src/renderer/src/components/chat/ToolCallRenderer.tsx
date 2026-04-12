@@ -13,23 +13,26 @@ import {
   Clock,
   XCircle,
   File,
-  Folder
-} from "lucide-react"
-import { useState } from "react"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import type { ToolCall, Todo } from "@/types"
-import { ShikiCodePreview } from "./ShikiCodePreview"
+  Folder,
+} from "lucide-react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import type { ToolCall, Todo } from "@/types";
+import { ShikiCodePreview } from "./ShikiCodePreview";
 
 interface ToolCallRendererProps {
-  toolCall: ToolCall
-  result?: string | unknown
-  isError?: boolean
-  needsApproval?: boolean
-  onApprovalDecision?: (decision: "approve" | "reject" | "edit") => void
+  toolCall: ToolCall;
+  result?: string | unknown;
+  isError?: boolean;
+  needsApproval?: boolean;
+  onApprovalDecision?: (decision: "approve" | "reject" | "edit") => void;
 }
 
-const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+const TOOL_ICONS: Record<
+  string,
+  React.ComponentType<{ className?: string }>
+> = {
   read_file: FileText,
   write_file: Edit,
   edit_file: Edit,
@@ -38,8 +41,8 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   grep: Search,
   execute: Terminal,
   write_todos: ListTodo,
-  task: GitBranch
-}
+  task: GitBranch,
+};
 
 const TOOL_LABELS: Record<string, string> = {
   read_file: "读取文件",
@@ -50,15 +53,15 @@ const TOOL_LABELS: Record<string, string> = {
   grep: "搜索内容",
   execute: "执行命令",
   write_todos: "更新任务",
-  task: "子智能体任务"
-}
+  task: "子智能体任务",
+};
 
 // Tools whose results are shown in the UI panels and don't need verbose display
-const PANEL_SYNCED_TOOLS = new Set(["write_todos"])
+const PANEL_SYNCED_TOOLS = new Set(["write_todos"]);
 
 // Helper to get a clean file name from path
 function getFileName(path: string): string {
-  return path.split("/").pop() || path
+  return path.split("/").pop() || path;
 }
 
 // Render todos nicely
@@ -67,47 +70,51 @@ function TodosDisplay({ todos }: { todos: Todo[] }): React.JSX.Element {
     pending: { icon: Circle, color: "text-muted-foreground" },
     in_progress: { icon: Clock, color: "text-status-info" },
     completed: { icon: CheckCircle2, color: "text-status-nominal" },
-    cancelled: { icon: XCircle, color: "text-muted-foreground" }
-  }
+    cancelled: { icon: XCircle, color: "text-muted-foreground" },
+  };
 
-  const defaultConfig = { icon: Circle, color: "text-muted-foreground" }
+  const defaultConfig = { icon: Circle, color: "text-muted-foreground" };
 
   return (
     <div className="space-y-1">
       {todos.map((todo, i) => {
-        const config = statusConfig[todo.status] || defaultConfig
-        const Icon = config.icon
-        const isDone = todo.status === "completed" || todo.status === "cancelled"
+        const config = statusConfig[todo.status] || defaultConfig;
+        const Icon = config.icon;
+        const isDone =
+          todo.status === "completed" || todo.status === "cancelled";
         return (
           <div
             key={todo.id || i}
-            className={cn("flex items-start gap-2 text-xs", isDone && "opacity-50")}
+            className={cn(
+              "flex items-start gap-2 text-xs",
+              isDone && "opacity-50",
+            )}
           >
             <Icon className={cn("size-3.5 mt-0.5 shrink-0", config.color)} />
             <span className={cn(isDone && "line-through")}>{todo.content}</span>
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 // Render file list nicely
 function FileListDisplay({
   files,
-  isGlob
+  isGlob,
 }: {
-  files: string[] | Array<{ path: string; is_dir?: boolean }>
-  isGlob?: boolean
+  files: string[] | Array<{ path: string; is_dir?: boolean }>;
+  isGlob?: boolean;
 }): React.JSX.Element {
-  const items = files.slice(0, 15) // Limit display
-  const hasMore = files.length > 15
+  const items = files.slice(0, 15); // Limit display
+  const hasMore = files.length > 15;
 
   return (
     <div className="space-y-0.5">
       {items.map((file, i) => {
-        const path = typeof file === "string" ? file : file.path
-        const isDir = typeof file === "object" && file.is_dir
+        const path = typeof file === "string" ? file : file.path;
+        const isDir = typeof file === "object" && file.is_dir;
         return (
           <div key={i} className="flex items-center gap-2 text-xs font-mono">
             {isDir ? (
@@ -115,34 +122,38 @@ function FileListDisplay({
             ) : (
               <File className="size-3 text-muted-foreground shrink-0" />
             )}
-            <span className="truncate">{isGlob ? path : getFileName(path)}</span>
+            <span className="truncate">
+              {isGlob ? path : getFileName(path)}
+            </span>
           </div>
-        )
+        );
       })}
       {hasMore && (
-        <div className="text-xs text-muted-foreground mt-1">… 还有 {files.length - 15} 项</div>
+        <div className="text-xs text-muted-foreground mt-1">
+          … 还有 {files.length - 15} 项
+        </div>
       )}
     </div>
-  )
+  );
 }
 
 // Render grep results nicely
 function GrepResultsDisplay({
-  matches
+  matches,
 }: {
-  matches: Array<{ path: string; line?: number; text?: string }>
+  matches: Array<{ path: string; line?: number; text?: string }>;
 }): React.JSX.Element {
   const grouped = matches.reduce(
     (acc, match) => {
-      if (!acc[match.path]) acc[match.path] = []
-      acc[match.path].push(match)
-      return acc
+      if (!acc[match.path]) acc[match.path] = [];
+      acc[match.path].push(match);
+      return acc;
     },
-    {} as Record<string, typeof matches>
-  )
+    {} as Record<string, typeof matches>,
+  );
 
-  const files = Object.keys(grouped).slice(0, 5)
-  const hasMore = Object.keys(grouped).length > 5
+  const files = Object.keys(grouped).slice(0, 5);
+  const hasMore = Object.keys(grouped).length > 5;
 
   return (
     <div className="space-y-2">
@@ -155,12 +166,18 @@ function GrepResultsDisplay({
           <div className="space-y-0.5 pl-4 border-l border-border/50">
             {grouped[path].slice(0, 3).map((match, i) => (
               <div key={i} className="font-mono text-muted-foreground truncate">
-                {match.line && <span className="text-status-warning mr-2">{match.line}:</span>}
+                {match.line && (
+                  <span className="text-status-warning mr-2">
+                    {match.line}:
+                  </span>
+                )}
                 {match.text?.trim()}
               </div>
             ))}
             {grouped[path].length > 3 && (
-              <div className="text-muted-foreground">另有 {grouped[path].length - 3} 处匹配</div>
+              <div className="text-muted-foreground">
+                另有 {grouped[path].length - 3} 处匹配
+              </div>
             )}
           </div>
         </div>
@@ -171,15 +188,19 @@ function GrepResultsDisplay({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // Render edit/write file summary
-function FileEditSummary({ args }: { args: Record<string, unknown> }): React.JSX.Element | null {
-  const path = (args.path || args.file_path) as string
-  const content = args.content as string | undefined
-  const oldStr = args.old_str as string | undefined
-  const newStr = args.new_str as string | undefined
+function FileEditSummary({
+  args,
+}: {
+  args: Record<string, unknown>;
+}): React.JSX.Element | null {
+  const path = (args.path || args.file_path) as string;
+  const content = args.content as string | undefined;
+  const oldStr = args.old_str as string | undefined;
+  const newStr = args.new_str as string | undefined;
 
   if (oldStr !== undefined && newStr !== undefined) {
     // Edit operation
@@ -196,28 +217,28 @@ function FileEditSummary({ args }: { args: Record<string, unknown> }): React.JSX
           </span>
         </div>
       </div>
-    )
+    );
   }
 
   if (content) {
-    const lines = content.split("\n").length
+    const lines = content.split("\n").length;
     return (
       <div className="text-xs text-muted-foreground">
         向 {getFileName(path)} 写入 {lines} 行
       </div>
-    )
+    );
   }
 
-  return null
+  return null;
 }
 
 // Command display
 function CommandDisplay({
   command,
-  output
+  output,
 }: {
-  command: string
-  output?: string
+  command: string;
+  output?: string;
 }): React.JSX.Element {
   return (
     <div className="text-xs space-y-2 w-full overflow-hidden">
@@ -232,19 +253,19 @@ function CommandDisplay({
         </pre>
       )}
     </div>
-  )
+  );
 }
 
 // Subagent task display
 function TaskDisplay({
   args,
-  isExpanded
+  isExpanded,
 }: {
-  args: Record<string, unknown>
-  isExpanded?: boolean
+  args: Record<string, unknown>;
+  isExpanded?: boolean;
 }): React.JSX.Element {
-  const name = args.name as string | undefined
-  const description = args.description as string | undefined
+  const name = args.name as string | undefined;
+  const description = args.description as string | undefined;
 
   return (
     <div className="text-xs space-y-1">
@@ -255,12 +276,17 @@ function TaskDisplay({
         </div>
       )}
       {description && (
-        <p className={cn("text-muted-foreground pl-5", !isExpanded && "line-clamp-2")}>
+        <p
+          className={cn(
+            "text-muted-foreground pl-5",
+            !isExpanded && "line-clamp-2",
+          )}
+        >
           {description}
         </p>
       )}
     </div>
-  )
+  );
 }
 
 export function ToolCallRenderer({
@@ -268,82 +294,87 @@ export function ToolCallRenderer({
   result,
   isError,
   needsApproval,
-  onApprovalDecision
+  onApprovalDecision,
 }: ToolCallRendererProps): React.JSX.Element | null {
   // Defensive: ensure args is always an object
-  const args = toolCall?.args || {}
+  const args = toolCall?.args || {};
 
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Bail out if no toolCall
   if (!toolCall) {
-    return null
+    return null;
   }
 
-  const Icon = TOOL_ICONS[toolCall.name] || Terminal
-  const label = TOOL_LABELS[toolCall.name] || toolCall.name
-  const isPanelSynced = PANEL_SYNCED_TOOLS.has(toolCall.name)
+  const Icon = TOOL_ICONS[toolCall.name] || Terminal;
+  const label = TOOL_LABELS[toolCall.name] || toolCall.name;
+  const isPanelSynced = PANEL_SYNCED_TOOLS.has(toolCall.name);
 
   const handleApprove = (e: React.MouseEvent): void => {
-    e.stopPropagation()
-    onApprovalDecision?.("approve")
-  }
+    e.stopPropagation();
+    onApprovalDecision?.("approve");
+  };
 
   const handleReject = (e: React.MouseEvent): void => {
-    e.stopPropagation()
-    onApprovalDecision?.("reject")
-  }
+    e.stopPropagation();
+    onApprovalDecision?.("reject");
+  };
 
   // Format the main argument for display
   const getDisplayArg = (): string | null => {
-    if (!args) return null
-    if (args.path) return args.path as string
-    if (args.file_path) return args.file_path as string
-    if (args.command) return (args.command as string).slice(0, 50)
-    if (args.pattern) return args.pattern as string
-    if (args.query) return args.query as string
-    if (args.glob) return args.glob as string
-    return null
-  }
+    if (!args) return null;
+    if (args.path) return args.path as string;
+    if (args.file_path) return args.file_path as string;
+    if (args.command) return (args.command as string).slice(0, 50);
+    if (args.pattern) return args.pattern as string;
+    if (args.query) return args.query as string;
+    if (args.glob) return args.glob as string;
+    return null;
+  };
 
-  const displayArg = getDisplayArg()
+  const displayArg = getDisplayArg();
 
   // Render formatted content based on tool type
   const renderFormattedContent = (): React.ReactNode => {
-    if (!args) return null
+    if (!args) return null;
 
     switch (toolCall.name) {
       case "write_todos": {
-        const todos = args.todos as Todo[] | undefined
+        const todos = args.todos as Todo[] | undefined;
         if (todos && todos.length > 0) {
-          return <TodosDisplay todos={todos} />
+          return <TodosDisplay todos={todos} />;
         }
-        return null
+        return null;
       }
 
       case "task": {
-        return <TaskDisplay args={args} isExpanded={isExpanded} />
+        return <TaskDisplay args={args} isExpanded={isExpanded} />;
       }
 
       case "edit_file":
       case "write_file": {
-        return <FileEditSummary args={args} />
+        return <FileEditSummary args={args} />;
       }
 
       case "execute": {
-        const command = args.command as string
-        const output = typeof result === "string" ? result : undefined
-        return <CommandDisplay command={command} output={isExpanded ? output : undefined} />
+        const command = args.command as string;
+        const output = typeof result === "string" ? result : undefined;
+        return (
+          <CommandDisplay
+            command={command}
+            output={isExpanded ? output : undefined}
+          />
+        );
       }
 
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   // Render result based on tool type
   const renderFormattedResult = (): React.ReactNode => {
-    if (result === undefined) return null
+    if (result === undefined) return null;
 
     // Handle errors
     if (isError) {
@@ -354,31 +385,38 @@ export function ToolCallRenderer({
             {typeof result === "string" ? result : JSON.stringify(result)}
           </span>
         </div>
-      )
+      );
     }
 
     switch (toolCall.name) {
       case "read_file": {
-        const content = typeof result === "string" ? result : JSON.stringify(result)
-        const lines = content.split("\n").length
-        const previewPath = ((args.path || args.file_path) as string | undefined) || "file.txt"
+        const content =
+          typeof result === "string" ? result : JSON.stringify(result);
+        const lines = content.split("\n").length;
+        const previewPath =
+          ((args.path || args.file_path) as string | undefined) || "file.txt";
         return (
           <div className="space-y-2">
             <div className="text-xs text-status-nominal flex items-center gap-1.5">
               <CheckCircle2 className="size-3" />
               <span>已读 {lines} 行</span>
             </div>
-            <ShikiCodePreview content={content} filePath={previewPath} maxLines={10} />
+            <ShikiCodePreview
+              content={content}
+              filePath={previewPath}
+              maxLines={10}
+            />
           </div>
-        )
+        );
       }
 
       case "ls": {
         if (Array.isArray(result)) {
           const dirs = result.filter(
-            (f: { is_dir?: boolean } | string) => typeof f === "object" && f.is_dir
-          ).length
-          const files = result.length - dirs
+            (f: { is_dir?: boolean } | string) =>
+              typeof f === "object" && f.is_dir,
+          ).length;
+          const files = result.length - dirs;
           return (
             <div className="space-y-2">
               <div className="text-xs text-status-nominal flex items-center gap-1.5">
@@ -390,9 +428,9 @@ export function ToolCallRenderer({
               </div>
               <FileListDisplay files={result} />
             </div>
-          )
+          );
         }
-        return null
+        return null;
       }
 
       case "glob": {
@@ -405,14 +443,15 @@ export function ToolCallRenderer({
               </div>
               <FileListDisplay files={result} isGlob />
             </div>
-          )
+          );
         }
-        return null
+        return null;
       }
 
       case "grep": {
         if (Array.isArray(result)) {
-          const fileCount = new Set(result.map((m: { path: string }) => m.path)).size
+          const fileCount = new Set(result.map((m: { path: string }) => m.path))
+            .size;
           return (
             <div className="space-y-2">
               <div className="text-xs text-status-nominal flex items-center gap-1.5">
@@ -423,22 +462,23 @@ export function ToolCallRenderer({
               </div>
               <GrepResultsDisplay matches={result} />
             </div>
-          )
+          );
         }
-        return null
+        return null;
       }
 
       case "execute": {
         // When expanded, output is shown in CommandDisplay - just show status
         // When collapsed, show the output preview
-        const output = typeof result === "string" ? result : JSON.stringify(result)
+        const output =
+          typeof result === "string" ? result : JSON.stringify(result);
         if (isExpanded) {
           return (
             <div className="text-xs text-status-nominal flex items-center gap-1.5">
               <CheckCircle2 className="size-3" />
               <span>命令已结束</span>
             </div>
-          )
+          );
         }
         // Collapsed view - show output preview
         if (output.trim()) {
@@ -453,19 +493,19 @@ export function ToolCallRenderer({
                 {output.length > 500 && "..."}
               </pre>
             </div>
-          )
+          );
         }
         return (
           <div className="text-xs text-status-nominal flex items-center gap-1.5">
             <CheckCircle2 className="size-3" />
             <span>命令已结束（无输出）</span>
           </div>
-        )
+        );
       }
 
       case "write_todos":
         // Already shown in Tasks panel
-        return null
+        return null;
 
       case "write_file":
       case "edit_file": {
@@ -476,14 +516,14 @@ export function ToolCallRenderer({
               <CheckCircle2 className="size-3" />
               <span>{result}</span>
             </div>
-          )
+          );
         }
         return (
           <div className="text-xs text-status-nominal flex items-center gap-1.5">
             <CheckCircle2 className="size-3" />
             <span>文件已保存</span>
           </div>
-        )
+        );
       }
 
       case "task": {
@@ -500,14 +540,14 @@ export function ToolCallRenderer({
                 {result.length > 500 && "..."}
               </div>
             </div>
-          )
+          );
         }
         return (
           <div className="text-xs text-status-nominal flex items-center gap-1.5">
             <CheckCircle2 className="size-3" />
             <span>任务已完成</span>
           </div>
-        )
+        );
       }
 
       default: {
@@ -521,21 +561,21 @@ export function ToolCallRenderer({
                 {result.length > 100 ? "..." : ""}
               </span>
             </div>
-          )
+          );
         }
         return (
           <div className="text-xs text-status-nominal flex items-center gap-1.5">
             <CheckCircle2 className="size-3" />
             <span>已完成</span>
           </div>
-        )
+        );
       }
     }
-  }
+  };
 
-  const formattedContent = renderFormattedContent()
-  const formattedResult = renderFormattedResult()
-  const hasFormattedDisplay = formattedContent || formattedResult
+  const formattedContent = renderFormattedContent();
+  const formattedResult = renderFormattedResult();
+  const hasFormattedDisplay = formattedContent || formattedResult;
 
   return (
     <div
@@ -543,7 +583,7 @@ export function ToolCallRenderer({
         "rounded-sm border overflow-hidden",
         needsApproval
           ? "border-amber-500/50 bg-amber-500/5"
-          : "border-border bg-background-elevated"
+          : "border-border bg-background-elevated",
       )}
     >
       {/* Header */}
@@ -558,7 +598,10 @@ export function ToolCallRenderer({
         )}
 
         <Icon
-          className={cn("size-4 shrink-0", needsApproval ? "text-amber-500" : "text-status-info")}
+          className={cn(
+            "size-4 shrink-0",
+            needsApproval ? "text-amber-500" : "text-status-info",
+          )}
         />
 
         <span className="text-xs font-medium shrink-0">{label}</span>
@@ -582,7 +625,10 @@ export function ToolCallRenderer({
         )}
 
         {result !== undefined && !needsApproval && (
-          <Badge variant={isError ? "critical" : "nominal"} className="ml-auto shrink-0">
+          <Badge
+            variant={isError ? "critical" : "nominal"}
+            className="ml-auto shrink-0"
+          >
             {isError ? "错误" : "成功"}
           </Badge>
         )}
@@ -627,12 +673,15 @@ export function ToolCallRenderer({
       ) : null}
 
       {/* Formatted content (only visible when collapsed AND has result) */}
-      {hasFormattedDisplay && !isExpanded && !needsApproval && result !== undefined && (
-        <div className="border-t border-border px-3 py-2 space-y-2 overflow-hidden">
-          {formattedContent}
-          {formattedResult}
-        </div>
-      )}
+      {hasFormattedDisplay &&
+        !isExpanded &&
+        !needsApproval &&
+        result !== undefined && (
+          <div className="border-t border-border px-3 py-2 space-y-2 overflow-hidden">
+            {formattedContent}
+            {formattedResult}
+          </div>
+        )}
 
       {/* Expanded content - raw details */}
       {isExpanded && !needsApproval && (
@@ -656,15 +705,19 @@ export function ToolCallRenderer({
               <pre
                 className={cn(
                   "text-xs font-mono p-2 rounded-sm overflow-auto max-h-48 w-full whitespace-pre-wrap break-all",
-                  isError ? "bg-status-critical/10 text-status-critical" : "bg-background"
+                  isError
+                    ? "bg-status-critical/10 text-status-critical"
+                    : "bg-background",
                 )}
               >
-                {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
+                {typeof result === "string"
+                  ? result
+                  : JSON.stringify(result, null, 2)}
               </pre>
             </div>
           )}
         </div>
       )}
     </div>
-  )
+  );
 }

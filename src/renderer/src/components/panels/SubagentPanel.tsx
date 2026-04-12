@@ -6,33 +6,33 @@ import {
   Loader2,
   Sparkles,
   Search,
-  FileCheck
-} from "lucide-react"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
-import { useAppStore } from "@/lib/store"
-import { useThreadState } from "@/lib/thread-context"
-import type { Subagent } from "@/types"
+  FileCheck,
+} from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { useAppStore } from "@/lib/store";
+import { useThreadState } from "@/lib/thread-context";
+import type { Subagent } from "@/types";
 
 // Icon component for subagent type (avoid creating components during render)
 function SubagentTypeIcon({
   subagentType,
-  className
+  className,
 }: {
-  subagentType?: string
-  className?: string
+  subagentType?: string;
+  className?: string;
 }): React.JSX.Element {
   switch (subagentType) {
     case "correctness-checker":
-      return <FileCheck className={className} />
+      return <FileCheck className={className} />;
     case "final-reviewer":
-      return <Search className={className} />
+      return <Search className={className} />;
     case "research":
-      return <Search className={className} />
+      return <Search className={className} />;
     default:
-      return <Sparkles className={className} />
+      return <Sparkles className={className} />;
   }
 }
 
@@ -40,26 +40,28 @@ function SubagentTypeIcon({
 function getSubagentTypeBadge(subagentType?: string): string {
   switch (subagentType) {
     case "correctness-checker":
-      return "CHECKER"
+      return "CHECKER";
     case "final-reviewer":
-      return "REVIEWER"
+      return "REVIEWER";
     case "research":
-      return "RESEARCH"
+      return "RESEARCH";
     case "general-purpose":
-      return "GENERAL"
+      return "GENERAL";
     default:
-      return subagentType?.toUpperCase() || "TASK"
+      return subagentType?.toUpperCase() || "TASK";
   }
 }
 
 export function SubagentPanel(): React.JSX.Element {
-  const { currentThreadId } = useAppStore()
-  const threadState = useThreadState(currentThreadId)
-  const subagents = threadState?.subagents ?? []
+  const { currentThreadId } = useAppStore();
+  const threadState = useThreadState(currentThreadId);
+  const subagents = threadState?.subagents ?? [];
 
   // Count by status
-  const runningCount = subagents.filter((s) => s.status === "running").length
-  const completedCount = subagents.filter((s) => s.status === "completed").length
+  const runningCount = subagents.filter((s) => s.status === "running").length;
+  const completedCount = subagents.filter(
+    (s) => s.status === "completed",
+  ).length;
 
   return (
     <div className="flex flex-col h-full">
@@ -84,10 +86,14 @@ export function SubagentPanel(): React.JSX.Element {
             <div className="text-center text-sm text-muted-foreground py-8">
               <Bot className="size-8 mx-auto mb-2 opacity-50" />
               No subagent tasks
-              <div className="text-xs mt-1">Subagents will appear here when spawned</div>
+              <div className="text-xs mt-1">
+                Subagents will appear here when spawned
+              </div>
             </div>
           ) : (
-            subagents.map((subagent) => <SubagentCard key={subagent.id} subagent={subagent} />)
+            subagents.map((subagent) => (
+              <SubagentCard key={subagent.id} subagent={subagent} />
+            ))
           )}
         </div>
       </ScrollArea>
@@ -104,45 +110,47 @@ export function SubagentPanel(): React.JSX.Element {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function SubagentCard({ subagent }: { subagent: Subagent }): React.JSX.Element {
   const getStatusConfig = (): {
-    icon: React.ElementType
-    badge: "outline" | "info" | "nominal" | "critical"
-    label: string
+    icon: React.ElementType;
+    badge: "outline" | "info" | "nominal" | "critical";
+    label: string;
   } => {
     switch (subagent.status) {
       case "pending":
-        return { icon: Clock, badge: "outline" as const, label: "PENDING" }
+        return { icon: Clock, badge: "outline" as const, label: "PENDING" };
       case "running":
-        return { icon: Loader2, badge: "info" as const, label: "RUNNING" }
+        return { icon: Loader2, badge: "info" as const, label: "RUNNING" };
       case "completed":
-        return { icon: CheckCircle2, badge: "nominal" as const, label: "DONE" }
+        return { icon: CheckCircle2, badge: "nominal" as const, label: "DONE" };
       case "failed":
-        return { icon: XCircle, badge: "critical" as const, label: "FAILED" }
+        return { icon: XCircle, badge: "critical" as const, label: "FAILED" };
     }
-  }
+  };
 
-  const config = getStatusConfig()
-  const StatusIcon = config.icon
+  const config = getStatusConfig();
+  const StatusIcon = config.icon;
 
   // Calculate duration only for completed subagents (to avoid impure Date.now() during render)
   const getDuration = (): string | null => {
-    if (!subagent.startedAt || !subagent.completedAt) return null
-    const start = new Date(subagent.startedAt).getTime()
-    const end = new Date(subagent.completedAt).getTime()
-    const durationMs = end - start
-    if (durationMs < 1000) return `${durationMs}ms`
-    if (durationMs < 60000) return `${(durationMs / 1000).toFixed(1)}s`
-    return `${(durationMs / 60000).toFixed(1)}m`
-  }
+    if (!subagent.startedAt || !subagent.completedAt) return null;
+    const start = new Date(subagent.startedAt).getTime();
+    const end = new Date(subagent.completedAt).getTime();
+    const durationMs = end - start;
+    if (durationMs < 1000) return `${durationMs}ms`;
+    if (durationMs < 60000) return `${(durationMs / 1000).toFixed(1)}s`;
+    return `${(durationMs / 60000).toFixed(1)}m`;
+  };
 
-  const duration = getDuration()
+  const duration = getDuration();
 
   return (
-    <Card className={cn(subagent.status === "running" && "border-status-info/50")}>
+    <Card
+      className={cn(subagent.status === "running" && "border-status-info/50")}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-sm font-medium truncate">
@@ -150,14 +158,19 @@ function SubagentCard({ subagent }: { subagent: Subagent }): React.JSX.Element {
               subagentType={subagent.subagentType}
               className={cn(
                 "size-4 shrink-0",
-                subagent.status === "running" ? "text-status-info" : "text-muted-foreground"
+                subagent.status === "running"
+                  ? "text-status-info"
+                  : "text-muted-foreground",
               )}
             />
             <span className="truncate">{subagent.name}</span>
           </CardTitle>
           <Badge variant={config.badge} className="shrink-0">
             <StatusIcon
-              className={cn("size-3 mr-1", subagent.status === "running" && "animate-spin")}
+              className={cn(
+                "size-3 mr-1",
+                subagent.status === "running" && "animate-spin",
+              )}
             />
             {config.label}
           </Badge>
@@ -169,7 +182,9 @@ function SubagentCard({ subagent }: { subagent: Subagent }): React.JSX.Element {
         )}
       </CardHeader>
       <CardContent className="pt-0">
-        <p className="text-sm text-muted-foreground line-clamp-2">{subagent.description}</p>
+        <p className="text-sm text-muted-foreground line-clamp-2">
+          {subagent.description}
+        </p>
         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
           {subagent.startedAt && (
             <span className="flex items-center gap-1">
@@ -190,5 +205,5 @@ function SubagentCard({ subagent }: { subagent: Subagent }): React.JSX.Element {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

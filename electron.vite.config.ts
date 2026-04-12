@@ -1,35 +1,35 @@
-import { resolve } from "path"
-import { readFileSync, copyFileSync, existsSync, mkdirSync } from "fs"
-import { defineConfig } from "electron-vite"
-import react from "@vitejs/plugin-react"
-import tailwindcss from "@tailwindcss/vite"
+import { resolve } from "path";
+import { readFileSync, copyFileSync, existsSync, mkdirSync } from "fs";
+import { defineConfig } from "electron-vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
-const pkg = JSON.parse(readFileSync("./package.json", "utf-8"))
+const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 
 // Plugin to copy resources to output
 function copyResources(): { name: string; closeBundle: () => void } {
   return {
     name: "copy-resources",
     closeBundle(): void {
-      const srcIcon = resolve("resources/icon.png")
-      const destDir = resolve("out/resources")
-      const destIcon = resolve("out/resources/icon.png")
+      const srcIcon = resolve("resources/icon.png");
+      const destDir = resolve("out/resources");
+      const destIcon = resolve("out/resources/icon.png");
 
       if (existsSync(srcIcon)) {
         if (!existsSync(destDir)) {
-          mkdirSync(destDir, { recursive: true })
+          mkdirSync(destDir, { recursive: true });
         }
-        copyFileSync(srcIcon, destIcon)
+        copyFileSync(srcIcon, destIcon);
       }
 
       // Copy sql.js wasm file to out/main
-      const srcWasm = resolve("node_modules/sql.js/dist/sql-wasm.wasm")
-      const destWasm = resolve("out/main/sql-wasm.wasm")
+      const srcWasm = resolve("node_modules/sql.js/dist/sql-wasm.wasm");
+      const destWasm = resolve("out/main/sql-wasm.wasm");
       if (existsSync(srcWasm)) {
-        copyFileSync(srcWasm, destWasm)
+        copyFileSync(srcWasm, destWasm);
       }
-    }
-  }
+    },
+  };
 }
 
 export default defineConfig({
@@ -38,25 +38,25 @@ export default defineConfig({
     build: {
       lib: {
         entry: "src/main/index.ts",
-        formats: ["cjs"]
+        formats: ["cjs"],
       },
       rollupOptions: {
         external: ["electron"],
-        plugins: [copyResources()]
-      }
-    }
+        plugins: [copyResources()],
+      },
+    },
   },
   preload: {},
   renderer: {
     define: {
-      __APP_VERSION__: JSON.stringify(pkg.version)
+      __APP_VERSION__: JSON.stringify(pkg.version),
     },
     resolve: {
       alias: {
         "@": resolve("src/renderer/src"),
-        "@renderer": resolve("src/renderer/src")
-      }
+        "@renderer": resolve("src/renderer/src"),
+      },
     },
-    plugins: [react(), tailwindcss()]
-  }
-})
+    plugins: [react(), tailwindcss()],
+  },
+});

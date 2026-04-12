@@ -1,40 +1,50 @@
-import { MessageSquare, Loader2, Clock, Bot } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { cn, formatRelativeTime, truncate } from "@/lib/utils"
-import { useThreadStream } from "@/lib/thread-context"
-import type { Thread, Subagent } from "@/types"
+import { MessageSquare, Loader2, Clock, Bot } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn, formatRelativeTime, truncate } from "@/lib/utils";
+import { useThreadStream } from "@/lib/thread-context";
+import type { Thread, Subagent } from "@/types";
 
-type KanbanStatus = "pending" | "in_progress" | "interrupted" | "done"
+type KanbanStatus = "pending" | "in_progress" | "interrupted" | "done";
 
 interface ThreadCardProps {
-  thread: Thread
-  status: KanbanStatus
-  onClick: () => void
+  thread: Thread;
+  status: KanbanStatus;
+  onClick: () => void;
 }
 
 interface SubagentCardProps {
-  subagent: Subagent
-  parentThread: Thread
-  onClick: () => void
+  subagent: Subagent;
+  parentThread: Thread;
+  onClick: () => void;
 }
 
-function ThreadStatusIcon({ threadId }: { threadId: string }): React.JSX.Element {
-  const { isLoading } = useThreadStream(threadId)
+function ThreadStatusIcon({
+  threadId,
+}: {
+  threadId: string;
+}): React.JSX.Element {
+  const { isLoading } = useThreadStream(threadId);
 
   if (isLoading) {
-    return <Loader2 className="size-4 shrink-0 text-status-info animate-spin" />
+    return (
+      <Loader2 className="size-4 shrink-0 text-status-info animate-spin" />
+    );
   }
-  return <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
+  return <MessageSquare className="size-4 shrink-0 text-muted-foreground" />;
 }
 
-export function ThreadKanbanCard({ thread, status, onClick }: ThreadCardProps): React.JSX.Element {
+export function ThreadKanbanCard({
+  thread,
+  status,
+  onClick,
+}: ThreadCardProps): React.JSX.Element {
   return (
     <Card
       className={cn(
         "cursor-pointer transition-all hover:border-border-emphasis hover:bg-background-interactive",
         status === "in_progress" && "border-status-info/50",
-        status === "interrupted" && "!border-amber-500/50 !bg-amber-500/5"
+        status === "interrupted" && "!border-amber-500/50 !bg-amber-500/5",
       )}
       onClick={onClick}
     >
@@ -64,21 +74,22 @@ export function ThreadKanbanCard({ thread, status, onClick }: ThreadCardProps): 
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 export function SubagentKanbanCard({
   subagent,
   parentThread,
-  onClick
+  onClick,
 }: SubagentCardProps): React.JSX.Element {
-  const isDone = subagent.status === "completed" || subagent.status === "failed"
+  const isDone =
+    subagent.status === "completed" || subagent.status === "failed";
 
   return (
     <Card
       className={cn(
         "cursor-pointer transition-all hover:border-border-emphasis hover:bg-background-interactive border-dashed",
-        subagent.status === "running" && "border-status-info/50"
+        subagent.status === "running" && "border-status-info/50",
       )}
       onClick={onClick}
     >
@@ -87,15 +98,21 @@ export function SubagentKanbanCard({
           <Bot
             className={cn(
               "size-4 shrink-0",
-              subagent.status === "running" ? "text-status-info" : "text-muted-foreground"
+              subagent.status === "running"
+                ? "text-status-info"
+                : "text-muted-foreground",
             )}
           />
           <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium truncate">{subagent.name}</span>
+              <span className="text-sm font-medium truncate">
+                {subagent.name}
+              </span>
               {isDone && (
                 <Badge
-                  variant={subagent.status === "failed" ? "critical" : "nominal"}
+                  variant={
+                    subagent.status === "failed" ? "critical" : "nominal"
+                  }
                   className="shrink-0 text-[9px]"
                 >
                   {subagent.status === "failed" ? "失败" : "完成"}
@@ -114,5 +131,5 @@ export function SubagentKanbanCard({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
