@@ -5,7 +5,7 @@ import type { Message, HITLRequest } from "@/types"
 import { singleMessageToMarkdown } from "@/lib/chat-markdown"
 import { Button } from "@/components/ui/button"
 import { ToolCallRenderer } from "./ToolCallRenderer"
-import { StreamingMarkdown } from "./StreamingMarkdown"
+import { ThinkAwareMarkdown } from "./ThinkAwareMarkdown"
 
 interface ToolResultInfo {
   content: string | unknown
@@ -61,7 +61,7 @@ export function MessageBubble({
       if (isUser) {
         return <div className="whitespace-pre-wrap text-sm">{message.content}</div>
       }
-      return <StreamingMarkdown isStreaming={isStreaming}>{message.content}</StreamingMarkdown>
+      return <ThinkAwareMarkdown isStreaming={isStreaming}>{message.content}</ThinkAwareMarkdown>
     }
 
     // Handle content blocks
@@ -77,9 +77,9 @@ export function MessageBubble({
             )
           }
           return (
-            <StreamingMarkdown key={index} isStreaming={isStreaming}>
+            <ThinkAwareMarkdown key={index} isStreaming={isStreaming}>
               {block.text}
-            </StreamingMarkdown>
+            </ThinkAwareMarkdown>
           )
         }
         return null

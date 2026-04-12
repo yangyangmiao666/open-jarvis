@@ -67,14 +67,17 @@ All file paths should use fully qualified absolute system paths (e.g., /Users/na
 - execute: Run shell commands in the workspace directory
 
 The execute tool runs commands directly on the user's machine. Use it for:
-- Running scripts, tests, and builds (npm test, python script.py, make)
+- Running scripts, tests, and builds (bun run test, python script.py, make)
 - Git operations (git status, git diff, git commit)
-- Installing dependencies (npm install, pip install)
+- Installing dependencies into the workspace only (bun install, pip install inside the workspace .venv)
 - System commands (which, env, pwd)
 
 **Important:**
 - All execute commands require user approval before running
 - Commands run in the workspace root directory
+- Python commands use a workspace-local \`.venv\` managed by \`uv\`; do not rely on system Python packages
+- JS/TS commands should use Bun and workspace-local dependencies; prefer \`bun install\`, \`bun run\`, and \`bun x\`
+- If \`uv\` or \`bun\` is missing, explain that it must be installed on the machine before retrying
 - Avoid using shell for file reading (use read_file instead)
 - Avoid using shell for file searching (use grep/glob instead)
 - When running non-trivial commands, briefly explain what they do

@@ -137,6 +137,10 @@ const SPECIAL_TEXT_FILENAMES = new Set([
   ".yarnrc",
   ".env"
 ])
+const PYTHON_COMMAND_PATTERN =
+  /(^|[\s(;|&])(?:python|python3|pip|pip3|pytest|py\.test|uv)(?=$|[\s);|&])/
+const JS_COMMAND_PATTERN =
+  /(^|[\s(;|&])(?:bun|node|npm|npx|pnpm|yarn|tsx|ts-node|tsc|vite|vitest|jest|eslint|prettier|webpack|rollup|parcel|next|nuxt)(?=$|[\s);|&])/
 
 function checkEmptyContent(content: string): string | null {
   if (!content || content.trim() === "") return EMPTY_CONTENT_WARNING
@@ -197,6 +201,14 @@ function isTextMimeType(mimeType: string): boolean {
 
 function supportsTextExtraction(filePath: string): boolean {
   return TEXTUTIL_SUPPORTED_EXTENSIONS.has(path.extname(filePath).toLowerCase())
+}
+
+function needsPythonWorkspaceRuntime(command: string): boolean {
+  return PYTHON_COMMAND_PATTERN.test(command)
+}
+
+function needsJavaScriptWorkspaceRuntime(command: string): boolean {
+  return JS_COMMAND_PATTERN.test(command)
 }
 
 /**
@@ -265,6 +277,79 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
   private resolvePathSafe(filePath: string): string {
     const self = this as unknown as { resolvePath: (k: string) => string }
     return self.resolvePath(filePath)
+  }
+
+  private buildWorkspaceRuntimeCommand(command: string): string {
+    const prelude: string[] = [
+      'export PATH="$PWD/node_modules/.bin:$PATH"'
+    ]
+
+    if (needsPythonWorkspaceRuntime(command)) {
+      prelude.push(
+        'if ! command -v uv >/dev/null 2>&1; then',
+        "  printf '%s\\n' 'Error: uv is required for Python commands so Jarvis can use a workspace-local .venv. Install uv on this machine, then retry.' >&2",
+        "  printf '%s\\n' 'Suggested macOS command: brew install uv' >&2",
+        "  exit 127",
+        "fi",
+        'if [ ! -x "$PWD/.venv/bin/python" ]; then',
+        '  uv venv "$PWD/.venv" >/dev/null',
+        "fi",
+        'export VIRTUAL_ENV="$PWD/.venv"',
+        'export PATH="$VIRTUAL_ENV/bin:$PATH"'
+      )
+    }
+
+    if (needsJavaScriptWorkspaceRuntime(command)) {
+      prelude.push(
+        'if ! command -v bun >/dev/null 2>&1; then',
+        "  printf '%s\\n' 'Error: bun is required for JS/TS commands so Jarvis can use workspace-local tooling. Install bun on this machine, then retry.' >&2",
+        "  printf '%s\\n' 'Suggested macOS command: brew install bun' >&2",
+        "  exit 127",
+        "fi",
+        'npm() {',
+        '  case "${1-}" in',
+        '    install|i) shift; bun install "$@" ;;',
+        '    ci) shift; bun install --frozen-lockfile "$@" ;;',
+        '    run) shift; bun run "$@" ;;',
+        '    test|start|dev|build|lint) cmd="$1"; shift; bun run "$cmd" "$@" ;;',
+        '    exec) shift; bun x "$@" ;;',
+        '    *) printf \'%s\\n\' \'Error: npm is redirected to bun in this workspace. Use a bun-compatible command.\' >&2; return 127 ;;',
+        '  esac',
+        '}',
+        'npx() { bun x "$@"; }',
+        'pnpm() {',
+        '  case "${1-}" in',
+        '    install|i) shift; bun install "$@" ;;',
+        '    run) shift; bun run "$@" ;;',
+        '    test|start|dev|build|lint) cmd="$1"; shift; bun run "$cmd" "$@" ;;',
+        '    exec|dlx) shift; bun x "$@" ;;',
+        '    *) printf \'%s\\n\' \'Error: pnpm is redirected to bun in this workspace. Use a bun-compatible command.\' >&2; return 127 ;;',
+        '  esac',
+        '}',
+        'yarn() {',
+        '  case "${1-}" in',
+        '    install) shift; bun install "$@" ;;',
+        '    run) shift; bun run "$@" ;;',
+        '    test|start|dev|build|lint) cmd="$1"; shift; bun run "$cmd" "$@" ;;',
+        '    dlx) shift; bun x "$@" ;;',
+        '    *) printf \'%s\\n\' \'Error: yarn is redirected to bun in this workspace. Use a bun-compatible command.\' >&2; return 127 ;;',
+        '  esac',
+        '}',
+        'node() {',
+        '  if [ "${1-}" = "-e" ] || [ "${1-}" = "--eval" ]; then',
+        '    shift',
+        '    bun -e "$@"',
+        '  else',
+        '    bun "$@"',
+        '  fi',
+        '}',
+        'tsx() { bun "$@"; }',
+        'ts-node() { bun "$@"; }'
+      )
+    }
+
+    prelude.push(command)
+    return prelude.join("\n")
   }
 
   private async extractTextWithTextutil(resolvedPath: string): Promise<string> {
@@ -455,6 +540,8 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
       }
     }
 
+    const preparedCommand = this.buildWorkspaceRuntimeCommand(command)
+
     return new Promise<ExecuteResponse>((resolve) => {
       const outputParts: string[] = []
       let totalBytes = 0
@@ -464,7 +551,7 @@ export class LocalSandbox extends FilesystemBackend implements SandboxBackendPro
       // Determine shell based on platform
       const isWindows = process.platform === "win32"
       const shell = isWindows ? "cmd.exe" : "/bin/sh"
-      const shellArgs = isWindows ? ["/c", command] : ["-c", command]
+      const shellArgs = isWindows ? ["/c", command] : ["-c", preparedCommand]
 
       const proc = spawn(shell, shellArgs, {
         cwd: this.workingDir,

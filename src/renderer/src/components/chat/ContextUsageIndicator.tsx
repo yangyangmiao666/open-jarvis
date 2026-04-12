@@ -95,23 +95,23 @@ export function ContextUsageIndicator({
   let colorClass = "text-blue-500"
   let bgColorClass = "bg-blue-500/20"
   let barColorClass = "bg-blue-500"
-  let statusText = "Normal"
+  let statusText = "正常"
 
   if (usagePercent >= 90) {
     colorClass = "text-red-500"
     bgColorClass = "bg-red-500/20"
     barColorClass = "bg-red-500"
-    statusText = "Critical"
+    statusText = "危急"
   } else if (usagePercent >= 75) {
     colorClass = "text-orange-500"
     bgColorClass = "bg-orange-500/20"
     barColorClass = "bg-orange-500"
-    statusText = "Warning"
+    statusText = "警告"
   } else if (usagePercent >= 50) {
     colorClass = "text-yellow-500"
     bgColorClass = "bg-yellow-500/20"
     barColorClass = "bg-yellow-500"
-    statusText = "Moderate"
+    statusText = "中等"
   }
 
   const hasCacheData = tokenUsage.cacheReadTokens || tokenUsage.cacheCreationTokens
@@ -138,7 +138,7 @@ export function ContextUsageIndicator({
         <div className="p-3 space-y-3">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground">Context Window</span>
+            <span className="text-xs font-medium text-foreground">上下文窗口</span>
             <span
               className={cn(
                 "text-[10px] font-medium px-1.5 py-0.5 rounded",
@@ -167,7 +167,7 @@ export function ContextUsageIndicator({
           {/* Token breakdown */}
           <div className="space-y-1.5 pt-2 border-t border-border">
             <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-              Token Breakdown
+              Token 使用详情
             </div>
 
             <div className="space-y-1">
@@ -175,7 +175,7 @@ export function ContextUsageIndicator({
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <ArrowUp className="size-3" />
-                  <span>Input</span>
+                  <span>输入</span>
                 </div>
                 <span className="font-mono">{formatTokenCountFull(tokenUsage.inputTokens)}</span>
               </div>
@@ -184,7 +184,7 @@ export function ContextUsageIndicator({
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <ArrowDown className="size-3" />
-                  <span>Output</span>
+                  <span>输出</span>
                 </div>
                 <span className="font-mono">{formatTokenCountFull(tokenUsage.outputTokens)}</span>
               </div>
@@ -193,7 +193,7 @@ export function ContextUsageIndicator({
               <div className="flex items-center justify-between text-xs pt-1 border-t border-border/50">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Zap className="size-3" />
-                  <span>Total</span>
+                  <span>总计</span>
                 </div>
                 <span className="font-mono">{formatTokenCountFull(tokenUsage.totalTokens)}</span>
               </div>
@@ -203,7 +203,7 @@ export function ContextUsageIndicator({
           {/* Cache info (always show, with "none" state) */}
           <div className="space-y-1.5 pt-2 border-t border-border">
             <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-              Cache
+              缓存
             </div>
 
             <div className="space-y-1">
@@ -213,7 +213,7 @@ export function ContextUsageIndicator({
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-1.5 text-green-500">
                         <Database className="size-3" />
-                        <span>Cache hits</span>
+                        <span>缓存命中</span>
                       </div>
                       <span className="font-mono text-green-500">
                         {formatTokenCountFull(tokenUsage.cacheReadTokens)}
@@ -226,7 +226,7 @@ export function ContextUsageIndicator({
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 text-blue-500">
                           <Database className="size-3" />
-                          <span>Cache created</span>
+                          <span>缓存创建</span>
                         </div>
                         <span className="font-mono text-blue-500">
                           {formatTokenCountFull(tokenUsage.cacheCreationTokens)}
@@ -235,7 +235,7 @@ export function ContextUsageIndicator({
                     )}
                 </>
               ) : (
-                <div className="text-xs text-muted-foreground">No cached tokens</div>
+                <div className="text-xs text-muted-foreground">无缓存令牌</div>
               )}
             </div>
           </div>
@@ -243,7 +243,7 @@ export function ContextUsageIndicator({
           {/* Last updated */}
           <div className="pt-2 border-t border-border">
             <div className="text-[10px] text-muted-foreground">
-              Last updated: {tokenUsage.lastUpdated.toLocaleTimeString()}
+              最后更新：{tokenUsage.lastUpdated.toLocaleTimeString('zh-CN', { hour12: false })}
             </div>
           </div>
         </div>

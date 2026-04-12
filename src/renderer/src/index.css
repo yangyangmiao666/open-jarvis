@@ -411,6 +411,43 @@ html.light {
   height: auto;
 }
 
+.think-block {
+  overflow: hidden;
+}
+
+.think-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--foreground) 72%, transparent);
+  text-transform: uppercase;
+}
+
+.think-summary::-webkit-details-marker {
+  display: none;
+}
+
+.think-chevron {
+  transition: transform 160ms ease;
+}
+
+.think-block[open] .think-chevron {
+  transform: rotate(180deg);
+}
+
+.think-content {
+  border-top: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  padding: 0.75rem;
+  color: color-mix(in srgb, var(--foreground) 82%, transparent);
+}
+
 /* Window drag region for frameless window */
 .app-drag-region {
   -webkit-app-region: drag;
