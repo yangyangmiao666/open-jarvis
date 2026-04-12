@@ -21,6 +21,13 @@ function copyResources(): { name: string; closeBundle: () => void } {
         }
         copyFileSync(srcIcon, destIcon)
       }
+
+      // Copy sql.js wasm file to out/main
+      const srcWasm = resolve("node_modules/sql.js/dist/sql-wasm.wasm")
+      const destWasm = resolve("out/main/sql-wasm.wasm")
+      if (existsSync(srcWasm)) {
+        copyFileSync(srcWasm, destWasm)
+      }
     }
   }
 }
