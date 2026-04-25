@@ -64,94 +64,101 @@
   --font-mono:
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, "JetBrains Mono",
     "Fira Code", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", monospace;
+
+  /* Motion tokens */
+  --ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --duration-slow: 360ms;
 }
 
 /* 深色（默认，由 html.dark 与 initTheme 应用） */
 html.dark,
 :root {
   /* Foundation */
-  --radius: 3px;
-  --background: #0d0d0f;
-  --background-elevated: #141418;
-  --background-interactive: #1c1c22;
-  --foreground: #e8e8ec;
+  --radius: 12px;
+  --background: #202123;
+  --background-elevated: #2a2b32;
+  --background-interactive: #353740;
+  --foreground: #f5f7fb;
 
   /* Borders */
-  --border: #2a2a32;
-  --border-emphasis: #3a3a45;
-  --input: #2a2a32;
-  --ring: #3b82f6;
+  --border: #3b3d47;
+  --border-emphasis: #515463;
+  --input: #343742;
+  --ring: #62d4a8;
 
   /* Text hierarchy */
-  --muted: #141418;
-  --muted-foreground: #8a8a96;
-  --tertiary-foreground: #5a5a66;
+  --muted: #2a2b32;
+  --muted-foreground: #a7acbb;
+  --tertiary-foreground: #7e8496;
 
   /* Semantic mapping for shadcn compatibility */
-  --card: #141418;
-  --card-foreground: #e8e8ec;
-  --popover: #141418;
-  --popover-foreground: #e8e8ec;
-  --primary: #3b82f6;
-  --primary-foreground: #e8e8ec;
-  --secondary: #1c1c22;
-  --secondary-foreground: #e8e8ec;
-  --accent: #fb923c;
-  --accent-foreground: #0d0d0f;
-  --destructive: #e53e3e;
+  --card: #2b2d36;
+  --card-foreground: #f5f7fb;
+  --popover: #262831;
+  --popover-foreground: #f5f7fb;
+  --primary: #19c37d;
+  --primary-foreground: #04170f;
+  --secondary: #333640;
+  --secondary-foreground: #f5f7fb;
+  --accent: #53b7ff;
+  --accent-foreground: #061827;
+  --destructive: #f97070;
 
   /* Status colors */
-  --status-critical: #e53e3e;
-  --status-warning: #f59e0b;
-  --status-nominal: #22c55e;
-  --status-info: #3b82f6;
+  --status-critical: #f97070;
+  --status-warning: #ffb84d;
+  --status-nominal: #19c37d;
+  --status-info: #53b7ff;
 
   /* Sidebar */
-  --sidebar: #141418;
-  --sidebar-foreground: #e8e8ec;
-  --sidebar-primary: #3b82f6;
-  --sidebar-primary-foreground: #e8e8ec;
-  --sidebar-accent: #1c1c22;
-  --sidebar-accent-foreground: #e8e8ec;
-  --sidebar-border: #2a2a32;
-  --sidebar-ring: #3b82f6;
+  --sidebar: #17181c;
+  --sidebar-foreground: #f5f7fb;
+  --sidebar-primary: #19c37d;
+  --sidebar-primary-foreground: #04170f;
+  --sidebar-accent: #23252d;
+  --sidebar-accent-foreground: #f5f7fb;
+  --sidebar-border: #30323b;
+  --sidebar-ring: #19c37d;
 }
 
 html.light {
-  --background: #fafafa;
+  --background: #f7f7f8;
   --background-elevated: #ffffff;
-  --background-interactive: #f4f4f5;
-  --foreground: #18181b;
-  --border: #e4e4e7;
-  --border-emphasis: #d4d4d8;
-  --input: #e4e4e7;
-  --ring: #2563eb;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --tertiary-foreground: #a1a1aa;
+  --background-interactive: #ececf1;
+  --foreground: #1f2330;
+  --border: #d9dce5;
+  --border-emphasis: #c4c9d6;
+  --input: #dde1ea;
+  --ring: #10a37f;
+  --muted: #ececf1;
+  --muted-foreground: #6d7385;
+  --tertiary-foreground: #9298a8;
   --card: #ffffff;
-  --card-foreground: #18181b;
+  --card-foreground: #1f2330;
   --popover: #ffffff;
-  --popover-foreground: #18181b;
-  --primary: #2563eb;
-  --primary-foreground: #fafafa;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
-  --accent: #ea580c;
-  --accent-foreground: #fafafa;
-  --destructive: #dc2626;
-  --status-critical: #dc2626;
-  --status-warning: #d97706;
-  --status-nominal: #16a34a;
-  --status-info: #2563eb;
-  --sidebar: #f4f4f5;
-  --sidebar-foreground: #18181b;
-  --sidebar-primary: #2563eb;
-  --sidebar-primary-foreground: #fafafa;
-  --sidebar-accent: #e4e4e7;
-  --sidebar-accent-foreground: #18181b;
-  --sidebar-border: #e4e4e7;
-  --sidebar-ring: #2563eb;
+  --popover-foreground: #1f2330;
+  --primary: #10a37f;
+  --primary-foreground: #f3fffb;
+  --secondary: #ececf1;
+  --secondary-foreground: #1f2330;
+  --accent: #4da6ff;
+  --accent-foreground: #08192d;
+  --destructive: #dc5f5f;
+  --status-critical: #dc5f5f;
+  --status-warning: #d28a2d;
+  --status-nominal: #10a37f;
+  --status-info: #2f8cff;
+  --sidebar: #ececf1;
+  --sidebar-foreground: #1f2330;
+  --sidebar-primary: #10a37f;
+  --sidebar-primary-foreground: #f3fffb;
+  --sidebar-accent: #e4e6ee;
+  --sidebar-accent-foreground: #1f2330;
+  --sidebar-border: #d9dce5;
+  --sidebar-ring: #10a37f;
 }
 
 @layer base {
@@ -170,6 +177,12 @@ html.light {
       "Microsoft YaHei",
       "Noto Sans CJK SC",
       sans-serif;
+    background-image:
+      radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 8%, transparent), transparent 28%),
+      radial-gradient(circle at top right, color-mix(in srgb, var(--accent) 7%, transparent), transparent 32%),
+      linear-gradient(180deg, color-mix(in srgb, var(--background-elevated) 72%, transparent), var(--background));
+    background-attachment: fixed;
+    min-height: 100vh;
   }
 
   pre,
@@ -185,13 +198,83 @@ html.light {
   input,
   textarea,
   select {
-    @apply transition-colors duration-200 ease-out;
+    transition:
+      color var(--duration-fast) var(--ease-standard),
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard),
+      transform var(--duration-fast) var(--ease-standard),
+      box-shadow var(--duration-base) var(--ease-emphasized);
   }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 30%, transparent);
+    color: var(--foreground);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+.app-shell {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--background-elevated) 78%, transparent), color-mix(in srgb, var(--background) 96%, transparent));
+}
+
+.app-panel {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, transparent), color-mix(in srgb, var(--background-elevated) 94%, transparent));
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  box-shadow:
+    0 8px 24px color-mix(in srgb, #000 8%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent);
+}
+
+.app-toolbar {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--background-elevated) 92%, transparent), color-mix(in srgb, var(--background) 88%, transparent));
+  backdrop-filter: blur(14px);
+}
+
+.app-hairline {
+  position: relative;
+}
+
+.app-hairline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--border-emphasis) 72%, transparent), transparent);
+}
+
+.app-elevated-hover {
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-emphasized),
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.app-elevated-hover:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 28px color-mix(in srgb, #000 9%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent);
+}
+
+.app-flat-surface {
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  box-shadow: none;
 }
 
 /* Tactical typography utilities */
 .text-section-header {
-  @apply text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground;
+  @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground;
 }
 
 .text-data {
@@ -268,6 +351,69 @@ html.light {
 
 .animate-tactical-pulse {
   animation: tactical-pulse 2s ease-in-out infinite;
+}
+
+@keyframes enter-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes soft-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-enter {
+  animation: enter-rise var(--duration-slow) var(--ease-emphasized) both;
+}
+
+.animate-soft-fade {
+  animation: soft-fade var(--duration-base) var(--ease-standard) both;
+}
+
+.animate-scale-in {
+  animation: scale-in var(--duration-base) var(--ease-emphasized) both;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--background-interactive) 70%, transparent) 20%,
+    color-mix(in srgb, var(--foreground) 9%, transparent) 50%,
+    color-mix(in srgb, var(--background-interactive) 70%, transparent) 80%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s linear infinite;
 }
 
 /* Scrollbar styling */
@@ -424,6 +570,9 @@ html.light {
 
 .think-block {
   overflow: hidden;
+  border-left: 2px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  border-radius: 0;
+  background: transparent;
 }
 
 .think-summary {
@@ -431,14 +580,20 @@ html.light {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.625rem 0.75rem;
+  padding: 0.25rem 0 0.25rem 0.875rem;
   cursor: pointer;
   list-style: none;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  color: color-mix(in srgb, var(--foreground) 72%, transparent);
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--foreground) 64%, transparent);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.think-summary:hover {
+  color: var(--foreground);
 }
 
 .think-summary::-webkit-details-marker {
@@ -454,9 +609,11 @@ html.light {
 }
 
 .think-content {
-  border-top: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
-  padding: 0.75rem;
+  margin-left: 0.875rem;
+  border-left: 1px dashed color-mix(in srgb, var(--primary) 24%, transparent);
+  padding: 0.25rem 0 0.25rem 0.875rem;
   color: color-mix(in srgb, var(--foreground) 82%, transparent);
+  animation: soft-fade var(--duration-base) var(--ease-standard) both;
 }
 
 /* Window drag region for frameless window */

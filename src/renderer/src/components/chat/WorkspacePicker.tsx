@@ -61,7 +61,7 @@ export function WorkspacePicker({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-7 px-2 text-xs gap-1.5",
+            "h-8 gap-1.5 rounded-full px-3 text-xs",
             workspacePath ? "text-foreground" : "text-amber-500",
           )}
           disabled={!threadId}
@@ -73,7 +73,7 @@ export function WorkspacePicker({
           <ChevronDown className="size-3 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="start">
+      <PopoverContent className="w-80 rounded-[24px] p-4 shadow-[0_18px_48px_color-mix(in_srgb,#000_12%,transparent)]" align="start">
         <div className="space-y-3">
           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             工作区文件夹
@@ -81,7 +81,7 @@ export function WorkspacePicker({
 
           {workspacePath ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 p-2 rounded-md bg-background-secondary border border-border">
+              <div className="flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-3">
                 <Check className="size-3.5 text-status-nominal shrink-0" />
                 <span className="text-sm truncate flex-1" title={workspacePath}>
                   {folderName}
@@ -93,7 +93,7 @@ export function WorkspacePicker({
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full h-8 text-xs"
+                className="h-9 w-full rounded-2xl text-xs"
                 onClick={handleSelectFolder}
                 disabled={loading}
               >
@@ -108,7 +108,7 @@ export function WorkspacePicker({
               <Button
                 variant="default"
                 size="sm"
-                className="w-full h-8 text-xs"
+                className="h-9 w-full rounded-2xl text-xs"
                 onClick={handleSelectFolder}
                 disabled={loading}
               >

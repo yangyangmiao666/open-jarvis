@@ -7,6 +7,8 @@ import {
   X,
   Copy,
   ShieldAlert,
+  Check,
+  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,6 +21,7 @@ import { WorkspacePicker } from "./WorkspacePicker";
 import { selectWorkspaceFolder } from "@/lib/workspace-utils";
 import { ChatTodos } from "./ChatTodos";
 import { ContextUsageIndicator } from "./ContextUsageIndicator";
+import { SettingsHubDialog } from "./SettingsHubDialog";
 import type { Message } from "@/types";
 import { cn } from "@/lib/utils";
 import { messagesToMarkdown } from "@/lib/chat-markdown";
@@ -53,8 +56,11 @@ export function ChatContainer({
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [copyNoticeOpen, setCopyNoticeOpen] = useState(false);
 
-  const { threads, loadThreads, generateTitleForFirstMessage } = useAppStore();
+  const { threads, loadThreads, generateTitleForFirstMessage, models } =
+    useAppStore();
 
   // Get persisted thread state and actions from context
   const {
@@ -267,10 +273,19 @@ export function ChatContainer({
     if (!md) return;
     try {
       await navigator.clipboard.writeText(md);
+      setCopyNoticeOpen(true);
     } catch (e) {
       console.error("[ChatContainer] Copy failed:", e);
     }
   }, [displayMessages, toolResults]);
+
+  useEffect(() => {
+    if (!copyNoticeOpen) return;
+    const timer = window.setTimeout(() => {
+      setCopyNoticeOpen(false);
+    }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [copyNoticeOpen]);
 
   // Get the actual scrollable viewport element from Radix ScrollArea
   const getViewport = useCallback((): HTMLDivElement | null => {
@@ -425,7 +440,9 @@ export function ChatContainer({
     const textarea = inputRef.current;
     if (textarea) {
       textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+      const nextHeight = Math.min(textarea.scrollHeight, 200);
+      textarea.style.height = `${nextHeight}px`;
+      textarea.style.overflowY = textarea.scrollHeight > 200 ? "auto" : "hidden";
     }
   };
 
@@ -447,28 +464,70 @@ export function ChatContainer({
     );
   };
 
+  const workspaceLabel = workspacePath?.split("/").pop() || "未连接工作区";
+  const currentModelLabel =
+    models.find((model) => model.id === currentModel)?.name ||
+    currentModel?.replace(/^oac:/, "") ||
+    "未选择模型";
+
   return (
-    <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background/20">
+      <div className="app-hairline flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+        <div className="min-w-0 space-y-1">
+          <div className="text-section-header">Active Session</div>
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-foreground">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm">
+              <span className="size-1.5 rounded-full bg-primary" />
+              {currentModelLabel}
+            </span>
+            <span className="inline-flex min-w-0 items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm">
+              <Folder className="size-3.5 shrink-0 text-primary" />
+              <span className="truncate max-w-[18rem]">{workspaceLabel}</span>
+            </span>
+            {pendingApproval && (
+              <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/35 bg-amber-500/10 px-3 py-1 text-xs text-amber-700 dark:text-amber-300">
+                <ShieldAlert className="size-3.5" />
+                等待审批
+              </span>
+            )}
+          </div>
+        </div>
+        {tokenUsage && (
+          <div className="shrink-0">
+            <ContextUsageIndicator tokenUsage={tokenUsage} modelId={currentModel} />
+          </div>
+        )}
+      </div>
+
       {/* Messages */}
       <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
-        <div className="p-4">
-          <div className="max-w-3xl mx-auto space-y-4">
+        <div className="px-4 py-5">
+          <div className="mx-auto max-w-3xl space-y-4">
             {displayMessages.length === 0 && !isLoading && (
-              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                <div className="text-section-header mb-2">新会话</div>
+              <div className="app-flat-surface animate-scale-in mx-auto flex max-w-xl flex-col items-center justify-center gap-4 rounded-[28px] px-8 py-14 text-center text-muted-foreground">
+                <div className="text-section-header">新会话</div>
                 {workspacePath ? (
-                  <div className="text-sm">开始与智能体对话</div>
+                  <>
+                    <div className="text-xl font-semibold tracking-[-0.03em] text-foreground">
+                      开始与 Jarvis 协作
+                    </div>
+                    <div className="text-sm leading-6 text-muted-foreground">
+                      当前会话已经绑定工作区，可以直接提问、要求修改文件，或让智能体执行操作。
+                    </div>
+                  </>
                 ) : (
-                  <div className="text-sm text-center space-y-3">
-                    <div>
-                      <span className="text-amber-500">请选择工作区文件夹</span>
-                      <span className="block text-xs mt-1 opacity-75">
+                  <div className="space-y-4 text-center text-sm">
+                    <div className="space-y-1">
+                      <span className="text-base font-medium text-amber-600 dark:text-amber-300">
+                        请选择工作区文件夹
+                      </span>
+                      <span className="mt-1 block text-xs opacity-80">
                         智能体需要工作区才能创建与修改文件
                       </span>
                     </div>
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-md border border-border bg-background px-2 h-7 text-xs gap-1.5 text-amber-500 hover:bg-accent/50 transition-color duration-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="app-elevated-hover inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 text-xs font-medium text-amber-700 dark:text-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
                       onClick={handleSelectWorkspaceFromEmptyState}
                     >
                       <Folder className="size-3.5" />
@@ -491,18 +550,28 @@ export function ChatContainer({
 
             {/* Streaming indicator and inline TODOs */}
             {isLoading && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <Loader2 className="size-4 animate-spin" />
-                  智能体思考中…
+              <div className="animate-enter space-y-3">
+                <div className="app-flat-surface flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-muted-foreground">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-background-interactive/80 text-primary">
+                    <Loader2 className="size-4 animate-spin" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-foreground">智能体思考中…</div>
+                    <div className="text-xs text-muted-foreground">
+                      正在整理回复、工具调用与任务状态。
+                    </div>
+                  </div>
+                  <div className="text-section-header">Live</div>
                 </div>
-                {todos.length > 0 && <ChatTodos todos={todos} />}
+                <div className="pl-1">
+                  {todos.length > 0 && <ChatTodos todos={todos} />}
+                </div>
               </div>
             )}
 
             {/* Error state */}
             {threadError && !isLoading && (
-              <div className="flex items-start gap-3 rounded-md border border-destructive/50 bg-destructive/10 p-4">
+              <div className="animate-enter flex items-start gap-3 rounded-2xl border border-destructive/35 bg-destructive/10 px-4 py-4">
                 <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-destructive text-sm">
@@ -530,8 +599,8 @@ export function ChatContainer({
 
       {/* HITL：流结束后 isLoading 为 false，但子图可能仍在等待审批；避免「无按钮可点」 */}
       {pendingApproval && (
-        <div className="shrink-0 border-t border-amber-500/35 bg-amber-500/[0.07] px-4 py-3">
-          <div className="max-w-3xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="shrink-0 border-t border-amber-500/25 bg-amber-500/[0.06] px-4 py-4 backdrop-blur-sm">
+          <div className="app-flat-surface mx-auto flex max-w-3xl flex-col gap-3 rounded-[24px] border-amber-500/20 bg-amber-500/[0.08] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2 min-w-0 text-sm">
               <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
               <div className="min-w-0">
@@ -565,9 +634,15 @@ export function ChatContainer({
       )}
 
       {/* Input */}
-      <div className="border-t border-border p-4">
-        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-          <div className="flex flex-col gap-2">
+      <div className="border-t border-border/60 px-4 py-4">
+        <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
+          <div className="relative app-flat-surface flex flex-col gap-3 rounded-[26px] px-4 py-4">
+            {copyNoticeOpen && (
+              <div className="animate-enter absolute -top-14 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/12 px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-[0_12px_32px_color-mix(in_srgb,#10b981_15%,transparent)] backdrop-blur-sm dark:text-emerald-300">
+                <Check className="size-3.5" />
+                已复制到剪贴板
+              </div>
+            )}
             {referencedPaths.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {referencedPaths.map((p) => (
@@ -578,7 +653,7 @@ export function ChatContainer({
                       setReferencedPaths((prev) => prev.filter((x) => x !== p))
                     }
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-mono text-muted-foreground hover:bg-muted",
+                      "inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/55 px-2.5 py-1 text-[11px] font-mono text-muted-foreground hover:bg-muted",
                     )}
                     title="点击移除"
                   >
@@ -588,7 +663,7 @@ export function ChatContainer({
                 ))}
               </div>
             )}
-            <div className="relative flex items-end gap-2">
+            <div className="relative flex items-end gap-3">
               <textarea
                 ref={inputRef}
                 value={input}
@@ -602,18 +677,18 @@ export function ChatContainer({
                 onKeyDown={handleKeyDown}
                 placeholder="输入消息…（@ 可引用工作区文件或文件夹）"
                 disabled={isLoading}
-                className="flex-1 min-w-0 resize-none rounded-sm border border-border bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                className="min-w-0 flex-1 resize-none rounded-[22px] border border-border/75 bg-background/75 px-4 py-3.5 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/70 disabled:opacity-50"
                 rows={1}
-                style={{ minHeight: "48px", maxHeight: "200px" }}
+                style={{ minHeight: "48px", maxHeight: "200px", overflowY: "hidden" }}
               />
               {mentionOpen && mentionCandidates.length > 0 && (
-                <div className="absolute bottom-full left-0 right-14 mb-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md z-50 py-1">
+                <div className="app-flat-surface absolute bottom-full left-0 right-14 z-50 mb-2 max-h-48 overflow-y-auto rounded-2xl py-2">
                   {mentionCandidates.map((f, idx) => (
                     <button
                       key={f.path}
                       type="button"
                       className={cn(
-                        "w-full text-left px-2 py-1.5 text-xs font-mono truncate rounded-sm transition-colors",
+                        "mx-1 w-[calc(100%-0.5rem)] truncate rounded-xl px-3 py-2 text-left text-xs font-mono transition-colors",
                         idx === mentionActiveIndex
                           ? "bg-primary/18 text-foreground ring-1 ring-inset ring-primary/45"
                           : "hover:bg-muted dark:hover:bg-background-interactive",
@@ -630,13 +705,13 @@ export function ChatContainer({
                   ))}
                 </div>
               )}
-              <div className="flex items-center justify-center shrink-0 h-12">
+              <div className="flex h-12 shrink-0 items-center justify-center">
                 {isLoading ? (
                   <Button
                     type="button"
                     variant="destructive"
                     size="icon"
-                    className="rounded-md"
+                    className="rounded-full"
                     onClick={handleCancel}
                     title="停止生成"
                   >
@@ -648,16 +723,16 @@ export function ChatContainer({
                     variant="default"
                     size="icon"
                     disabled={!input.trim()}
-                    className="rounded-md"
+                    className="rounded-full"
                   >
                     <Send className="size-4" />
                   </Button>
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ModelSwitcher threadId={threadId} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <ModelSwitcher threadId={threadId} onOpenSettings={() => setSettingsOpen(true)} />
                 <div className="w-px h-4 bg-border" />
                 <WorkspacePicker threadId={threadId} />
                 <div className="w-px h-4 bg-border" />
@@ -665,25 +740,40 @@ export function ChatContainer({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground"
+                  className="h-8 gap-1 rounded-full px-3 text-xs text-muted-foreground"
+                  onClick={() => setSettingsOpen(true)}
+                  title="集中管理自定义模型、技能和 MCP 配置"
+                >
+                  <Settings2 className="size-3.5" />
+                  设置
+                </Button>
+                <div className="w-px h-4 bg-border" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1 rounded-full px-3 text-xs text-muted-foreground"
                   disabled={displayMessages.length === 0}
                   onClick={() => void copyConversationMarkdown()}
-                  title="导出当前会话全部消息为 Markdown（含工具调用与结果）"
+                  title="复制当前会话全部消息为 Markdown（含工具调用与结果）"
                 >
                   <Copy className="size-3.5" />
-                  导出会话 Markdown
+                  复制会话到Markdown
                 </Button>
               </div>
-              {tokenUsage && (
-                <ContextUsageIndicator
-                  tokenUsage={tokenUsage}
-                  modelId={currentModel}
-                />
-              )}
+              <div className="text-[11px] text-muted-foreground">
+                Enter 发送，Shift+Enter 换行，@ 引用文件
+              </div>
             </div>
           </div>
         </form>
       </div>
+
+      <SettingsHubDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        threadId={threadId}
+      />
     </div>
   );
 }

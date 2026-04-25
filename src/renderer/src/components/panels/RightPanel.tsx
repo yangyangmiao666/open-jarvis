@@ -31,7 +31,6 @@ import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import type {Todo} from "@/types";
 import {WorkspaceFileListTable} from "./WorkspaceFileListTable";
-import {SkillsDialog} from "./SkillsDialog";
 import {buildFileTree, type TreeNode, type WorkspaceFileInfo,} from "@/lib/workspace-file-tree";
 
 const HEADER_HEIGHT = 40; // px
@@ -57,7 +56,7 @@ function SectionHeader({
   return (
     <button
       onClick={onToggle}
-      className="flex items-center gap-2 px-3 py-2.5 text-section-header hover:bg-background-interactive transition-colors shrink-0 w-full"
+      className="group flex w-full shrink-0 items-center gap-2 px-3 py-2.5 text-section-header transition-colors hover:bg-background-interactive/70"
       style={{ height: HEADER_HEIGHT }}
     >
       <ChevronRight
@@ -66,10 +65,10 @@ function SectionHeader({
           isOpen && "rotate-90",
         )}
       />
-      <Icon className="size-4" />
+      <Icon className="size-4 text-foreground/80" />
       <span className="flex-1 text-left">{title}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="text-[10px] text-muted-foreground tabular-nums">
+        <span className="rounded-full border border-border/70 bg-background/55 px-2 py-0.5 text-[10px] text-muted-foreground tabular-nums">
           {badge}
         </span>
       )}
@@ -113,10 +112,11 @@ function ResizeHandle({ onDrag }: ResizeHandleProps): React.JSX.Element {
   return (
     <div
       onMouseDown={handleMouseDown}
-      className="group bg-border/50 hover:bg-primary/30 active:bg-primary/50 transition-colors cursor-row-resize flex items-center justify-center shrink-0 select-none"
+      className="group relative flex shrink-0 cursor-row-resize select-none items-center justify-center bg-transparent"
       style={{ height: HANDLE_HEIGHT }}
     >
-      <GripHorizontal className="size-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      <div className="pointer-events-none absolute inset-x-3 top-1/2 h-px -translate-y-1/2 rounded-full bg-border/65 opacity-0 transition-all duration-200 group-hover:inset-x-1.5 group-hover:bg-primary/65 group-hover:opacity-100 group-active:opacity-100 group-active:bg-primary" />
+      <GripHorizontal className="pointer-events-none size-4 text-muted-foreground/45 opacity-0 transition-all duration-200 group-hover:opacity-100 group-active:opacity-100 group-active:text-primary" />
     </div>
   );
 }
@@ -340,10 +340,10 @@ export function RightPanel(): React.JSX.Element {
   return (
     <aside
       ref={containerRef}
-      className="flex h-full w-full flex-col border-l border-border bg-sidebar overflow-hidden"
+      className="flex h-full w-full flex-col overflow-hidden border-l border-border/70 bg-sidebar/75 backdrop-blur-md"
     >
       {/* TASKS */}
-      <div className="flex flex-col shrink-0 border-b border-border">
+      <div className="flex shrink-0 flex-col border-b border-border/65 bg-sidebar/55">
         <SectionHeader
           title="任务"
           icon={ListTodo}
@@ -352,7 +352,7 @@ export function RightPanel(): React.JSX.Element {
           onToggle={() => setTasksOpen((prev) => !prev)}
         />
         {tasksOpen && (
-          <div className="overflow-auto" style={{ height: heights.tasks }}>
+          <div className="animate-soft-fade overflow-auto" style={{ height: heights.tasks }}>
             <TasksContent />
           </div>
         )}
@@ -364,7 +364,7 @@ export function RightPanel(): React.JSX.Element {
       )}
 
       {/* FILES */}
-      <div className="flex flex-col shrink-0 border-b border-border">
+      <div className="flex shrink-0 flex-col border-b border-border/65 bg-sidebar/50">
         <SectionHeader
           title="文件"
           icon={FolderTree}
@@ -373,7 +373,7 @@ export function RightPanel(): React.JSX.Element {
           onToggle={() => setFilesOpen((prev) => !prev)}
         />
         {filesOpen && (
-          <div className="overflow-auto" style={{ height: heights.files }}>
+          <div className="animate-soft-fade overflow-auto" style={{ height: heights.files }}>
             <FilesContent />
           </div>
         )}
@@ -383,7 +383,7 @@ export function RightPanel(): React.JSX.Element {
       {filesOpen && agentsOpen && <ResizeHandle onDrag={handleFilesResize} />}
 
       {/* AGENTS */}
-      <div className="flex flex-col shrink-0">
+      <div className="flex shrink-0 flex-col bg-sidebar/45">
         <SectionHeader
           title="子智能体"
           icon={GitBranch}
@@ -392,7 +392,7 @@ export function RightPanel(): React.JSX.Element {
           onToggle={() => setAgentsOpen((prev) => !prev)}
         />
         {agentsOpen && (
-          <div className="overflow-auto" style={{ height: heights.agents }}>
+          <div className="animate-soft-fade overflow-auto" style={{ height: heights.agents }}>
             <AgentsContent />
           </div>
         )}
@@ -438,7 +438,7 @@ function TasksContent(): React.JSX.Element {
 
   if (todos.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center text-center text-sm text-muted-foreground py-8 px-4">
+      <div className="flex flex-col items-center justify-center px-4 py-8 text-center text-sm text-muted-foreground">
         <ListTodo className="size-8 mb-2 opacity-50" />
         <span>暂无任务</span>
         <span className="text-xs mt-1">智能体创建任务后会显示在这里</span>
@@ -461,7 +461,7 @@ function TasksContent(): React.JSX.Element {
   return (
     <div>
       {/* Progress bar */}
-      <div className="p-3 border-b border-border/50">
+      <div className="border-b border-border/50 p-3">
         <div className="flex items-center justify-between mb-1.5 text-xs">
           <span className="text-muted-foreground">进度</span>
           <span className="font-mono">
@@ -477,7 +477,7 @@ function TasksContent(): React.JSX.Element {
       </div>
 
       {/* Todo list */}
-      <div className="p-3 space-y-2">
+      <div className="space-y-2 p-3">
         {/* Completed/Cancelled Section (Collapsible) */}
         {doneItems.length > 0 && (
           <div className="mb-1">
@@ -526,7 +526,7 @@ function TaskItem({ todo }: { todo: Todo }): React.JSX.Element {
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-sm border border-border p-3",
+        "app-elevated-hover flex items-start gap-3 rounded-2xl border border-border/75 bg-card/70 p-3",
         isDone && "opacity-50",
       )}
     >
@@ -558,7 +558,6 @@ function FilesContent(): React.JSX.Element {
       ? "list"
       : "tree";
   });
-  const [skillsDialogOpen, setSkillsDialogOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("openwork-file-view", fileView);
@@ -641,29 +640,20 @@ function FilesContent(): React.JSX.Element {
   return (
     <div className="flex flex-col h-full">
       {/* Header with sync button */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-background/30 gap-1">
+      <div className="flex items-center justify-between gap-1 border-b border-border/50 bg-background/30 px-3 py-2">
         <span
           className="text-[10px] text-muted-foreground truncate flex-1"
           title={workspacePath || undefined}
         >
           {workspacePath ? workspacePath.split("/").pop() : "未关联文件夹"}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-5 px-1.5 text-[10px] shrink-0"
-          title="Skills 配置"
-          onClick={() => setSkillsDialogOpen(true)}
-        >
-          技能
-        </Button>
         {workspaceFiles.length > 0 && (
-          <div className="flex rounded border border-border overflow-hidden shrink-0">
+          <div className="flex shrink-0 overflow-hidden rounded-full border border-border bg-background/60">
             <button
               type="button"
               title="树形"
               className={cn(
-                "px-1.5 py-0.5",
+                "px-2 py-1",
                 fileView === "tree"
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted/50",
@@ -676,7 +666,7 @@ function FilesContent(): React.JSX.Element {
               type="button"
               title="列表"
               className={cn(
-                "px-1.5 py-0.5 border-l border-border",
+                "border-l border-border px-2 py-1",
                 fileView === "list"
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted/50",
@@ -694,7 +684,7 @@ function FilesContent(): React.JSX.Element {
             workspaceFiles.length > 0 ? handleSyncToDisk : handleSelectFolder
           }
           disabled={syncing || !currentThreadId}
-          className="h-5 px-1.5 text-[10px]"
+          className="h-7 rounded-full px-2 text-[10px]"
           title={
             workspaceFiles.length > 0
               ? workspacePath
@@ -724,15 +714,9 @@ function FilesContent(): React.JSX.Element {
         </Button>
       </div>
 
-      <SkillsDialog
-        open={skillsDialogOpen}
-        onOpenChange={setSkillsDialogOpen}
-        threadId={currentThreadId}
-      />
-
       {/* File tree or empty state */}
       {workspaceFiles.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center text-sm text-muted-foreground py-8 px-4 flex-1">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center text-sm text-muted-foreground">
           <FolderTree className="size-8 mb-2 opacity-50" />
           <span>暂无工作区文件</span>
           <span className="text-xs mt-1">

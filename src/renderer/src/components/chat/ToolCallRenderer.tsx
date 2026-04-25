@@ -586,7 +586,7 @@ export function ToolCallRenderer({
   return (
     <div
       className={cn(
-        "rounded-sm border overflow-hidden",
+        "overflow-hidden rounded-2xl border",
         needsApproval
           ? "border-amber-500/50 bg-amber-500/5"
           : "border-border bg-background-elevated",
@@ -595,7 +595,7 @@ export function ToolCallRenderer({
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center gap-2 px-3 py-2 hover:bg-background-interactive transition-colors"
+        className="flex w-full items-center gap-2 px-3 py-2.5 transition-colors hover:bg-background-interactive"
       >
         {isExpanded ? (
           <ChevronDown className="size-4 text-muted-foreground shrink-0" />
@@ -655,7 +655,7 @@ export function ToolCallRenderer({
           {/* Arguments */}
           <div>
             <div className="text-section-header text-[10px] mb-1">参数</div>
-            <pre className="text-xs font-mono bg-background p-2 rounded-sm overflow-auto max-h-24">
+            <pre className="max-h-24 overflow-auto rounded-xl bg-background p-2 text-xs font-mono">
               {JSON.stringify(args, null, 2)}
             </pre>
           </div>
@@ -663,13 +663,13 @@ export function ToolCallRenderer({
           {inlineApprovalButtons ? (
             <div className="flex items-center justify-end gap-2">
               <button
-                className="px-3 py-1.5 text-xs border border-border rounded-sm hover:bg-background-interactive transition-colors"
+                className="rounded-full border border-border px-3 py-1.5 text-xs transition-colors hover:bg-background-interactive"
                 onClick={handleReject}
               >
                 拒绝
               </button>
               <button
-                className="px-3 py-1.5 text-xs bg-status-nominal text-background rounded-sm hover:bg-status-nominal/90 transition-colors"
+                className="rounded-full bg-status-nominal px-3 py-1.5 text-xs text-background transition-colors hover:bg-status-nominal/90"
                 onClick={handleApprove}
               >
                 批准并执行

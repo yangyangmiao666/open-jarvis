@@ -87,10 +87,10 @@ function ThreadListItem({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "group flex items-center gap-2 rounded-sm px-3 py-2 cursor-pointer transition-colors overflow-hidden",
+            "group app-elevated-hover flex items-center gap-2 overflow-hidden rounded-2xl border px-3 py-2.5 cursor-pointer",
             isSelected
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "hover:bg-sidebar-accent/50",
+              ? "border-sidebar-ring/30 bg-sidebar-accent text-sidebar-accent-foreground shadow-[0_16px_30px_color-mix(in_srgb,var(--sidebar-ring)_10%,transparent)]"
+              : "border-transparent hover:border-sidebar-border/80 hover:bg-sidebar-accent/70",
           )}
           onClick={() => {
             if (!isEditing) {
@@ -141,7 +141,7 @@ function ThreadListItem({
           <Button
             variant="ghost"
             size="icon-sm"
-            className="opacity-0 group-hover:opacity-100 shrink-0"
+            className="shrink-0 rounded-full opacity-0 group-hover:opacity-100"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
@@ -244,11 +244,11 @@ export function ThreadSidebar(): React.JSX.Element {
   };
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-hidden bg-sidebar">
+    <aside className="flex h-full w-full flex-col overflow-hidden bg-sidebar/94 backdrop-blur-md">
       {/* 品牌区：紧贴标题栏下缘，在「红绿灯区域以下 ~ 本区分割线」之间垂直居中 */}
-      <div className="flex min-h-[3.25rem] shrink-0 items-center gap-3 border-b border-sidebar-border px-3 py-2">
+      <div className="app-hairline flex min-h-[4.25rem] shrink-0 items-center gap-3 border-b border-sidebar-border/85 px-3 py-3">
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-cyan-500/30 bg-cyan-500/[0.07] text-cyan-600 dark:text-cyan-400"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary shadow-[0_16px_30px_color-mix(in_srgb,var(--primary)_12%,transparent)]"
           aria-hidden
         >
           <Cpu className="size-[22px]" strokeWidth={1.75} />
@@ -263,11 +263,11 @@ export function ThreadSidebar(): React.JSX.Element {
         </div>
       </div>
 
-      <div className="space-y-1 p-2">
+      <div className="space-y-2 p-3">
         <Button
-          variant="ghost"
+          variant="default"
           size="sm"
-          className="w-full justify-start gap-2"
+          className="w-full justify-start gap-2 rounded-2xl"
           onClick={handleNewThread}
         >
           <Plus className="size-4" />
@@ -278,7 +278,7 @@ export function ThreadSidebar(): React.JSX.Element {
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs h-7"
+              className="h-8 w-full rounded-2xl text-xs"
               disabled={threads.length === 0}
               onClick={() => {
                 const allSelected =
@@ -298,7 +298,7 @@ export function ThreadSidebar(): React.JSX.Element {
               <Button
                 variant="secondary"
                 size="sm"
-                className="flex-1 text-xs h-7"
+                className="h-8 flex-1 rounded-2xl text-xs"
                 onClick={exitBulkMode}
               >
                 完成
@@ -306,7 +306,7 @@ export function ThreadSidebar(): React.JSX.Element {
               <Button
                 variant="destructive"
                 size="sm"
-                className="flex-1 text-xs h-7"
+                className="h-8 flex-1 rounded-2xl text-xs"
                 disabled={selectedIds.size === 0}
                 onClick={() => handleBulkDeleteRequest()}
               >
@@ -318,7 +318,7 @@ export function ThreadSidebar(): React.JSX.Element {
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-center gap-2 text-xs h-7"
+            className="h-8 w-full justify-center gap-2 rounded-2xl text-xs"
             onClick={() => setBulkMode(true)}
           >
             多选
@@ -328,7 +328,7 @@ export function ThreadSidebar(): React.JSX.Element {
 
       {/* Thread List */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="p-2 space-y-1 overflow-hidden">
+        <div className="space-y-1.5 overflow-hidden p-3 pt-1">
           {threads.map((thread) => (
             <ThreadListItem
               key={thread.thread_id}
@@ -361,11 +361,11 @@ export function ThreadSidebar(): React.JSX.Element {
       </ScrollArea>
 
       {/* Overview Toggle */}
-      <div className="p-2 border-t border-border">
+      <div className="border-t border-sidebar-border/80 p-3">
         <Button
-          variant="ghost"
+          variant="secondary"
           size="sm"
-          className="w-full justify-start gap-2"
+          className="w-full justify-start gap-2 rounded-2xl"
           onClick={() => setShowKanbanView(true)}
         >
           <LayoutGrid className="size-4" />

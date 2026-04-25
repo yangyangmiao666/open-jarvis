@@ -39,7 +39,7 @@ export function TabBar({
   return (
     <div
       className={cn(
-        "flex items-center h-9 border-b border-border bg-sidebar overflow-x-auto scrollbar-hide",
+        "app-toolbar flex h-11 items-center gap-1 overflow-x-auto px-2 scrollbar-hide",
         className,
       )}
     >
@@ -47,10 +47,10 @@ export function TabBar({
       <button
         onClick={() => setActiveTab("agent")}
         className={cn(
-          "flex items-center gap-2 px-4 h-full text-sm font-medium transition-colors shrink-0 border-r border-border",
+          "flex h-9 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-medium transition-all",
           activeTab === "agent"
-            ? "bg-primary/15 text-primary border-b-2 border-b-primary"
-            : "text-muted-foreground hover:text-foreground hover:bg-background-interactive",
+            ? "bg-primary/12 text-primary"
+            : "text-muted-foreground hover:bg-background-interactive hover:text-foreground",
         )}
       >
         <Bot className="size-4" />
@@ -113,10 +113,10 @@ function FileTab({
           onClick={onSelect}
           onMouseDown={handleMouseDown}
           className={cn(
-            "group flex items-center gap-2 px-3 h-full text-sm transition-colors shrink-0 border-r border-border max-w-[200px]",
+            "group flex h-9 max-w-[220px] shrink-0 items-center gap-2 rounded-2xl px-3 text-sm transition-all",
             isActive
-              ? "bg-background text-foreground border-b-2 border-b-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-background-interactive",
+              ? "bg-card text-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border-emphasis)_80%,transparent)]"
+              : "text-muted-foreground hover:bg-background-interactive hover:text-foreground",
           )}
           title={file.path}
         >
@@ -133,7 +133,7 @@ function FileTab({
               }
             }}
             className={cn(
-              "size-4 flex items-center justify-center rounded-sm hover:bg-background-interactive transition-colors",
+              "flex size-5 items-center justify-center rounded-full transition-colors hover:bg-background-interactive",
               isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}
           >

@@ -22,7 +22,7 @@ interface MCPConfigDialogProps {
 }
 
 const textAreaClassName = cn(
-  "flex min-h-[96px] w-full rounded-sm border border-input bg-background px-3 py-2 text-xs font-mono shadow-sm",
+  "flex min-h-[96px] w-full rounded-2xl border border-input bg-background px-3 py-2 text-xs font-mono",
   "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
   "disabled:cursor-not-allowed disabled:opacity-50",
 );
@@ -160,7 +160,7 @@ export function MCPConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col">
+      <DialogContent className="max-h-[90vh] max-w-5xl flex flex-col">
         <DialogHeader>
           <DialogTitle>MCP 配置</DialogTitle>
           <DialogDescription>
@@ -170,7 +170,7 @@ export function MCPConfigDialog({
 
         <div className="grid gap-4 md:grid-cols-[1.05fr_1.2fr] flex-1 min-h-0">
           <div className="flex min-h-0 flex-col gap-3">
-            <div className="rounded-md border border-border p-3">
+            <div className="app-flat-surface rounded-[24px] p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Cable className="size-4" />
                 当前会话已启用
@@ -179,7 +179,7 @@ export function MCPConfigDialog({
                 勾选后，当前线程在下一次调用 agent 时会装配对应的 MCP 工具。
               </p>
 
-              <ScrollArea className="mt-3 h-[220px] rounded-md border border-border">
+              <ScrollArea className="mt-3 h-[220px] rounded-[20px] border border-border/75">
                 <div className="p-2 space-y-2">
                   {servers.length === 0 && (
                     <p className="px-2 py-4 text-xs text-muted-foreground">
@@ -189,7 +189,7 @@ export function MCPConfigDialog({
                   {servers.map((server) => (
                     <label
                       key={server.id}
-                      className="flex items-start gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-muted/40"
+                      className="flex items-start gap-2 rounded-2xl px-3 py-2 text-xs hover:bg-muted/40"
                     >
                       <input
                         type="checkbox"
@@ -215,7 +215,7 @@ export function MCPConfigDialog({
               </ScrollArea>
             </div>
 
-            <div className="rounded-md border border-border p-3">
+            <div className="app-flat-surface rounded-[24px] p-4">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <div className="text-sm font-medium">导入 / 导出</div>
@@ -269,7 +269,7 @@ export function MCPConfigDialog({
             </div>
 
             {editing && (
-              <div className="rounded-md border border-border bg-muted/20 p-3 space-y-3">
+              <div className="app-flat-surface space-y-3 rounded-[24px] p-4">
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1">
                     <label htmlFor="mcp-name" className="text-sm font-medium">

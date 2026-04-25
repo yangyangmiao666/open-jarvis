@@ -32,16 +32,16 @@ export function KanbanColumn({
   return (
     <div
       className={cn(
-        "flex flex-col min-w-[200px] w-[200px] flex-1 bg-muted/30 rounded-sm border border-border border-t-2",
+        "app-flat-surface flex min-w-[280px] w-[280px] flex-1 flex-col rounded-[26px]",
         config.borderColor,
       )}
     >
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
         <span className="text-section-header">{title}</span>
         <Badge variant={config.badge}>{count}</Badge>
       </div>
       <ScrollArea className="flex-1 min-h-0">
-        <div className="p-2 space-y-2">{children}</div>
+        <div className="space-y-3 p-3">{children}</div>
       </ScrollArea>
     </div>
   );

@@ -104,12 +104,12 @@ export function MessageBubble({
   }
 
   return (
-    <div className="group/msg flex gap-3 overflow-hidden">
+    <div className="group/msg animate-enter flex gap-3 overflow-visible">
       {/* Left avatar column - shows for agent/tool */}
-      <div className="w-8 shrink-0">
+      <div className="w-10 shrink-0 pt-0.5">
         {!isUser && (
           <div
-            className="flex size-8 items-center justify-center rounded-sm border border-cyan-500/35 bg-cyan-500/[0.08] text-cyan-600 dark:text-cyan-400"
+            className="flex size-9 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary"
             title="Jarvis"
           >
             <Cpu className="size-[15px]" strokeWidth={1.75} />
@@ -121,7 +121,7 @@ export function MessageBubble({
       <div className="flex-1 min-w-0 space-y-2 overflow-hidden">
         <div
           className={cn(
-            "flex items-center gap-1",
+            "flex items-center gap-2",
             isUser ? "justify-end" : "justify-between",
           )}
         >
@@ -131,7 +131,7 @@ export function MessageBubble({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/msg:opacity-100 hover:text-foreground"
+                className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:text-foreground"
                 title="复制此条为 Markdown"
                 onClick={() => void copyAsMarkdown()}
               >
@@ -141,12 +141,20 @@ export function MessageBubble({
             </>
           ) : (
             <>
-              <span className="text-section-header">{getLabel()}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-section-header">{getLabel()}</span>
+                {isStreaming && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
+                    <span className="animate-tactical-pulse size-1.5 rounded-full bg-primary" />
+                    Live
+                  </span>
+                )}
+              </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/msg:opacity-100 hover:text-foreground"
+                className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:text-foreground"
                 title="复制此条为 Markdown"
                 onClick={() => void copyAsMarkdown()}
               >
@@ -159,8 +167,10 @@ export function MessageBubble({
         {content && (
           <div
             className={cn(
-              "rounded-sm p-3 overflow-hidden",
-              isUser ? "bg-primary/10" : "bg-card",
+              "overflow-hidden rounded-[22px] border p-4",
+              isUser
+                ? "border-primary/14 bg-primary/[0.08]"
+                : "border-border/75 bg-card/96 backdrop-blur-sm",
             )}
           >
             {content}
@@ -195,10 +205,10 @@ export function MessageBubble({
       </div>
 
       {/* Right avatar column - shows for user */}
-      <div className="w-8 shrink-0">
+      <div className="w-10 shrink-0 pt-0.5">
         {isUser && (
           <div
-            className="flex size-8 items-center justify-center rounded-sm bg-primary/10 text-primary"
+            className="flex size-9 items-center justify-center rounded-2xl border border-border/70 bg-background-interactive/85 text-primary"
             title="你"
           >
             <User className="size-4" />

@@ -87,22 +87,31 @@ export function FileViewer({
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center text-muted-foreground">
-        <Loader2 className="size-6 animate-spin mr-2" />
-        <span>Loading file...</span>
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="app-flat-surface animate-scale-in flex min-w-[18rem] max-w-sm flex-col items-center gap-4 rounded-[28px] px-8 py-10 text-center text-muted-foreground">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-background-interactive text-primary">
+            <Loader2 className="size-5 animate-spin" />
+          </div>
+          <div className="space-y-1">
+            <div className="text-base font-medium text-foreground">正在载入文件</div>
+            <div className="text-sm">准备预览 {fileName}</div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground gap-3 p-8">
-        <AlertCircle className="size-10 text-status-critical" />
-        <div className="text-center">
-          <div className="font-medium text-foreground mb-1">
-            Failed to load file
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-muted-foreground">
+        <div className="app-flat-surface flex max-w-md flex-col items-center gap-4 rounded-[28px] px-8 py-10 text-center">
+          <AlertCircle className="size-10 text-status-critical" />
+          <div className="text-center">
+            <div className="mb-1 font-medium text-foreground">
+              无法载入文件
+            </div>
+            <div className="text-sm">{error}</div>
           </div>
-          <div className="text-sm">{error}</div>
         </div>
       </div>
     );
@@ -110,9 +119,12 @@ export function FileViewer({
 
   if (content === undefined && binaryContent === null) {
     return (
-      <div className="flex flex-1 items-center justify-center text-muted-foreground">
-        <FileCode className="size-6 mr-2" />
-        <span>No content</span>
+      <div className="flex flex-1 items-center justify-center p-8 text-muted-foreground">
+        <div className="app-flat-surface flex flex-col items-center gap-3 rounded-[28px] px-8 py-10 text-center">
+          <FileCode className="size-8 text-primary/80" />
+          <div className="text-base font-medium text-foreground">暂无可显示内容</div>
+          <div className="text-sm">该文件当前没有可预览的数据。</div>
+        </div>
       </div>
     );
   }

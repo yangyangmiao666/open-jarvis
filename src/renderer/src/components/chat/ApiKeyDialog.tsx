@@ -82,7 +82,7 @@ export function ApiKeyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {hasExistingKey
@@ -96,8 +96,21 @@ export function ApiKeyDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
+        <div className="grid gap-6 py-2 md:grid-cols-[0.9fr_1.1fr]">
+          <div className="app-flat-surface rounded-[24px] px-5 py-5">
+            <div className="text-section-header">Provider</div>
+            <div className="mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground">
+              {provider.name}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              使用平台密钥后，这个提供商的模型就可以在当前应用内直接调用。
+            </p>
+            <div className="mt-5 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+              <div className="text-xs text-muted-foreground">环境变量</div>
+              <div className="mt-1 font-mono text-sm text-foreground">{info.envVar}</div>
+            </div>
+          </div>
+          <div className="space-y-4">
             <div className="relative">
               <Input
                 type={showKey ? "text" : "password"}
@@ -122,12 +135,14 @@ export function ApiKeyDialog({
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
-              环境变量：<code className="text-foreground">{info.envVar}</code>
+              {hasExistingKey
+                ? "留空不会覆盖现有密钥。"
+                : "密钥仅保存在本地，不会显示在会话消息里。"}
             </p>
           </div>
         </div>
 
-        <div className="flex justify-between">
+        <div className="flex justify-between gap-3">
           {hasExistingKey ? (
             <Button
               type="button"

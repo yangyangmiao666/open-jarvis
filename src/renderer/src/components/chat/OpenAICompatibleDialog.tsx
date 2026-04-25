@@ -70,12 +70,22 @@ export function OpenAICompatibleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+      <DialogContent className="max-h-[88vh] max-w-4xl flex flex-col">
         <DialogHeader>
           <DialogTitle>自定义模型配置</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3 flex-1 min-h-0">
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <div className="app-flat-surface flex items-start justify-between gap-4 rounded-[24px] px-5 py-5">
+            <div className="min-w-0">
+              <div className="text-section-header">Profiles</div>
+              <div className="mt-1 text-lg font-semibold tracking-[-0.03em] text-foreground">
+                OpenAI Compatible 接入
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                在这里维护自定义 OpenAI 兼容接口，例如本地网关、代理服务或私有部署模型。保存后模型切换器会自动刷新。
+              </p>
+            </div>
           <Button
             type="button"
             variant="outline"
@@ -86,9 +96,10 @@ export function OpenAICompatibleDialog({
             <Plus className="size-4" />
             添加配置
           </Button>
+          </div>
 
           {editing && (
-            <div className="rounded-md border border-border p-3 space-y-3 bg-muted/20">
+            <div className="app-flat-surface space-y-4 rounded-[24px] p-4">
               <div className="space-y-1">
                 <label htmlFor="oac-name" className="text-sm font-medium">
                   显示名称
@@ -162,7 +173,7 @@ export function OpenAICompatibleDialog({
             </div>
           )}
 
-          <ScrollArea className="h-[200px] rounded-md border border-border">
+          <ScrollArea className="min-h-0 rounded-[24px] border border-border/75">
             <div className="p-2 space-y-1">
               {profiles.length === 0 && !editing && (
                 <p className="text-sm text-muted-foreground px-2 py-6 text-center">
@@ -172,7 +183,7 @@ export function OpenAICompatibleDialog({
               {profiles.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-muted/50"
+                  className="flex items-center gap-2 rounded-2xl px-3 py-2 text-xs hover:bg-muted/50"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">

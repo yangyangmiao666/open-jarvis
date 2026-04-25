@@ -120,9 +120,22 @@ export function KanbanView(): React.JSX.Element {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      <div className="flex-1 overflow-x-auto p-2">
-        <div className="flex h-full min-w-max gap-2">
+    <div className="flex h-full flex-col bg-background/20">
+      <div className="app-hairline shrink-0 px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-section-header">Overview</div>
+            <div className="text-xl font-semibold tracking-[-0.03em] text-foreground">
+              会话与子智能体总览
+            </div>
+          </div>
+          <div className="rounded-full border border-border/70 bg-card/70 px-3 py-1 text-xs text-muted-foreground">
+            {threads.length} 个会话
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-x-auto px-4 py-4">
+        <div className="flex h-full min-w-max gap-4">
           {columnData.map(({ status, title }) => {
             const threadItems = categorizedThreads[status];
             const subagentItems = categorizedSubagents[status];
@@ -152,7 +165,7 @@ export function KanbanView(): React.JSX.Element {
                   />
                 ))}
                 {totalCount === 0 && (
-                  <div className="text-center text-sm text-muted-foreground py-8">
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground">
                     暂无条目
                   </div>
                 )}

@@ -62,13 +62,13 @@ export const ThinkAwareMarkdown = memo(function ThinkAwareMarkdown({
           return (
             <details
               key={`think-${index}`}
-              className="think-block rounded-sm border border-amber-500/25 bg-amber-500/[0.06]"
+              className="think-block"
               open={isStreaming && isLast}
             >
               <summary className="think-summary">
                 <span className="flex items-center gap-2">
-                  <Brain className="size-3.5" strokeWidth={1.8} />
-                  <span>{isStreaming && isLast ? "思考中" : "模型思考"}</span>
+                  <Brain className="size-3.5 text-primary" strokeWidth={1.8} />
+                  <span>{isStreaming && isLast ? "思考中" : "思考过程"}</span>
                 </span>
                 <ChevronDown
                   className="think-chevron size-3.5"

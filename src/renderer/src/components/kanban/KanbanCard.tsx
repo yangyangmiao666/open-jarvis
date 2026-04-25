@@ -42,9 +42,9 @@ export function ThreadKanbanCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all hover:border-border-emphasis hover:bg-background-interactive",
-        status === "in_progress" && "border-status-info/50",
-        status === "interrupted" && "!border-amber-500/50 !bg-amber-500/5",
+        "cursor-pointer rounded-[22px] border border-border/75 bg-card/92 shadow-none transition-all hover:-translate-y-0.5 hover:border-border-emphasis hover:bg-background-interactive",
+        status === "in_progress" && "border-status-info/45",
+        status === "interrupted" && "!border-amber-500/45 !bg-amber-500/8",
       )}
       onClick={onClick}
     >
@@ -88,7 +88,7 @@ export function SubagentKanbanCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all hover:border-border-emphasis hover:bg-background-interactive border-dashed",
+        "cursor-pointer rounded-[22px] border border-dashed border-border/75 bg-card/85 shadow-none transition-all hover:-translate-y-0.5 hover:border-border-emphasis hover:bg-background-interactive",
         subagent.status === "running" && "border-status-info/50",
       )}
       onClick={onClick}
