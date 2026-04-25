@@ -1,6 +1,8 @@
 import { app, shell, BrowserWindow, ipcMain, nativeImage } from "electron";
 import { join } from "path";
+import { closeAllRuntimeResources } from "./agent/runtime";
 import { registerAgentHandlers } from "./ipc/agent";
+import { registerMCPHandlers } from "./ipc/mcp";
 import { registerThreadHandlers } from "./ipc/threads";
 import { registerModelHandlers } from "./ipc/models";
 import { registerSkillHandlers } from "./ipc/skills";
@@ -101,6 +103,7 @@ app.whenReady().then(async () => {
   registerAgentHandlers(ipcMain);
   registerThreadHandlers(ipcMain);
   registerModelHandlers(ipcMain);
+  registerMCPHandlers(ipcMain);
   registerSkillHandlers(ipcMain);
 
   createWindow();
@@ -116,4 +119,8 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", () => {
+  void closeAllRuntimeResources();
 });

@@ -50,6 +50,15 @@ export interface WorkspaceFileParams {
   filePath: string;
 }
 
+export interface MCPEnabledServersParams {
+  threadId: string;
+  serverIds: string[];
+}
+
+export interface MCPImportInput {
+  json: string;
+}
+
 // Model IPC
 export interface SetApiKeyParams {
   provider: string;
@@ -84,6 +93,42 @@ export interface Run {
   updated_at: Date;
   status: RunStatus;
   metadata?: Record<string, unknown>;
+}
+
+export type MCPTransportType = "stdio" | "sse" | "streamable_http";
+
+export interface MCPServerConfig {
+  id: string;
+  name: string;
+  transport: MCPTransportType;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  cwd: string;
+  url: string;
+  enabled: boolean;
+}
+
+export interface MCPImportedServerInput {
+  name: string;
+  command?: string;
+  args?: unknown;
+  env?: unknown;
+  cwd?: string;
+  url?: string;
+  transport?: string;
+}
+
+export interface MCPImportResult {
+  imported: MCPServerConfig[];
+  skipped: string[];
+}
+
+export interface ThreadMetadata {
+  model?: string;
+  workspacePath?: string;
+  enabledMcpServerIds?: string[];
+  [key: string]: unknown;
 }
 
 // Provider configuration

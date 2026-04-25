@@ -38,6 +38,7 @@ export interface ThreadState {
   todos: Todo[];
   workspaceFiles: FileInfo[];
   workspacePath: string | null;
+  enabledMcpServerIds: string[];
   subagents: Subagent[];
   pendingApproval: HITLRequest | null;
   error: string | null;
@@ -68,6 +69,7 @@ export interface ThreadActions {
     files: FileInfo[] | ((prev: FileInfo[]) => FileInfo[]),
   ) => void;
   setWorkspacePath: (path: string | null) => void;
+  setEnabledMcpServerIds: (serverIds: string[]) => void;
   setSubagents: (subagents: Subagent[]) => void;
   setPendingApproval: (request: HITLRequest | null) => void;
   setError: (error: string | null) => void;
@@ -105,6 +107,7 @@ const createDefaultThreadState = (): ThreadState => ({
   todos: [],
   workspaceFiles: [],
   workspacePath: null,
+  enabledMcpServerIds: [],
   subagents: [],
   pendingApproval: null,
   error: null,
@@ -511,6 +514,13 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         setWorkspacePath: (path: string | null) => {
           updateThreadState(threadId, () => ({ workspacePath: path }));
         },
+        setEnabledMcpServerIds: (serverIds: string[]) => {
+          const nextIds = Array.from(
+            new Set(serverIds.map((id) => id.trim()).filter((id) => id.length > 0)),
+          );
+          updateThreadState(threadId, () => ({ enabledMcpServerIds: nextIds }));
+          void window.api.mcp.setEnabledForThread(threadId, nextIds);
+        },
         setSubagents: (subagents: Subagent[]) => {
           updateThreadState(threadId, () => ({ subagents }));
         },
@@ -633,6 +643,11 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
               currentModel: metadata.model as string,
             }));
           }
+
+          const enabledMcpServerIds = await window.api.mcp.getEnabledForThread(
+            threadId,
+          );
+          updateThreadState(threadId, () => ({ enabledMcpServerIds }));
         }
       } catch (error) {
         console.error("[ThreadContext] Failed to load thread details:", error);

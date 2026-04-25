@@ -28,6 +28,32 @@ export interface Run {
   metadata?: Record<string, unknown>;
 }
 
+export type MCPTransportType = "stdio" | "sse" | "streamable_http";
+
+export interface MCPServerConfig {
+  id: string;
+  name: string;
+  transport: MCPTransportType;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  cwd: string;
+  url: string;
+  enabled: boolean;
+}
+
+export interface MCPImportResult {
+  imported: MCPServerConfig[];
+  skipped: string[];
+}
+
+export interface ThreadMetadata {
+  model?: string;
+  workspacePath?: string;
+  enabledMcpServerIds?: string[];
+  [key: string]: unknown;
+}
+
 // Provider configuration
 export type ProviderId =
   | "anthropic"

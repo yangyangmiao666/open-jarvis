@@ -5,6 +5,8 @@ import type {
   Provider,
   StreamEvent,
   HITLDecision,
+  MCPImportResult,
+  MCPServerConfig,
   OpenAICompatibleProfile,
 } from "../main/types";
 
@@ -179,6 +181,37 @@ const api = {
     },
     openaiCompatibleDelete: (id: string): Promise<void> => {
       return ipcRenderer.invoke("models:openaiCompatibleDelete", id);
+    },
+  },
+  mcp: {
+    listServers: (): Promise<MCPServerConfig[]> => {
+      return ipcRenderer.invoke("mcp:listServers");
+    },
+    upsertServer: (
+      config: MCPServerConfig | (Omit<MCPServerConfig, "id"> & { id?: string }),
+    ): Promise<MCPServerConfig> => {
+      return ipcRenderer.invoke("mcp:upsertServer", config);
+    },
+    deleteServer: (id: string): Promise<void> => {
+      return ipcRenderer.invoke("mcp:deleteServer", id);
+    },
+    importServers: (json: string): Promise<MCPImportResult> => {
+      return ipcRenderer.invoke("mcp:importServers", { json });
+    },
+    exportServers: (): Promise<{ mcpServers: Record<string, unknown> }> => {
+      return ipcRenderer.invoke("mcp:exportServers");
+    },
+    getEnabledForThread: (threadId: string): Promise<string[]> => {
+      return ipcRenderer.invoke("mcp:getEnabledForThread", threadId);
+    },
+    setEnabledForThread: (
+      threadId: string,
+      serverIds: string[],
+    ): Promise<string[]> => {
+      return ipcRenderer.invoke("mcp:setEnabledForThread", {
+        threadId,
+        serverIds,
+      });
     },
   },
   workspace: {

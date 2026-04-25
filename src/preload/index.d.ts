@@ -4,6 +4,8 @@ import type {
   Provider,
   StreamEvent,
   HITLDecision,
+  MCPImportResult,
+  MCPServerConfig,
   OpenAICompatibleProfile,
 } from "../main/types";
 
@@ -68,6 +70,20 @@ interface CustomAPI {
         | (Omit<OpenAICompatibleProfile, "id"> & { id?: string }),
     ) => Promise<OpenAICompatibleProfile>;
     openaiCompatibleDelete: (id: string) => Promise<void>;
+  };
+  mcp: {
+    listServers: () => Promise<MCPServerConfig[]>;
+    upsertServer: (
+      config: MCPServerConfig | (Omit<MCPServerConfig, "id"> & { id?: string }),
+    ) => Promise<MCPServerConfig>;
+    deleteServer: (id: string) => Promise<void>;
+    importServers: (json: string) => Promise<MCPImportResult>;
+    exportServers: () => Promise<{ mcpServers: Record<string, unknown> }>;
+    getEnabledForThread: (threadId: string) => Promise<string[]>;
+    setEnabledForThread: (
+      threadId: string,
+      serverIds: string[],
+    ) => Promise<string[]>;
   };
   workspace: {
     get: (threadId?: string) => Promise<string | null>;

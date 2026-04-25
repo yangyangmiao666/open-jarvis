@@ -1,5 +1,7 @@
 import { createDeepAgent } from "deepagents";
+import { getThread } from "../db";
 import { getDefaultModel } from "../ipc/models";
+import { getMCPServerById } from "../mcp-config";
 import { getOpenAICompatibleProfileByModelId } from "../openai-compatible-profiles";
 import { getApiKey, getThreadCheckpointPath } from "../storage";
 import { ChatAnthropic } from "@langchain/anthropic";
@@ -7,9 +9,11 @@ import { ChatOpenAI, ChatOpenAICompletions } from "@langchain/openai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { SqlJsSaver } from "../checkpointer/sqljs-saver";
 import { LocalSandbox } from "./local-sandbox";
+import { closeAllMCPConnections, getMCPToolsForServers } from "./mcp-runtime";
 
 import { BASE_SYSTEM_PROMPT } from "./system-prompt";
 import { resolveSkillSourcesForWorkspace } from "../skill-config";
+import type { ThreadMetadata } from "../types";
 
 /**
  * Generate the full system prompt for the agent.
@@ -147,6 +151,13 @@ export async function closeCheckpointer(threadId: string): Promise<void> {
   }
 }
 
+export async function closeAllRuntimeResources(): Promise<void> {
+  await Promise.all(
+    Array.from(checkpointers.keys()).map((threadId) => closeCheckpointer(threadId)),
+  );
+  await closeAllMCPConnections();
+}
+
 // Get the appropriate model instance based on configuration
 function getModelInstance(
   modelId?: string,
@@ -277,6 +288,14 @@ export async function createAgentRuntime(
 The workspace root is: ${workspacePath}`;
 
   const skills = resolveSkillSourcesForWorkspace(workspacePath);
+  const thread = getThread(threadId);
+  const metadata = thread?.metadata
+    ? (JSON.parse(thread.metadata) as ThreadMetadata)
+    : {};
+  const enabledMcpServers = (metadata.enabledMcpServerIds ?? [])
+    .map((id) => getMCPServerById(id))
+    .filter((server): server is NonNullable<typeof server> => Boolean(server));
+  const mcpTools = await getMCPToolsForServers(enabledMcpServers);
 
   const agent = createDeepAgent({
     model,
@@ -287,6 +306,7 @@ The workspace root is: ${workspacePath}`;
     filesystemSystemPrompt,
     // Require human approval for all shell commands
     interruptOn: { execute: true },
+    ...(mcpTools.length > 0 ? { tools: mcpTools } : {}),
     ...(skills.length > 0 ? { skills } : {}),
   } as Parameters<typeof createDeepAgent>[0]);
 

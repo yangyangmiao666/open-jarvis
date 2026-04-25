@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, Check, AlertCircle, Key, Boxes } from "lucide-react";
+import {
+  ChevronDown,
+  Check,
+  AlertCircle,
+  Key,
+  Boxes,
+  Cable,
+} from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -10,6 +17,7 @@ import { useAppStore } from "@/lib/store";
 import { useCurrentThread } from "@/lib/thread-context";
 import { cn } from "@/lib/utils";
 import { ApiKeyDialog } from "./ApiKeyDialog";
+import { MCPConfigDialog } from "./MCPConfigDialog";
 import { OpenAICompatibleDialog } from "./OpenAICompatibleDialog";
 import type { Provider, ProviderId } from "@/types";
 
@@ -79,6 +87,7 @@ export function ModelSwitcher({
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [apiKeyProvider, setApiKeyProvider] = useState<Provider | null>(null);
   const [openAICompatDialogOpen, setOpenAICompatDialogOpen] = useState(false);
+  const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
 
   const { models, providers, loadModels, loadProviders } = useAppStore();
   const { currentModel, setCurrentModel } = useCurrentThread(threadId);
@@ -168,9 +177,10 @@ export function ModelSwitcher({
           align="start"
           sideOffset={8}
         >
-          <div className="flex min-h-[240px]">
+          <div className="flex min-h-[240px] flex-col">
+            <div className="flex min-h-[240px]">
             {/* Provider column */}
-            <div className="w-[140px] border-r border-border p-2 bg-muted/30">
+              <div className="w-[140px] border-r border-border p-2 bg-muted/30">
               <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 py-1.5">
                 提供商
               </div>
@@ -197,10 +207,10 @@ export function ModelSwitcher({
                   );
                 })}
               </div>
-            </div>
+              </div>
 
             {/* Models column */}
-            <div className="flex-1 p-2">
+              <div className="flex-1 p-2">
               <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 py-1.5">
                 模型
               </div>
@@ -296,6 +306,17 @@ export function ModelSwitcher({
                   )}
                 </div>
               )}
+              </div>
+            </div>
+
+            <div className="border-t border-border p-2">
+              <button
+                onClick={() => setMcpDialogOpen(true)}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <Cable className="size-3.5" />
+                <span className="flex-1 text-left">MCP 工具配置</span>
+              </button>
             </div>
           </div>
         </PopoverContent>
@@ -314,6 +335,12 @@ export function ModelSwitcher({
           void loadProviders();
           void loadModels();
         }}
+      />
+
+      <MCPConfigDialog
+        open={mcpDialogOpen}
+        onOpenChange={setMcpDialogOpen}
+        threadId={threadId}
       />
     </>
   );
