@@ -8,6 +8,7 @@ import {
   LayoutGrid,
   AlertCircle,
   Cpu,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -166,7 +167,13 @@ function ThreadListItem({
   );
 }
 
-export function ThreadSidebar(): React.JSX.Element {
+interface ThreadSidebarProps {
+  onOpenSettings: () => void;
+}
+
+export function ThreadSidebar({
+  onOpenSettings,
+}: ThreadSidebarProps): React.JSX.Element {
   const {
     threads,
     currentThreadId,
@@ -264,21 +271,31 @@ export function ThreadSidebar(): React.JSX.Element {
       </div>
 
       <div className="space-y-2 p-3">
-        <Button
-          variant="default"
-          size="sm"
-          className="w-full justify-start gap-2 rounded-2xl"
-          onClick={handleNewThread}
-        >
-          <Plus className="size-4" />
-          新会话
-        </Button>
-        {bulkMode ? (
-          <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            className="min-w-0 flex-1 justify-start gap-2 rounded-2xl"
+            onClick={handleNewThread}
+          >
+            <Plus className="size-4" />
+            新会话
+          </Button>
+          {!bulkMode && (
             <Button
               variant="outline"
               size="sm"
-              className="h-8 w-full rounded-2xl text-xs"
+              className="h-9 shrink-0 rounded-2xl px-3 text-xs"
+              onClick={() => setBulkMode(true)}
+            >
+              多选
+            </Button>
+          )}
+          {bulkMode ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 rounded-2xl px-3 text-xs"
               disabled={threads.length === 0}
               onClick={() => {
                 const allSelected =
@@ -294,36 +311,29 @@ export function ThreadSidebar(): React.JSX.Element {
                 ? "取消全选"
                 : "全选"}
             </Button>
-            <div className="flex gap-1">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-8 flex-1 rounded-2xl text-xs"
-                onClick={exitBulkMode}
-              >
-                完成
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-8 flex-1 rounded-2xl text-xs"
-                disabled={selectedIds.size === 0}
-                onClick={() => handleBulkDeleteRequest()}
-              >
-                删除 ({selectedIds.size})
-              </Button>
-            </div>
+          ) : null}
+        </div>
+        {bulkMode ? (
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-9 flex-1 rounded-2xl px-3 text-xs"
+              onClick={exitBulkMode}
+            >
+              完成
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-9 flex-1 rounded-2xl px-3 text-xs"
+              disabled={selectedIds.size === 0}
+              onClick={() => handleBulkDeleteRequest()}
+            >
+              删除 ({selectedIds.size})
+            </Button>
           </div>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-full justify-center gap-2 rounded-2xl text-xs"
-            onClick={() => setBulkMode(true)}
-          >
-            多选
-          </Button>
-        )}
+        ) : null}
       </div>
 
       {/* Thread List */}
@@ -362,15 +372,27 @@ export function ThreadSidebar(): React.JSX.Element {
 
       {/* Overview Toggle */}
       <div className="border-t border-sidebar-border/80 p-3">
-        <Button
-          variant="secondary"
-          size="sm"
-          className="w-full justify-start gap-2 rounded-2xl"
-          onClick={() => setShowKanbanView(true)}
-        >
-          <LayoutGrid className="size-4" />
-          总览
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="min-w-0 flex-1 justify-start gap-2 rounded-2xl"
+            onClick={() => setShowKanbanView(true)}
+          >
+            <LayoutGrid className="size-4" />
+            总览
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9 shrink-0 rounded-2xl"
+            onClick={onOpenSettings}
+            title="打开设置"
+          >
+            <Settings className="size-4" />
+          </Button>
+        </div>
       </div>
 
       <Dialog

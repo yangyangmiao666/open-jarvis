@@ -1,4 +1,5 @@
 import { IpcMain } from "electron";
+import Store from "electron-store";
 import {
   deleteMCPServer,
   exportMCPServers,
@@ -7,6 +8,7 @@ import {
   upsertMCPServer,
 } from "../mcp-config";
 import { getThread, updateThread } from "../db";
+import { getOpenworkDir } from "../storage";
 import type {
   MCPEnabledServersParams,
   MCPImportInput,
@@ -14,7 +16,16 @@ import type {
   ThreadMetadata,
 } from "../types";
 
-function getThreadMetadata(threadId: string): ThreadMetadata {
+const store = new Store({
+  name: "settings",
+  cwd: getOpenworkDir(),
+});
+
+function getThreadMetadata(threadId?: string): ThreadMetadata {
+  if (!threadId) {
+    return {};
+  }
+
   const thread = getThread(threadId);
   if (!thread) {
     throw new Error("Thread not found");
@@ -51,17 +62,27 @@ export function registerMCPHandlers(ipcMain: IpcMain): void {
     return exportMCPServers();
   });
 
-  ipcMain.handle("mcp:getEnabledForThread", async (_event, threadId: string) => {
+  ipcMain.handle("mcp:getEnabledForThread", async (_event, threadId?: string) => {
+    if (!threadId) {
+      return (store.get("enabledMcpServerIds", []) as string[]) ?? [];
+    }
+
     return getThreadMetadata(threadId).enabledMcpServerIds ?? [];
   });
 
   ipcMain.handle(
     "mcp:setEnabledForThread",
     async (_event, { threadId, serverIds }: MCPEnabledServersParams) => {
-      const metadata = getThreadMetadata(threadId);
       const nextIds = Array.from(
         new Set(serverIds.map((id) => id.trim()).filter((id) => id.length > 0)),
       );
+
+      if (!threadId) {
+        store.set("enabledMcpServerIds", nextIds);
+        return nextIds;
+      }
+
+      const metadata = getThreadMetadata(threadId);
       updateThread(threadId, {
         metadata: JSON.stringify({
           ...metadata,

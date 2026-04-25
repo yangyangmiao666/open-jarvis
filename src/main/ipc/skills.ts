@@ -1,9 +1,17 @@
 import { IpcMain, dialog } from "electron";
+import Store from "electron-store";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { homedir } from "os";
 import { getThread } from "../db";
 import { getSkillSources, setSkillSources } from "../skill-config";
+import { getOpenworkDir } from "../storage";
 import { decodeTextBuffer } from "../text-encoding";
+
+const store = new Store({
+  name: "settings",
+  cwd: getOpenworkDir(),
+});
 
 function validateSkillFolderSegment(name: string): boolean {
   return (
@@ -23,11 +31,31 @@ function slugifySkillName(raw: string): string | null {
   return safe || null;
 }
 
-function getWorkspacePath(threadId: string): string | null {
+function getGlobalSkillsRoot(): string {
+  return path.join(homedir(), ".deepagents", "skills");
+}
+
+function getWorkspacePath(threadId?: string): string | null {
+  if (!threadId) {
+    return (store.get("workspacePath", null) as string | null) ?? null;
+  }
+
   const thread = getThread(threadId);
   if (!thread?.metadata) return null;
   const meta = JSON.parse(thread.metadata) as { workspacePath?: string };
   return meta.workspacePath ?? null;
+}
+
+function resolveSkillsRoot(threadId?: string): string | null {
+  if (!threadId) {
+    return getGlobalSkillsRoot();
+  }
+
+  const workspacePath = getWorkspacePath(threadId);
+  if (!workspacePath) {
+    return null;
+  }
+  return path.join(workspacePath, ".deepagents", "skills");
 }
 
 export function registerSkillHandlers(ipcMain: IpcMain): void {
@@ -39,11 +67,10 @@ export function registerSkillHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(
     "skills:listWorkspaceSkillFolders",
-    async (_e, threadId: string) => {
-      const ws = getWorkspacePath(threadId);
-      if (!ws)
+    async (_e, threadId?: string) => {
+      const root = resolveSkillsRoot(threadId);
+      if (!root)
         return { success: false as const, error: "No workspace", folders: [] };
-      const root = path.join(ws, ".deepagents", "skills");
       try {
         await fs.mkdir(root, { recursive: true });
         const names = await fs.readdir(root, { withFileTypes: true });
@@ -61,23 +88,27 @@ export function registerSkillHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(
     "skills:importFolder",
-    async (_e, { threadId }: { threadId: string }) => {
-      const ws = getWorkspacePath(threadId);
-      if (!ws) return { success: false, error: "No workspace" };
+    async (_e, { threadId }: { threadId?: string }) => {
+      const destRoot = resolveSkillsRoot(threadId);
+      if (!destRoot) return { success: false, error: "No workspace" };
       const result = await dialog.showOpenDialog({
-        properties: ["openDirectory"],
-        title: "Import skill folder",
+        properties: ["openDirectory", "multiSelections"],
+        title: "Import skill folders",
       });
-      if (result.canceled || !result.filePaths[0]) {
+      if (result.canceled || result.filePaths.length === 0) {
         return { success: false, error: "cancelled" };
       }
-      const src = result.filePaths[0];
-      const base = path.basename(src);
-      const destRoot = path.join(ws, ".deepagents", "skills");
       await fs.mkdir(destRoot, { recursive: true });
-      const dest = path.join(destRoot, base);
-      await fs.cp(src, dest, { recursive: true });
-      return { success: true, importedName: base };
+      const importedNames: string[] = [];
+
+      for (const src of result.filePaths) {
+        const base = path.basename(src);
+        const dest = path.join(destRoot, base);
+        await fs.cp(src, dest, { recursive: true, force: true });
+        importedNames.push(base);
+      }
+
+      return { success: true, importedName: importedNames[0], importedNames };
     },
   );
 
@@ -89,13 +120,13 @@ export function registerSkillHandlers(ipcMain: IpcMain): void {
         threadId,
         name,
         markdown,
-      }: { threadId: string; name: string; markdown?: string },
+      }: { threadId?: string; name: string; markdown?: string },
     ) => {
-      const ws = getWorkspacePath(threadId);
-      if (!ws) return { success: false, error: "No workspace" };
+      const root = resolveSkillsRoot(threadId);
+      if (!root) return { success: false, error: "No workspace" };
       const safe = slugifySkillName(name);
       if (!safe) return { success: false, error: "Invalid name" };
-      const dir = path.join(ws, ".deepagents", "skills", safe);
+      const dir = path.join(root, safe);
       await fs.mkdir(dir, { recursive: true });
       const skillMd = path.join(dir, "SKILL.md");
       const body =
@@ -119,20 +150,14 @@ Add instructions for the agent here.
     "skills:readSkillMarkdown",
     async (
       _e,
-      { threadId, folderName }: { threadId: string; folderName: string },
+      { threadId, folderName }: { threadId?: string; folderName: string },
     ) => {
-      const ws = getWorkspacePath(threadId);
-      if (!ws) return { success: false as const, error: "No workspace" };
+      const root = resolveSkillsRoot(threadId);
+      if (!root) return { success: false as const, error: "No workspace" };
       if (!validateSkillFolderSegment(folderName)) {
         return { success: false as const, error: "Invalid folder" };
       }
-      const skillMd = path.join(
-        ws,
-        ".deepagents",
-        "skills",
-        folderName,
-        "SKILL.md",
-      );
+      const skillMd = path.join(root, folderName, "SKILL.md");
       try {
         const buf = await fs.readFile(skillMd);
         const content = decodeTextBuffer(buf);
@@ -154,20 +179,14 @@ Add instructions for the agent here.
         threadId,
         folderName,
         content,
-      }: { threadId: string; folderName: string; content: string },
+      }: { threadId?: string; folderName: string; content: string },
     ) => {
-      const ws = getWorkspacePath(threadId);
-      if (!ws) return { success: false as const, error: "No workspace" };
+      const root = resolveSkillsRoot(threadId);
+      if (!root) return { success: false as const, error: "No workspace" };
       if (!validateSkillFolderSegment(folderName)) {
         return { success: false as const, error: "Invalid folder" };
       }
-      const skillMd = path.join(
-        ws,
-        ".deepagents",
-        "skills",
-        folderName,
-        "SKILL.md",
-      );
+      const skillMd = path.join(root, folderName, "SKILL.md");
       try {
         await fs.writeFile(skillMd, content, "utf-8");
         return { success: true as const };
@@ -188,10 +207,10 @@ Add instructions for the agent here.
         threadId,
         oldName,
         newName,
-      }: { threadId: string; oldName: string; newName: string },
+      }: { threadId?: string; oldName: string; newName: string },
     ) => {
-      const ws = getWorkspacePath(threadId);
-      if (!ws) return { success: false as const, error: "No workspace" };
+      const root = resolveSkillsRoot(threadId);
+      if (!root) return { success: false as const, error: "No workspace" };
       if (!validateSkillFolderSegment(oldName)) {
         return { success: false as const, error: "Invalid old folder" };
       }
@@ -200,8 +219,8 @@ Add instructions for the agent here.
         return { success: false as const, error: "Invalid new name" };
       if (oldName === newSafe)
         return { success: true as const, folder: oldName };
-      const oldDir = path.join(ws, ".deepagents", "skills", oldName);
-      const newDir = path.join(ws, ".deepagents", "skills", newSafe);
+      const oldDir = path.join(root, oldName);
+      const newDir = path.join(root, newSafe);
       try {
         await fs.access(oldDir);
       } catch {
@@ -232,10 +251,10 @@ Add instructions for the agent here.
     "skills:deleteSkillFolders",
     async (
       _e,
-      { threadId, folderNames }: { threadId: string; folderNames: string[] },
+      { threadId, folderNames }: { threadId?: string; folderNames: string[] },
     ) => {
-      const ws = getWorkspacePath(threadId);
-      if (!ws) return { success: false, error: "No workspace" };
+      const root = resolveSkillsRoot(threadId);
+      if (!root) return { success: false, error: "No workspace" };
       for (const name of folderNames) {
         if (
           !name ||
@@ -244,7 +263,7 @@ Add instructions for the agent here.
           name.includes("\\")
         )
           continue;
-        const dir = path.join(ws, ".deepagents", "skills", name);
+        const dir = path.join(root, name);
         await fs.rm(dir, { recursive: true, force: true });
       }
       return { success: true };

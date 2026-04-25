@@ -1,4 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain, nativeImage } from "electron";
+import Store from "electron-store";
 import { join } from "path";
 import { closeAllRuntimeResources } from "./agent/runtime";
 import { registerAgentHandlers } from "./ipc/agent";
@@ -7,12 +8,17 @@ import { registerThreadHandlers } from "./ipc/threads";
 import { registerModelHandlers } from "./ipc/models";
 import { registerSkillHandlers } from "./ipc/skills";
 import { initializeDatabase } from "./db";
+import { getOpenworkDir } from "./storage";
 
 let mainWindow: BrowserWindow | null = null;
 
 // Simple dev check - replaces @electron-toolkit/utils is.dev
 const isDev = !app.isPackaged;
 const isMac = process.platform === "darwin";
+const settingsStore = new Store({
+  name: "settings",
+  cwd: getOpenworkDir(),
+});
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -37,6 +43,12 @@ function createWindow(): void {
   });
 
   mainWindow.on("ready-to-show", () => {
+    const launchedBefore =
+      (settingsStore.get("windowLaunchedBefore", false) as boolean) ?? false;
+    if (!launchedBefore) {
+      mainWindow?.maximize();
+      settingsStore.set("windowLaunchedBefore", true);
+    }
     mainWindow?.setTitle("Open-Jarvis");
     mainWindow?.show();
   });

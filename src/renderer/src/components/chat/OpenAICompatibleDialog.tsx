@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, Boxes, Sparkles, Layers3 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,45 +70,123 @@ export function OpenAICompatibleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] max-w-4xl flex flex-col">
-        <DialogHeader>
-          <DialogTitle>自定义模型配置</DialogTitle>
+      <DialogContent className="max-h-[92vh] max-w-5xl flex flex-col overflow-hidden">
+        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_18%,transparent),transparent_44%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-6 pr-14 sm:px-7">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                <Boxes className="size-3.5" />
+                Models Workspace
+              </div>
+              <DialogTitle className="mt-4 text-[1.75rem] tracking-[-0.04em]">
+                自定义模型配置
+              </DialogTitle>
+              <DialogDescription className="mt-3 max-w-2xl text-sm leading-6">
+                维护 OpenAI Compatible 接入配置，包括本地网关、代理服务和私有部署模型。保存后模型切换器会自动刷新。
+              </DialogDescription>
+            </div>
+            <div className="hidden shrink-0 items-center gap-2 rounded-[22px] border border-border/70 bg-background/55 px-4 py-3 text-xs text-muted-foreground backdrop-blur-sm md:flex">
+              <Layers3 className="size-4 text-primary" />
+              分区更清晰，操作更集中
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4">
-          <div className="app-flat-surface flex items-start justify-between gap-4 rounded-[24px] px-5 py-5">
-            <div className="min-w-0">
-              <div className="text-section-header">Profiles</div>
-              <div className="mt-1 text-lg font-semibold tracking-[-0.03em] text-foreground">
-                OpenAI Compatible 接入
+        <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[1.05fr_1.2fr]">
+          <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-section-header">Profiles</div>
+                <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
+                  已有配置
+                </div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  查看、编辑和删除当前已经接入的 OpenAI Compatible 模型配置。
+                </p>
               </div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                在这里维护自定义 OpenAI 兼容接口，例如本地网关、代理服务或私有部署模型。保存后模型切换器会自动刷新。
-              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 shrink-0 rounded-2xl px-4 text-xs"
+                onClick={() => setEditing(emptyForm())}
+              >
+                <Plus className="size-4" />
+                添加配置
+              </Button>
             </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-fit gap-1"
-            onClick={() => setEditing(emptyForm())}
-          >
-            <Plus className="size-4" />
-            添加配置
-          </Button>
-          </div>
 
-          {editing && (
-            <div className="app-flat-surface space-y-4 rounded-[24px] p-4">
+            <ScrollArea className="min-h-0 flex-1 rounded-[22px] border border-border/70 bg-background/40">
+              <div className="space-y-2 p-3">
+                {profiles.length === 0 && !editing && (
+                  <div className="rounded-2xl border border-dashed border-border/70 px-3 py-8 text-center text-xs text-muted-foreground">
+                    暂无配置
+                  </div>
+                )}
+                {profiles.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-2 rounded-2xl border border-transparent bg-background/55 px-3 py-2 text-xs transition-colors hover:border-border/70 hover:bg-muted/35"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{p.name || p.model}</div>
+                      <div className="text-muted-foreground truncate font-mono">
+                        {p.baseUrl}
+                      </div>
+                      <div className="text-muted-foreground truncate font-mono">
+                        模型：{p.model}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0 rounded-xl"
+                      onClick={() => setEditing({ ...p })}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0 rounded-xl text-destructive"
+                      onClick={() => void handleDelete(p.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </section>
+
+          <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
+            <div className="flex items-start gap-3">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background/75 text-primary shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                <Sparkles className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-section-header">Editor</div>
+                <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
+                  {editing ? "编辑配置" : "新增配置"}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  填写 Base URL、API 密钥和模型 ID；保存后会立即进入模型列表。
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
               <div className="space-y-1">
                 <label htmlFor="oac-name" className="text-sm font-medium">
                   显示名称
                 </label>
                 <Input
                   id="oac-name"
-                  value={editing.name}
+                  value={editing?.name ?? ""}
                   onChange={(e) =>
-                    setEditing({ ...editing, name: e.target.value })
+                    setEditing({ ...(editing ?? emptyForm()), name: e.target.value })
                   }
                   placeholder="例如：本地 vLLM"
                 />
@@ -119,9 +197,9 @@ export function OpenAICompatibleDialog({
                 </label>
                 <Input
                   id="oac-base"
-                  value={editing.baseUrl}
+                  value={editing?.baseUrl ?? ""}
                   onChange={(e) =>
-                    setEditing({ ...editing, baseUrl: e.target.value })
+                    setEditing({ ...(editing ?? emptyForm()), baseUrl: e.target.value })
                   }
                   placeholder="https://api.example.com 或 http://127.0.0.1:11434/v1"
                 />
@@ -133,9 +211,9 @@ export function OpenAICompatibleDialog({
                 <Input
                   id="oac-key"
                   type="password"
-                  value={editing.apiKey}
+                  value={editing?.apiKey ?? ""}
                   onChange={(e) =>
-                    setEditing({ ...editing, apiKey: e.target.value })
+                    setEditing({ ...(editing ?? emptyForm()), apiKey: e.target.value })
                   }
                   placeholder="可填占位符，若网关不要求密钥"
                 />
@@ -146,9 +224,9 @@ export function OpenAICompatibleDialog({
                 </label>
                 <Input
                   id="oac-model"
-                  value={editing.model}
+                  value={editing?.model ?? ""}
                   onChange={(e) =>
-                    setEditing({ ...editing, model: e.target.value })
+                    setEditing({ ...(editing ?? emptyForm()), model: e.target.value })
                   }
                   placeholder="例如：gpt-4o、Qwen/Qwen2.5-7B-Instruct"
                 />
@@ -165,70 +243,16 @@ export function OpenAICompatibleDialog({
                 <Button
                   type="button"
                   size="sm"
+                  disabled={!editing}
                   onClick={() => void handleSave()}
                 >
                   保存
                 </Button>
               </div>
             </div>
-          )}
-
-          <ScrollArea className="min-h-0 rounded-[24px] border border-border/75">
-            <div className="p-2 space-y-1">
-              {profiles.length === 0 && !editing && (
-                <p className="text-sm text-muted-foreground px-2 py-6 text-center">
-                  暂无配置
-                </p>
-              )}
-              {profiles.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-2 rounded-2xl px-3 py-2 text-xs hover:bg-muted/50"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">
-                      {p.name || p.model}
-                    </div>
-                    <div className="text-muted-foreground truncate font-mono">
-                      {p.baseUrl}
-                    </div>
-                    <div className="text-muted-foreground truncate font-mono">
-                      模型：{p.model}
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0"
-                    onClick={() => setEditing({ ...p })}
-                  >
-                    <Pencil className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0 text-destructive"
-                    onClick={() => void handleDelete(p.id)}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+          </section>
         </div>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => onOpenChange(false)}
-          >
-            关闭
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

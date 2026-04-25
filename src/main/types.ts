@@ -51,7 +51,7 @@ export interface WorkspaceFileParams {
 }
 
 export interface MCPEnabledServersParams {
-  threadId: string;
+  threadId?: string;
   serverIds: string[];
 }
 

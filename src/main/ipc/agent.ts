@@ -1,9 +1,11 @@
 import { IpcMain, BrowserWindow } from "electron";
+import Store from "electron-store";
 import { HumanMessage } from "@langchain/core/messages";
 import { Command } from "@langchain/langgraph";
 import type { StreamMode } from "@langchain/langgraph";
 import { createAgentRuntime } from "../agent/runtime";
 import { getThread } from "../db";
+import { getOpenworkDir } from "../storage";
 import type {
   AgentInvokeParams,
   AgentResumeParams,
@@ -14,6 +16,10 @@ import type {
 // Track active runs for cancellation
 const activeRuns = new Map<string, AbortController>();
 const DEFAULT_STREAM_MODES: StreamMode[] = ["messages", "values"];
+const store = new Store({
+  name: "settings",
+  cwd: getOpenworkDir(),
+});
 
 export function registerAgentHandlers(ipcMain: IpcMain): void {
   console.log("[Agent] Registering agent handlers...");
@@ -67,7 +73,10 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {};
         console.log("[Agent] Thread metadata:", metadata);
 
-        const workspacePath = metadata.workspacePath as string | undefined;
+        const workspacePath =
+          (metadata.workspacePath as string | undefined) ||
+          (store.get("workspacePath", null) as string | null) ||
+          undefined;
 
         if (!workspacePath) {
           window.webContents.send(channel, {
@@ -166,7 +175,10 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
       // Get workspace path from thread metadata
       const thread = getThread(threadId);
       const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {};
-      const workspacePath = metadata.workspacePath as string | undefined;
+      const workspacePath =
+        (metadata.workspacePath as string | undefined) ||
+        (store.get("workspacePath", null) as string | null) ||
+        undefined;
 
       if (!workspacePath) {
         window.webContents.send(channel, {

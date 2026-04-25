@@ -104,21 +104,37 @@ export function MessageBubble({
   }
 
   return (
-    <div className="group/msg animate-enter flex gap-3 overflow-visible">
-      {/* Left avatar column - shows for agent/tool */}
-      <div className="w-10 shrink-0 pt-0.5">
-        {!isUser && (
-          <div
-            className="flex size-9 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary"
-            title="Jarvis"
-          >
-            <Cpu className="size-[15px]" strokeWidth={1.75} />
-          </div>
+    <div
+      className={cn(
+        "group/msg animate-enter flex overflow-visible",
+        isUser ? "justify-end" : "justify-start",
+      )}
+    >
+      <div
+        className={cn(
+          "flex w-full max-w-[88%] gap-3",
+          isUser ? "flex-row-reverse" : "flex-row",
         )}
-      </div>
+      >
+        <div className="w-10 shrink-0 pt-0.5">
+          {isUser ? (
+            <div
+              className="flex size-9 items-center justify-center rounded-2xl border border-border/70 bg-background-interactive/85 text-primary"
+              title="你"
+            >
+              <User className="size-4" />
+            </div>
+          ) : (
+            <div
+              className="flex size-9 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary"
+              title="Jarvis"
+            >
+              <Cpu className="size-[15px]" strokeWidth={1.75} />
+            </div>
+          )}
+        </div>
 
-      {/* Content column - always same width */}
-      <div className="flex-1 min-w-0 space-y-2 overflow-hidden">
+        <div className="flex-1 min-w-0 space-y-2 overflow-hidden">
         <div
           className={cn(
             "flex items-center gap-2",
@@ -165,15 +181,24 @@ export function MessageBubble({
         </div>
 
         {content && (
-          <div
-            className={cn(
-              "overflow-hidden rounded-[22px] border p-4",
-              isUser
-                ? "border-primary/14 bg-primary/[0.08]"
-                : "border-border/75 bg-card/96 backdrop-blur-sm",
+          <div className="space-y-2">
+            <div
+              className={cn(
+                "overflow-hidden rounded-[22px] border p-4",
+                isUser
+                  ? "border-primary/14 bg-primary/[0.08]"
+                  : "border-border/75 bg-card/96 backdrop-blur-sm",
+              )}
+            >
+              {content}
+            </div>
+            {!isUser && isStreaming && (
+              <div className="inline-flex items-center gap-1.5 pl-1 text-muted-foreground">
+                <span className="message-loading-dot" />
+                <span className="message-loading-dot [animation-delay:120ms]" />
+                <span className="message-loading-dot [animation-delay:240ms]" />
+              </div>
             )}
-          >
-            {content}
           </div>
         )}
 
@@ -202,18 +227,7 @@ export function MessageBubble({
             })}
           </div>
         )}
-      </div>
-
-      {/* Right avatar column - shows for user */}
-      <div className="w-10 shrink-0 pt-0.5">
-        {isUser && (
-          <div
-            className="flex size-9 items-center justify-center rounded-2xl border border-border/70 bg-background-interactive/85 text-primary"
-            title="你"
-          >
-            <User className="size-4" />
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

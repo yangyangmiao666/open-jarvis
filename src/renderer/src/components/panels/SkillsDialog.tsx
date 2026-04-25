@@ -1,7 +1,17 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FolderTree,
+  LibraryBig,
+  Sparkles,
+  SquarePen,
+  WandSparkles,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -14,193 +24,296 @@ import { cn } from "@/lib/utils";
 interface SkillsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  threadId: string | null;
 }
+
+type EditorMode = "create" | "edit";
+
+const PAGE_SIZE = 12;
 
 export function SkillsDialog({
   open,
   onOpenChange,
-  threadId,
 }: SkillsDialogProps): React.JSX.Element {
+  const workspaceSkillTarget = undefined;
+  const globalSkillDir = "~/.deepagents/skills";
   const [sources, setSources] = useState<string[]>([]);
   const [newSource, setNewSource] = useState("");
   const [folders, setFolders] = useState<string[]>([]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [newSkillName, setNewSkillName] = useState("");
-  const [newSkillMarkdown, setNewSkillMarkdown] = useState("");
-  const [editName, setEditName] = useState("");
-  const [editMarkdown, setEditMarkdown] = useState("");
-  const [editLoading, setEditLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [busy, setBusy] = useState(false);
+  const [workspaceReady, setWorkspaceReady] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
   const [skillDeleteConfirmOpen, setSkillDeleteConfirmOpen] = useState(false);
 
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<EditorMode>("create");
+  const [originFolder, setOriginFolder] = useState<string | null>(null);
+  const [editorName, setEditorName] = useState("");
+  const [editorMarkdown, setEditorMarkdown] = useState("");
+  const [editorLoading, setEditorLoading] = useState(false);
+
+  const textAreaClassName = cn(
+    "flex w-full rounded-[20px] border border-input/90 bg-background/78 px-4 py-3 text-xs font-mono shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)]",
+    "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55",
+    "disabled:cursor-not-allowed disabled:opacity-50",
+  );
+
   const reload = async (): Promise<void> => {
-    const s = await window.api.skills.listSources();
-    setSources(s);
-    if (threadId) {
-      const r = await window.api.skills.listWorkspaceSkillFolders(threadId);
-      if (r.success && r.folders) setFolders(r.folders);
-      else setFolders([]);
+    const [nextSources, result] = await Promise.all([
+      window.api.skills.listSources(),
+      window.api.skills.listWorkspaceSkillFolders(workspaceSkillTarget),
+    ]);
+
+    setSources(nextSources);
+    if (result.success && result.folders) {
+      setFolders(result.folders);
+      setWorkspaceReady(true);
     } else {
       setFolders([]);
+      setWorkspaceReady(false);
     }
     setSelected(new Set());
   };
 
-  const selectedSingle = selected.size === 1 ? [...selected][0] : null;
+  useEffect(() => {
+    if (!open) return;
+    void reload();
+    setStatus(null);
+    setCurrentPage(1);
+  }, [open]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(folders.length / PAGE_SIZE)),
+    [folders.length],
+  );
 
   useEffect(() => {
-    if (!open || !threadId || !selectedSingle) {
-      setEditName("");
-      setEditMarkdown("");
-      setEditLoading(false);
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const pagedFolders = useMemo(() => {
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * PAGE_SIZE;
+    return folders.slice(start, start + PAGE_SIZE);
+  }, [folders, currentPage, totalPages]);
+
+  const addSource = (): void => {
+    const target = newSource.trim();
+    if (!target) return;
+    const normalized = target;
+    if (sources.includes(normalized)) {
+      setNewSource("");
       return;
     }
-    setEditName(selectedSingle);
-    setEditMarkdown("");
-    setEditLoading(true);
-    let cancelled = false;
-    void window.api.skills
-      .readSkillMarkdown(threadId, selectedSingle)
-      .then((r) => {
-        if (cancelled) return;
-        setEditMarkdown(r.success && r.content !== undefined ? r.content : "");
-        setEditLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, threadId, selectedSingle]);
 
-  useEffect(() => {
-    if (open) void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, threadId]);
+    const nextSources = [...sources, normalized];
+    setSources(nextSources);
+    setNewSource("");
+    setStatus("已添加技能来源路径");
+    void window.api.skills.setSources(nextSources);
+  };
 
-  const toggle = (name: string): void => {
+  const removeSource = (target: string): void => {
+    const nextSources = sources.filter((source) => source !== target);
+    setSources(nextSources);
+    setStatus("已移除技能来源路径");
+    void window.api.skills.setSources(nextSources);
+  };
+
+  const handleImport = async (): Promise<void> => {
+    setBusy(true);
+    try {
+      const result = await window.api.skills.importFolder(workspaceSkillTarget);
+      await reload();
+      if (result.success) {
+        setStatus("已从磁盘导入技能目录");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openCreateEditor = (): void => {
+    setEditorMode("create");
+    setOriginFolder(null);
+    setEditorName("");
+    setEditorMarkdown("");
+    setEditorLoading(false);
+    setEditorOpen(true);
+  };
+
+  const openEditEditor = async (folderName: string): Promise<void> => {
+    setEditorMode("edit");
+    setOriginFolder(folderName);
+    setEditorName(folderName);
+    setEditorMarkdown("");
+    setEditorLoading(true);
+    setEditorOpen(true);
+
+    const result = await window.api.skills.readSkillMarkdown(
+      workspaceSkillTarget,
+      folderName,
+    );
+    setEditorMarkdown(result.success && result.content !== undefined ? result.content : "");
+    setEditorLoading(false);
+  };
+
+  const toggleSelect = (folderName: string): void => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(folderName)) next.delete(folderName);
+      else next.add(folderName);
       return next;
     });
   };
 
-  const addSource = (): void => {
-    const t = newSource.trim();
-    if (!t) return;
-    const path = t.startsWith("/") ? t : `/${t}`;
-    if (sources.includes(path)) return;
-    const next = [...sources, path];
-    setSources(next);
-    void window.api.skills.setSources(next);
-    setNewSource("");
-  };
+  const toggleSelectPage = (): void => {
+    const allCurrentPageSelected = pagedFolders.every((folder) =>
+      selected.has(folder),
+    );
 
-  const removeSource = (p: string): void => {
-    const next = sources.filter((x) => x !== p);
-    setSources(next);
-    void window.api.skills.setSources(next);
-  };
-
-  const handleImport = async (): Promise<void> => {
-    if (!threadId) return;
-    setBusy(true);
-    try {
-      await window.api.skills.importFolder(threadId);
-      await reload();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleCreate = async (): Promise<void> => {
-    if (!threadId || !newSkillName.trim()) return;
-    setBusy(true);
-    try {
-      const md = newSkillMarkdown.trim();
-      await window.api.skills.createSkill(
-        threadId,
-        newSkillName.trim(),
-        md ? md : undefined,
-      );
-      setNewSkillName("");
-      setNewSkillMarkdown("");
-      await reload();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSaveEdit = async (): Promise<void> => {
-    if (!threadId || selected.size !== 1) return;
-    const currentFolder = [...selected][0];
-    setBusy(true);
-    try {
-      let finalFolder = currentFolder;
-      const renameResult = await window.api.skills.renameSkillFolder(
-        threadId,
-        currentFolder,
-        editName.trim(),
-      );
-      if (!renameResult.success) {
-        console.error(renameResult.error);
-        return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allCurrentPageSelected) {
+        for (const folder of pagedFolders) next.delete(folder);
+      } else {
+        for (const folder of pagedFolders) next.add(folder);
       }
-      if (renameResult.folder) finalFolder = renameResult.folder;
-      const writeResult = await window.api.skills.writeSkillMarkdown(
-        threadId,
-        finalFolder,
-        editMarkdown,
-      );
-      if (!writeResult.success) {
-        console.error(writeResult.error);
-        return;
+      return next;
+    });
+  };
+
+  const handleSaveEditor = async (): Promise<void> => {
+    const skillName = editorName.trim();
+    if (!workspaceReady || !skillName || editorLoading) return;
+
+    setBusy(true);
+    try {
+      if (editorMode === "create") {
+        const createResult = await window.api.skills.createSkill(
+          workspaceSkillTarget,
+          skillName,
+          editorMarkdown.trim() ? editorMarkdown : undefined,
+        );
+        if (!createResult.success) {
+          setStatus(createResult.error ?? "创建技能失败");
+          return;
+        }
+        setStatus("技能已创建");
+      } else {
+        if (!originFolder) return;
+        let finalFolder = originFolder;
+
+        const renameResult = await window.api.skills.renameSkillFolder(
+          workspaceSkillTarget,
+          originFolder,
+          skillName,
+        );
+        if (!renameResult.success) {
+          setStatus(renameResult.error ?? "重命名失败");
+          return;
+        }
+        if (renameResult.folder) {
+          finalFolder = renameResult.folder;
+        }
+
+        const writeResult = await window.api.skills.writeSkillMarkdown(
+          workspaceSkillTarget,
+          finalFolder,
+          editorMarkdown,
+        );
+        if (!writeResult.success) {
+          setStatus(writeResult.error ?? "保存失败");
+          return;
+        }
+        setStatus("技能已更新");
       }
+
+      setEditorOpen(false);
       await reload();
+      setCurrentPage(1);
     } finally {
       setBusy(false);
     }
   };
 
   const handleDeleteFolders = async (): Promise<void> => {
-    if (!threadId || selected.size === 0) return;
+    if (!workspaceReady || selected.size === 0) return;
     setBusy(true);
     try {
-      await window.api.skills.deleteSkillFolders(threadId, [...selected]);
+      await window.api.skills.deleteSkillFolders(workspaceSkillTarget, [...selected]);
       await reload();
+      setStatus("已删除选中的技能目录");
+      setSkillDeleteConfirmOpen(false);
     } finally {
       setBusy(false);
     }
   };
 
+  const selectedCount = selected.size;
+  const allCurrentPageSelected =
+    pagedFolders.length > 0 && pagedFolders.every((folder) => selected.has(folder));
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>技能（智能体 Skills）</DialogTitle>
+        <DialogContent className="max-h-[92vh] w-[min(96vw,88rem)] max-w-[88rem] flex flex-col overflow-hidden">
+          <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_16%,transparent),transparent_42%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-6 pr-14">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+              <WandSparkles className="size-3.5" />
+              Skills Workspace
+            </div>
+            <DialogTitle className="mt-4 text-[1.7rem] tracking-[-0.04em]">
+              技能配置
+            </DialogTitle>
+            <DialogDescription className="max-w-2xl text-sm leading-6">
+              全局维护技能源路径与工作区 .deepagents/skills 目录，使用卡片分页浏览技能并在子弹窗中完成新增与编辑。
+            </DialogDescription>
+            <div className="text-xs text-muted-foreground">
+              全局技能目录：{globalSkillDir}
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4 flex-1 min-h-0 overflow-hidden flex flex-col">
-            <div>
-              <div className="text-xs font-medium text-muted-foreground mb-1">
-                加载路径（相对工作区根，POSIX）
+          <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,0.74fr)_minmax(0,1.46fr)]">
+            <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
+              <div className="flex items-start gap-3">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background/75 text-primary shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                  <LibraryBig className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-section-header">Sources</div>
+                  <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
+                    全局技能来源
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    添加或移除全局技能来源路径。路径相对于工作区根目录，建议使用 POSIX 风格。
+                  </p>
+                </div>
               </div>
-              <ScrollArea className="h-24 rounded border border-border">
-                <div className="p-2 space-y-1">
-                  {sources.map((p) => (
+
+              <ScrollArea className="h-40 rounded-[22px] border border-border/70 bg-background/40">
+                <div className="space-y-2 p-3">
+                  {sources.length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-border/70 px-3 py-8 text-center text-xs text-muted-foreground">
+                      暂无额外路径，当前仅使用默认技能来源。
+                    </div>
+                  )}
+                  {sources.map((source) => (
                     <div
-                      key={p}
-                      className="flex items-center justify-between gap-2 text-xs font-mono"
+                      key={source}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/65 px-3 py-2 text-xs font-mono"
                     >
-                      <span className="truncate">{p}</span>
+                      <span className="truncate">{source}</span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 text-[10px]"
-                        onClick={() => removeSource(p)}
+                        className="h-7 rounded-xl px-2 text-[11px]"
+                        onClick={() => removeSource(source)}
                       >
                         移除
                       </Button>
@@ -208,182 +321,226 @@ export function SkillsDialog({
                   ))}
                 </div>
               </ScrollArea>
-              <div className="flex gap-2 mt-2">
+
+              <div className="flex gap-2">
                 <Input
                   value={newSource}
-                  onChange={(e) => setNewSource(e.target.value)}
+                  onChange={(event) => setNewSource(event.target.value)}
                   placeholder="例如：/.deepagents/skills"
-                  className="text-xs h-8"
+                  className="text-xs"
                 />
                 <Button
                   type="button"
                   size="sm"
-                  className="h-8 shrink-0"
+                  className="h-10 shrink-0 rounded-2xl px-4"
                   onClick={addSource}
                 >
                   添加
                 </Button>
               </div>
-            </div>
+            </section>
 
-            {threadId && (
-              <>
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="text-xs font-medium text-muted-foreground">
-                      工作区 .deepagents/skills 中的技能目录
-                    </div>
-                    {folders.length > 0 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-1.5 text-[10px] shrink-0"
-                        disabled={busy}
-                        onClick={() => {
-                          const allSelected =
-                            folders.length > 0 &&
-                            selected.size === folders.length;
-                          setSelected(
-                            allSelected ? new Set() : new Set(folders),
-                          );
-                        }}
-                      >
-                        {folders.length > 0 && selected.size === folders.length
-                          ? "取消全选"
-                          : "全选"}
-                      </Button>
-                    )}
+            <section className="app-flat-surface flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-border/70 px-5 py-5">
+              <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background/75 text-primary shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                    <FolderTree className="size-5" />
                   </div>
-                  <ScrollArea className="h-32 rounded border border-border">
-                    <div className="p-2 space-y-1">
-                      {folders.length === 0 && (
-                        <div className="text-xs text-muted-foreground py-4 text-center">
-                          暂无
-                        </div>
-                      )}
-                      {folders.map((name) => (
-                        <label
-                          key={name}
-                          className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selected.has(name)}
-                            onChange={() => toggle(name)}
-                            className="size-3.5 accent-primary"
-                          />
-                          <span className="font-mono">{name}</span>
-                        </label>
-                      ))}
+                  <div className="min-w-0">
+                    <div className="text-section-header">Workspace</div>
+                    <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
+                      技能目录（卡片分页）
                     </div>
-                  </ScrollArea>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="h-8 text-xs"
-                      disabled={busy}
-                      onClick={() => void handleImport()}
-                    >
-                      从磁盘导入文件夹
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="h-8 text-xs"
-                      disabled={busy || selected.size === 0}
-                      onClick={() => setSkillDeleteConfirmOpen(true)}
-                    >
-                      删除所选目录
-                    </Button>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      点击卡片直接编辑，支持多选删除与分页浏览。新增技能在独立子弹窗中完成。
+                    </p>
                   </div>
-
-                  {selected.size === 1 && (
-                    <div className="mt-3 space-y-2 rounded border border-border p-2 bg-muted/20">
-                      <div className="text-xs font-medium text-muted-foreground">
-                        编辑所选技能
-                      </div>
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        placeholder="目录名（保存时会规范为小写与连字符）"
-                        className="text-xs h-8 font-mono"
-                        disabled={busy || editLoading}
-                      />
-                      <textarea
-                        value={editMarkdown}
-                        onChange={(e) => setEditMarkdown(e.target.value)}
-                        placeholder={editLoading ? "加载中…" : "SKILL.md 内容"}
-                        disabled={busy || editLoading}
-                        className={cn(
-                          "flex min-h-[140px] w-full rounded-sm border border-input bg-background px-3 py-2 text-xs font-mono shadow-sm",
-                          "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                          "disabled:cursor-not-allowed disabled:opacity-50",
-                        )}
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-8 text-xs"
-                        disabled={busy || editLoading || !editName.trim()}
-                        onClick={() => void handleSaveEdit()}
-                      >
-                        保存技能
-                      </Button>
-                    </div>
-                  )}
-
-                  {selected.size !== 1 && (
-                    <div className="flex flex-col gap-2 mt-3">
-                      <Input
-                        value={newSkillName}
-                        onChange={(e) => setNewSkillName(e.target.value)}
-                        placeholder="新建技能目录名（小写字母、数字、连字符）"
-                        className="text-xs h-8"
-                      />
-                      <textarea
-                        value={newSkillMarkdown}
-                        onChange={(e) => setNewSkillMarkdown(e.target.value)}
-                        placeholder="可选：自定义 SKILL.md 全文；留空则使用默认模板"
-                        disabled={busy}
-                        className={cn(
-                          "flex min-h-[100px] w-full rounded-sm border border-input bg-background px-3 py-2 text-xs font-mono shadow-sm",
-                          "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                          "disabled:cursor-not-allowed disabled:opacity-50",
-                        )}
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-8 shrink-0 w-fit"
-                        disabled={busy || !newSkillName.trim()}
-                        onClick={() => void handleCreate()}
-                      >
-                        新建
-                      </Button>
-                    </div>
-                  )}
                 </div>
-              </>
-            )}
 
-            {!threadId && (
-              <p className="text-xs text-muted-foreground">
-                请选择会话以管理工作区内的技能文件夹。
-              </p>
-            )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 rounded-2xl px-4 text-xs whitespace-nowrap"
+                    disabled={busy || !workspaceReady}
+                    onClick={() => void handleImport()}
+                  >
+                    <Sparkles className="mr-1 size-3.5" />
+                    从磁盘导入
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-10 rounded-2xl px-4 text-xs whitespace-nowrap"
+                    disabled={busy || !workspaceReady}
+                    onClick={openCreateEditor}
+                  >
+                    <SquarePen className="mr-1 size-3.5" />
+                    新增技能
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                <span>
+                  共 {folders.length} 个技能目录，已选 {selectedCount} 个
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 rounded-xl px-3 text-[11px]"
+                    disabled={pagedFolders.length === 0 || busy || !workspaceReady}
+                    onClick={toggleSelectPage}
+                  >
+                    {allCurrentPageSelected ? "取消本页全选" : "本页全选"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 rounded-xl px-3 text-[11px]"
+                    disabled={busy || selectedCount === 0 || !workspaceReady}
+                    onClick={() => setSkillDeleteConfirmOpen(true)}
+                  >
+                    删除选中
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[22px] border border-border/70 bg-background/35 p-3">
+                {!workspaceReady ? (
+                  <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
+                    请先在设置中选择全局工作区，随后即可导入、编辑和新建技能。
+                  </div>
+                ) : folders.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
+                    当前工作区还没有技能目录。
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {pagedFolders.map((folderName) => {
+                      const checked = selected.has(folderName);
+                      return (
+                        <button
+                          key={folderName}
+                          type="button"
+                          className="group flex min-h-[162px] flex-col items-start rounded-[18px] border border-border/70 bg-background/72 p-4 text-left transition-colors hover:border-primary/35 hover:bg-background"
+                          onClick={() => void openEditEditor(folderName)}
+                        >
+                          <div className="flex w-full items-start justify-between gap-2">
+                            <span className="truncate text-sm font-semibold tracking-[-0.01em] text-foreground">
+                              {folderName}
+                            </span>
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 size-3.5 accent-primary"
+                              checked={checked}
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={() => toggleSelect(folderName)}
+                            />
+                          </div>
+                          <div className="mt-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                            SKILL
+                          </div>
+                          <p className="mt-2 line-clamp-4 text-xs leading-5 text-muted-foreground">
+                            点击卡片打开编辑弹窗，修改目录名与 SKILL.md 内容。
+                          </p>
+                          <div className="mt-4 text-[11px] font-medium text-primary opacity-85 transition-opacity group-hover:opacity-100">
+                            打开编辑
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 flex shrink-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
+                <div className="text-xs text-muted-foreground">
+                  第 {Math.min(currentPage, totalPages)} / {totalPages} 页
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-xl px-3"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  >
+                    <ChevronLeft className="size-3.5" />
+                    上一页
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-xl px-3"
+                    disabled={currentPage >= totalPages}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                    }
+                  >
+                    下一页
+                    <ChevronRight className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </section>
           </div>
 
-          <DialogFooter>
+          <div className="min-h-5 text-xs text-muted-foreground">{status ?? ""}</div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+        <DialogContent className="max-h-[88vh] max-w-3xl flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              {editorMode === "create" ? "新增技能" : "编辑技能"}
+            </DialogTitle>
+            <DialogDescription>
+              {editorMode === "create"
+                ? "填写目录名并可选输入 SKILL.md 正文，保存后自动创建目录。"
+                : "修改目录名和 SKILL.md 内容，保存时会自动完成重命名与写入。"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 min-h-0 flex flex-col">
+            <Input
+              value={editorName}
+              onChange={(event) => setEditorName(event.target.value)}
+              placeholder="技能目录名（将规范为小写与连字符）"
+              className="text-xs font-mono"
+              disabled={busy || editorLoading}
+            />
+            <textarea
+              value={editorMarkdown}
+              onChange={(event) => setEditorMarkdown(event.target.value)}
+              placeholder={editorLoading ? "加载中..." : "SKILL.md 内容"}
+              disabled={busy || editorLoading}
+              className={cn(textAreaClassName, "min-h-[360px] flex-1")}
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button
               type="button"
-              variant="secondary"
-              onClick={() => onOpenChange(false)}
+              variant="ghost"
+              onClick={() => setEditorOpen(false)}
+              disabled={busy}
             >
-              关闭
+              取消
+            </Button>
+            <Button
+              type="button"
+              disabled={busy || editorLoading || !editorName.trim()}
+              onClick={() => void handleSaveEditor()}
+            >
+              保存
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -398,8 +555,7 @@ export function SkillsDialog({
             <DialogTitle>确认删除技能？</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            将永久删除所选的 {selected.size}{" "}
-            个技能目录及其中的文件，此操作不可恢复。
+            将永久删除所选的 {selectedCount} 个技能目录及其中的文件，此操作不可恢复。
           </p>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
@@ -412,10 +568,7 @@ export function SkillsDialog({
             <Button
               type="button"
               variant="destructive"
-              onClick={() => {
-                setSkillDeleteConfirmOpen(false);
-                void handleDeleteFolders();
-              }}
+              onClick={() => void handleDeleteFolders()}
             >
               删除
             </Button>

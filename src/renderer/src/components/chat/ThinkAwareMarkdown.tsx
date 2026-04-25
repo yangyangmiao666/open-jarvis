@@ -1,5 +1,6 @@
-import { memo } from "react";
+import { memo, useMemo, useState } from "react";
 import { Brain, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { StreamingMarkdown } from "./StreamingMarkdown";
 
 interface ThinkAwareMarkdownProps {
@@ -10,6 +11,33 @@ interface ThinkAwareMarkdownProps {
 interface Segment {
   kind: "markdown" | "think";
   content: string;
+}
+
+function summarizeThinkContent(content: string): string {
+  const normalized = content
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/(^|\s)[#>*_~-]+/gm, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return "已完成思考，点击展开查看详情。";
+  }
+
+  const sentences = normalized
+    .split(/(?<=[。！？.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  const selected =
+    sentences.length > 0 ? sentences.slice(0, 2).join(" ") : normalized;
+  const clipped =
+    selected.length > 96 ? `${selected.slice(0, 96).trimEnd()}...` : selected;
+  return clipped;
 }
 
 function parseThinkSegments(input: string, isStreaming: boolean): Segment[] {
@@ -60,27 +88,11 @@ export const ThinkAwareMarkdown = memo(function ThinkAwareMarkdown({
 
         if (segment.kind === "think") {
           return (
-            <details
-              key={`think-${index}`}
-              className="think-block"
-              open={isStreaming && isLast}
-            >
-              <summary className="think-summary">
-                <span className="flex items-center gap-2">
-                  <Brain className="size-3.5 text-primary" strokeWidth={1.8} />
-                  <span>{isStreaming && isLast ? "思考中" : "思考过程"}</span>
-                </span>
-                <ChevronDown
-                  className="think-chevron size-3.5"
-                  strokeWidth={1.8}
-                />
-              </summary>
-              <div className="think-content">
-                <StreamingMarkdown isStreaming={false}>
-                  {segment.content || "*思考内容为空*"}
-                </StreamingMarkdown>
-              </div>
-            </details>
+            <ThinkBlock
+              key={`think-${index}-${isStreaming && isLast ? "streaming" : "settled"}`}
+              content={segment.content}
+              isStreaming={isStreaming && isLast}
+            />
           );
         }
 
@@ -96,3 +108,49 @@ export const ThinkAwareMarkdown = memo(function ThinkAwareMarkdown({
     </div>
   );
 });
+
+interface ThinkBlockProps {
+  content: string;
+  isStreaming: boolean;
+}
+
+function ThinkBlock({
+  content,
+  isStreaming,
+}: ThinkBlockProps): React.JSX.Element {
+  const [expanded, setExpanded] = useState(isStreaming);
+  const summary = useMemo(() => summarizeThinkContent(content), [content]);
+  const showSummary = !isStreaming && !expanded;
+
+  return (
+    <div className={cn("think-block", expanded && "is-open")}>
+      <button
+        type="button"
+        className="think-summary"
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <span className="flex min-w-0 flex-1 items-start gap-3">
+          <span className="think-icon-shell">
+            <Brain className="size-3.5 text-primary" strokeWidth={1.8} />
+          </span>
+          <span className="min-w-0 text-left">
+            <span className="think-summary-title">
+              {isStreaming ? "思考中" : "思考过程"}
+            </span>
+            {showSummary ? (
+              <span className="think-summary-text">{summary}</span>
+            ) : null}
+          </span>
+        </span>
+        <ChevronDown className="think-chevron size-3.5" strokeWidth={1.8} />
+      </button>
+      {expanded && (
+        <div className="think-content">
+          <StreamingMarkdown isStreaming={false}>
+            {content || "*思考内容为空*"}
+          </StreamingMarkdown>
+        </div>
+      )}
+    </div>
+  );
+}

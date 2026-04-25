@@ -513,13 +513,14 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         },
         setWorkspacePath: (path: string | null) => {
           updateThreadState(threadId, () => ({ workspacePath: path }));
+          void window.api.workspace.set(undefined, path);
         },
         setEnabledMcpServerIds: (serverIds: string[]) => {
           const nextIds = Array.from(
             new Set(serverIds.map((id) => id.trim()).filter((id) => id.length > 0)),
           );
           updateThreadState(threadId, () => ({ enabledMcpServerIds: nextIds }));
-          void window.api.mcp.setEnabledForThread(threadId, nextIds);
+          void window.api.mcp.setEnabledForThread(undefined, nextIds);
         },
         setSubagents: (subagents: Subagent[]) => {
           updateThreadState(threadId, () => ({ subagents }));
@@ -535,15 +536,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         },
         setCurrentModel: (modelId: string) => {
           updateThreadState(threadId, () => ({ currentModel: modelId }));
-          // Persist to backend
-          window.api.threads.get(threadId).then((thread) => {
-            if (thread) {
-              const metadata = thread.metadata || {};
-              window.api.threads.update(threadId, {
-                metadata: { ...metadata, model: modelId },
-              });
-            }
-          });
+          void window.api.models.setDefault(modelId);
         },
         openFile: (path: string, name: string) => {
           updateThreadState(threadId, (state) => {
@@ -624,31 +617,27 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
     async (threadId: string) => {
       const actions = getThreadActions(threadId);
 
-      // Load workspace path and thread metadata
+      // Load global settings and mirror them into the current thread view.
       try {
-        const thread = await window.api.threads.get(threadId);
-        if (thread) {
-          const metadata = thread.metadata || {};
-          if (metadata.workspacePath) {
-            actions.setWorkspacePath(metadata.workspacePath as string);
-            const diskResult =
-              await window.api.workspace.loadFromDisk(threadId);
-            if (diskResult.success) {
-              actions.setWorkspaceFiles(diskResult.files);
-            }
-          }
-          if (metadata.model) {
-            // Update state directly to avoid triggering persistence in setCurrentModel
-            updateThreadState(threadId, () => ({
-              currentModel: metadata.model as string,
-            }));
-          }
+        const [workspacePath, currentModel, enabledMcpServerIds] =
+          await Promise.all([
+            window.api.workspace.get(),
+            window.api.models.getDefault(),
+            window.api.mcp.getEnabledForThread(),
+          ]);
 
-          const enabledMcpServerIds = await window.api.mcp.getEnabledForThread(
-            threadId,
-          );
-          updateThreadState(threadId, () => ({ enabledMcpServerIds }));
+        if (workspacePath) {
+          updateThreadState(threadId, () => ({ workspacePath }));
+          const diskResult = await window.api.workspace.loadFromDisk(threadId);
+          if (diskResult.success) {
+            actions.setWorkspaceFiles(diskResult.files);
+          }
         }
+
+        updateThreadState(threadId, () => ({
+          currentModel,
+          enabledMcpServerIds,
+        }));
       } catch (error) {
         console.error("[ThreadContext] Failed to load thread details:", error);
       }

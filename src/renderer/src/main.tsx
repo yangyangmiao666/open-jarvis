@@ -1,12 +1,17 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "katex/dist/katex.min.css";
 import App from "./App";
 import "./index.css";
 
 function initThemeFromStorage(): void {
   const saved = localStorage.getItem("openwork-theme");
+  const resolved = saved === "light" || saved === "dark" ? saved : "dark";
+  if (!saved) {
+    localStorage.setItem("openwork-theme", "dark");
+  }
   document.documentElement.classList.remove("light", "dark");
-  document.documentElement.classList.add(saved === "light" ? "light" : "dark");
+  document.documentElement.classList.add(resolved);
 }
 initThemeFromStorage();
 

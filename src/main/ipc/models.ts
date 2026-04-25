@@ -312,30 +312,31 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
   // Get workspace path for a thread (from thread metadata)
   ipcMain.handle("workspace:get", async (_event, threadId?: string) => {
     if (!threadId) {
-      // Fallback to global setting for backwards compatibility
       return store.get("workspacePath", null) as string | null;
     }
 
     // Get from thread metadata via threads:get
     const { getThread } = await import("../db");
     const thread = getThread(threadId);
-    if (!thread?.metadata) return null;
+    if (!thread?.metadata) {
+      return store.get("workspacePath", null) as string | null;
+    }
 
     const metadata = JSON.parse(thread.metadata);
-    return metadata.workspacePath || null;
+    return metadata.workspacePath || (store.get("workspacePath", null) as string | null);
   });
 
-  // Set workspace path for a thread (stores in thread metadata)
+  // Set workspace path globally, optionally mirroring it into the thread metadata for compatibility
   ipcMain.handle(
     "workspace:set",
     async (_event, { threadId, path: newPath }: WorkspaceSetParams) => {
+      if (newPath) {
+        store.set("workspacePath", newPath);
+      } else {
+        store.delete("workspacePath");
+      }
+
       if (!threadId) {
-        // Fallback to global setting
-        if (newPath) {
-          store.set("workspacePath", newPath);
-        } else {
-          store.delete("workspacePath");
-        }
         return newPath;
       }
 
@@ -397,15 +398,16 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
     async (_event, { threadId }: WorkspaceLoadParams) => {
       const { getThread } = await import("../db");
 
-      // Get workspace path from thread metadata
       const thread = getThread(threadId);
       const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {};
-      const workspacePath = metadata.workspacePath as string | null;
+      const workspacePath =
+        (metadata.workspacePath as string | null) ||
+        (store.get("workspacePath", null) as string | null);
 
       if (!workspacePath) {
         return {
           success: false,
-          error: "No workspace folder linked",
+          error: "No workspace configured",
           files: [],
         };
       }
@@ -491,15 +493,16 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
     async (_event, { threadId, filePath }: WorkspaceFileParams) => {
       const { getThread } = await import("../db");
 
-      // Get workspace path from thread metadata
       const thread = getThread(threadId);
       const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {};
-      const workspacePath = metadata.workspacePath as string | null;
+      const workspacePath =
+        (metadata.workspacePath as string | null) ||
+        (store.get("workspacePath", null) as string | null);
 
       if (!workspacePath) {
         return {
           success: false,
-          error: "No workspace folder linked",
+          error: "No workspace configured",
         };
       }
 

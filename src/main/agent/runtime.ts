@@ -1,9 +1,10 @@
 import { createDeepAgent } from "deepagents";
+import Store from "electron-store";
 import { getThread } from "../db";
 import { getDefaultModel } from "../ipc/models";
 import { getMCPServerById } from "../mcp-config";
 import { getOpenAICompatibleProfileByModelId } from "../openai-compatible-profiles";
-import { getApiKey, getThreadCheckpointPath } from "../storage";
+import { getApiKey, getOpenworkDir, getThreadCheckpointPath } from "../storage";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI, ChatOpenAICompletions } from "@langchain/openai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
@@ -38,6 +39,10 @@ function getSystemPrompt(workspacePath: string): string {
 
 // Per-thread checkpointer cache
 const checkpointers = new Map<string, SqlJsSaver>();
+const settingsStore = new Store({
+  name: "settings",
+  cwd: getOpenworkDir(),
+});
 
 function sanitizeModelText(value: string): string {
   if (typeof value.toWellFormed === "function") {
@@ -78,6 +83,177 @@ function stringifyOpenAICompatibleContentPart(part: unknown): string {
   return `[unsupported content block${type ? `: ${type}` : ""}]`;
 }
 
+function extractOpenAICompatibleReasoningPart(part: unknown): string {
+  if (!part || typeof part !== "object") return "";
+  const record = part as Record<string, unknown>;
+  const type = typeof record.type === "string" ? record.type : "";
+
+  if (typeof record.reasoning_content === "string") {
+    return sanitizeModelText(record.reasoning_content);
+  }
+  if (typeof record.reasoning === "string") {
+    return sanitizeModelText(record.reasoning);
+  }
+  if (typeof record.thinking === "string") {
+    return sanitizeModelText(record.thinking);
+  }
+  if (typeof record.think === "string") {
+    return sanitizeModelText(record.think);
+  }
+
+  if (type.includes("reasoning") || type.includes("thinking")) {
+    if (typeof record.text === "string") {
+      return sanitizeModelText(record.text);
+    }
+    if (typeof record.content === "string") {
+      return sanitizeModelText(record.content);
+    }
+  }
+
+  return "";
+}
+
+function extractReasoningFromRecord(record: Record<string, unknown>): string {
+  const directCandidates: unknown[] = [
+    record.reasoning_content,
+    record.reasoning,
+    record.thinking,
+    record.think,
+  ];
+
+  for (const candidate of directCandidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return sanitizeModelText(candidate);
+    }
+  }
+
+  const nestedContainers: unknown[] = [
+    record.additional_kwargs,
+    record.kwargs,
+    record.response_metadata,
+    record.metadata,
+  ];
+
+  for (const container of nestedContainers) {
+    if (!container || typeof container !== "object") continue;
+    const nested = container as Record<string, unknown>;
+    const nestedCandidate =
+      nested.reasoning_content ?? nested.reasoning ?? nested.thinking;
+    if (
+      typeof nestedCandidate === "string" &&
+      nestedCandidate.trim().length > 0
+    ) {
+      return sanitizeModelText(nestedCandidate);
+    }
+  }
+
+  return "";
+}
+
+function fallbackReasoningForAssistantMessage(
+  message: Record<string, unknown>,
+  textParts: string[],
+): string {
+  if (textParts.length > 0) {
+    return textParts.join("\n");
+  }
+
+  const content = message.content;
+  if (typeof content === "string" && content.trim().length > 0) {
+    return sanitizeModelText(content);
+  }
+
+  const toolCalls =
+    (Array.isArray(message.tool_calls) ? message.tool_calls : null) ??
+    (Array.isArray((message.additional_kwargs as { tool_calls?: unknown })?.tool_calls)
+      ? ((message.additional_kwargs as { tool_calls?: unknown }).tool_calls as unknown[])
+      : null);
+
+  if (toolCalls && toolCalls.length > 0) {
+    const names = toolCalls
+      .map((call) => {
+        if (!call || typeof call !== "object") return "tool";
+        const record = call as Record<string, unknown>;
+        const fn = record.function;
+        if (fn && typeof fn === "object") {
+          const name = (fn as { name?: unknown }).name;
+          if (typeof name === "string" && name.trim().length > 0) {
+            return name;
+          }
+        }
+        const name = record.name;
+        if (typeof name === "string" && name.trim().length > 0) {
+          return name;
+        }
+        return "tool";
+      })
+      .join(", ");
+    return `tool-calls: ${names}`;
+  }
+
+  // DeepSeek thinking mode requires reasoning_content on assistant turns.
+  return "assistant-response";
+}
+
+function normalizeOpenAICompatibleMessage(
+  message: unknown,
+): { message: unknown; normalized: boolean } {
+  if (!message || typeof message !== "object") {
+    return { message, normalized: false };
+  }
+
+  const role =
+    typeof (message as { role?: unknown }).role === "string"
+      ? ((message as { role?: string }).role ?? "")
+      : "";
+  const content = (message as { content?: unknown }).content;
+  const messageRecord = message as Record<string, unknown>;
+  const existingReasoning = extractReasoningFromRecord(messageRecord);
+
+  // Compatibility path for already-stringified assistant history messages.
+  if (!Array.isArray(content)) {
+    if (
+      role === "assistant" &&
+      (typeof content === "string" || content == null || typeof content === "object")
+    ) {
+      const fallbackReasoning =
+        existingReasoning || fallbackReasoningForAssistantMessage(messageRecord, []);
+      return {
+        message: {
+          ...messageRecord,
+          reasoning_content: fallbackReasoning,
+        },
+        normalized: true,
+      };
+    }
+
+    return { message, normalized: false };
+  }
+
+  const textParts = content
+    .map(stringifyOpenAICompatibleContentPart)
+    .filter((value) => value.length > 0);
+  const normalizedMessage: Record<string, unknown> = {
+    ...messageRecord,
+    content: textParts.join("\n"),
+  };
+
+  if (role === "assistant") {
+    const reasoningParts = content
+      .map(extractOpenAICompatibleReasoningPart)
+      .filter((value) => value.length > 0);
+    if (reasoningParts.length > 0) {
+      normalizedMessage.reasoning_content = reasoningParts.join("\n");
+    } else {
+      normalizedMessage.reasoning_content =
+        existingReasoning ||
+        fallbackReasoningForAssistantMessage(messageRecord, textParts);
+    }
+  }
+
+  return { message: normalizedMessage, normalized: true };
+}
+
 function normalizeOpenAICompatibleMessages(request: unknown): {
   request: unknown;
   normalizedCount: number;
@@ -89,18 +265,9 @@ function normalizeOpenAICompatibleMessages(request: unknown): {
 
   let normalizedCount = 0;
   const normalizedMessages = messages.map((message) => {
-    if (!message || typeof message !== "object") return message;
-    const content = (message as { content?: unknown }).content;
-    if (!Array.isArray(content)) return message;
-    normalizedCount += 1;
-
-    return {
-      ...message,
-      content: content
-        .map(stringifyOpenAICompatibleContentPart)
-        .filter((value) => value.length > 0)
-        .join("\n"),
-    };
+    const normalized = normalizeOpenAICompatibleMessage(message);
+    if (normalized.normalized) normalizedCount += 1;
+    return normalized.message;
   });
 
   return {
@@ -292,7 +459,10 @@ The workspace root is: ${workspacePath}`;
   const metadata = thread?.metadata
     ? (JSON.parse(thread.metadata) as ThreadMetadata)
     : {};
-  const enabledMcpServers = (metadata.enabledMcpServerIds ?? [])
+  const enabledMcpServerIds =
+    metadata.enabledMcpServerIds ??
+    ((settingsStore.get("enabledMcpServerIds", []) as string[]) ?? []);
+  const enabledMcpServers = enabledMcpServerIds
     .map((id) => getMCPServerById(id))
     .filter((server): server is NonNullable<typeof server> => Boolean(server));
   const mcpTools = await getMCPToolsForServers(enabledMcpServers);

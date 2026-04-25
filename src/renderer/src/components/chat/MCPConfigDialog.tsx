@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, Cable, Copy } from "lucide-react";
+import { Plus, Trash2, Pencil, Cable, Copy, Layers3 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -12,13 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useCurrentThread } from "@/lib/thread-context";
 import type { MCPServerConfig, MCPTransportType } from "@/types";
 
 interface MCPConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  threadId: string;
 }
 
 const textAreaClassName = cn(
@@ -62,9 +59,8 @@ function parseEnv(text: string): Record<string, string> {
 export function MCPConfigDialog({
   open,
   onOpenChange,
-  threadId,
 }: MCPConfigDialogProps): React.JSX.Element {
-  const { enabledMcpServerIds, setEnabledMcpServerIds } = useCurrentThread(threadId);
+  const [enabledMcpServerIds, setEnabledMcpServerIds] = useState<string[]>([]);
   const [servers, setServers] = useState<MCPServerConfig[]>([]);
   const [editing, setEditing] = useState<
     (Omit<MCPServerConfig, "id"> & { id?: string }) | null
@@ -88,8 +84,12 @@ export function MCPConfigDialog({
   };
 
   const load = async (): Promise<void> => {
-    const next = await window.api.mcp.listServers();
-    setServers(next);
+    const [nextServers, nextEnabledIds] = await Promise.all([
+      window.api.mcp.listServers(),
+      window.api.mcp.getEnabledForThread(),
+    ]);
+    setServers(nextServers);
+    setEnabledMcpServerIds(nextEnabledIds);
   };
 
   useEffect(() => {
@@ -126,19 +126,21 @@ export function MCPConfigDialog({
     await window.api.mcp.deleteServer(id);
     await load();
     if (enabledIdSet.has(id)) {
-      setEnabledMcpServerIds(enabledMcpServerIds.filter((serverId) => serverId !== id));
+      const nextIds = enabledMcpServerIds.filter(
+        (serverId) => serverId !== id,
+      );
+      setEnabledMcpServerIds(nextIds);
+      await window.api.mcp.setEnabledForThread(undefined, nextIds);
     }
     setStatus("MCP 配置已删除");
   };
 
   const handleToggleEnabled = (serverId: string, checked: boolean): void => {
-    if (checked) {
-      setEnabledMcpServerIds([...enabledMcpServerIds, serverId]);
-    } else {
-      setEnabledMcpServerIds(
-        enabledMcpServerIds.filter((currentId) => currentId !== serverId),
-      );
-    }
+    const nextIds = checked
+      ? [...enabledMcpServerIds, serverId]
+      : enabledMcpServerIds.filter((currentId) => currentId !== serverId);
+    setEnabledMcpServerIds(nextIds);
+    void window.api.mcp.setEnabledForThread(undefined, nextIds);
   };
 
   const handleImport = async (): Promise<void> => {
@@ -161,11 +163,25 @@ export function MCPConfigDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-5xl flex flex-col">
-        <DialogHeader>
-          <DialogTitle>MCP 配置</DialogTitle>
-          <DialogDescription>
-            为当前会话启用 MCP 工具，并管理全局 MCP server 列表。
-          </DialogDescription>
+        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_18%,transparent),transparent_44%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-6 pr-14 sm:px-7">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                <Cable className="size-3.5" />
+                MCP Workspace
+              </div>
+              <DialogTitle className="mt-4 text-[1.75rem] tracking-[-0.04em]">
+                MCP 配置
+              </DialogTitle>
+              <DialogDescription className="mt-3 max-w-2xl text-sm leading-6">
+                管理全局 MCP server 列表，并配置所有会话默认启用的工具能力。
+              </DialogDescription>
+            </div>
+            <div className="hidden shrink-0 items-center gap-2 rounded-[22px] border border-border/70 bg-background/55 px-4 py-3 text-xs text-muted-foreground backdrop-blur-sm md:flex">
+              <Layers3 className="size-4 text-primary" />
+              分区更清晰，操作更集中
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="grid gap-4 md:grid-cols-[1.05fr_1.2fr] flex-1 min-h-0">
@@ -173,10 +189,10 @@ export function MCPConfigDialog({
             <div className="app-flat-surface rounded-[24px] p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Cable className="size-4" />
-                当前会话已启用
+                全局默认启用
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                勾选后，当前线程在下一次调用 agent 时会装配对应的 MCP 工具。
+                勾选后，后续会话在调用 agent 时会默认装配对应的 MCP 工具。
               </p>
 
               <ScrollArea className="mt-3 h-[220px] rounded-[20px] border border-border/75">
@@ -449,12 +465,7 @@ export function MCPConfigDialog({
           </div>
         </div>
 
-        <DialogFooter className="items-center justify-between sm:justify-between">
-          <div className="text-xs text-muted-foreground min-h-4">{status ?? ""}</div>
-          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
-            关闭
-          </Button>
-        </DialogFooter>
+        <div className="text-xs text-muted-foreground min-h-4">{status ?? ""}</div>
       </DialogContent>
     </Dialog>
   );

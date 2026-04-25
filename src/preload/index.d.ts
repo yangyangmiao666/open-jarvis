@@ -79,9 +79,9 @@ interface CustomAPI {
     deleteServer: (id: string) => Promise<void>;
     importServers: (json: string) => Promise<MCPImportResult>;
     exportServers: () => Promise<{ mcpServers: Record<string, unknown> }>;
-    getEnabledForThread: (threadId: string) => Promise<string[]>;
+    getEnabledForThread: (threadId?: string) => Promise<string[]>;
     setEnabledForThread: (
-      threadId: string,
+      threadId: string | undefined,
       serverIds: string[],
     ) => Promise<string[]>;
   };
@@ -131,31 +131,31 @@ interface CustomAPI {
     listSources: () => Promise<string[]>;
     setSources: (paths: string[]) => Promise<void>;
     listWorkspaceSkillFolders: (
-      threadId: string,
+      threadId?: string,
     ) => Promise<{ success: boolean; folders?: string[]; error?: string }>;
     importFolder: (
-      threadId: string,
+      threadId?: string,
     ) => Promise<{ success: boolean; importedName?: string; error?: string }>;
     createSkill: (
-      threadId: string,
+      threadId: string | undefined,
       name: string,
       markdown?: string,
     ) => Promise<{ success: boolean; folder?: string; error?: string }>;
     deleteSkillFolders: (
-      threadId: string,
+      threadId: string | undefined,
       folderNames: string[],
     ) => Promise<{ success: boolean; error?: string }>;
     readSkillMarkdown: (
-      threadId: string,
+      threadId: string | undefined,
       folderName: string,
     ) => Promise<{ success: boolean; content?: string; error?: string }>;
     writeSkillMarkdown: (
-      threadId: string,
+      threadId: string | undefined,
       folderName: string,
       content: string,
     ) => Promise<{ success: boolean; error?: string }>;
     renameSkillFolder: (
-      threadId: string,
+      threadId: string | undefined,
       oldName: string,
       newName: string,
     ) => Promise<{ success: boolean; folder?: string; error?: string }>;

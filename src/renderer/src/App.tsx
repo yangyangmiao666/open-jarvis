@@ -6,6 +6,7 @@ import { KanbanView, KanbanHeader } from "@/components/kanban";
 import { ResizeHandle } from "@/components/ui/resizable";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WindowTitleBar } from "@/components/WindowTitleBar";
+import { SettingsHubDialog } from "@/components/chat/SettingsHubDialog";
 import { useAppStore } from "@/lib/store";
 import { ThreadProvider } from "@/lib/thread-context";
 
@@ -23,12 +24,17 @@ function isDarwin(): boolean {
 }
 
 function App(): React.JSX.Element {
-  const { currentThreadId, loadThreads, createThread, showKanbanView } =
-    useAppStore();
+  const {
+    currentThreadId,
+    loadThreads,
+    createThread,
+    showKanbanView,
+    settingsOpen,
+    setSettingsOpen,
+  } = useAppStore();
   const [isLoading, setIsLoading] = useState(true);
   const [leftWidth, setLeftWidth] = useState(LEFT_DEFAULT);
   const [rightWidth, setRightWidth] = useState(RIGHT_DEFAULT);
-
   // Track drag start widths
   const dragStartWidths = useRef<{ left: number; right: number } | null>(null);
 
@@ -109,7 +115,7 @@ function App(): React.JSX.Element {
             style={{ width: leftWidth }}
             className="flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar"
           >
-            <ThreadSidebar />
+            <ThreadSidebar onOpenSettings={() => setSettingsOpen(true)} />
           </div>
 
           <ResizeHandle onDrag={handleLeftResize} />
@@ -142,6 +148,7 @@ function App(): React.JSX.Element {
                       <TabbedPanel
                         threadId={currentThreadId}
                         showTabBar={false}
+                        onOpenSettings={() => setSettingsOpen(true)}
                       />
                     ) : (
                       <div className="flex flex-1 items-center justify-center text-muted-foreground">
@@ -158,6 +165,11 @@ function App(): React.JSX.Element {
             </div>
           </div>
         </div>
+
+        <SettingsHubDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+        />
       </div>
     </ThreadProvider>
   );

@@ -2,13 +2,11 @@ import { useRef, useEffect, useMemo, useCallback, useState } from "react";
 import {
   Send,
   Square,
-  Loader2,
   AlertCircle,
   X,
   Copy,
   ShieldAlert,
   Check,
-  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,7 +19,6 @@ import { WorkspacePicker } from "./WorkspacePicker";
 import { selectWorkspaceFolder } from "@/lib/workspace-utils";
 import { ChatTodos } from "./ChatTodos";
 import { ContextUsageIndicator } from "./ContextUsageIndicator";
-import { SettingsHubDialog } from "./SettingsHubDialog";
 import type { Message } from "@/types";
 import { cn } from "@/lib/utils";
 import { messagesToMarkdown } from "@/lib/chat-markdown";
@@ -41,12 +38,15 @@ interface StreamMessage {
 
 interface ChatContainerProps {
   threadId: string;
+  onOpenSettings: () => void;
 }
 
 export function ChatContainer({
   threadId,
+  onOpenSettings,
 }: ChatContainerProps): React.JSX.Element {
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const mentionListRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const mentionStartRef = useRef(0);
@@ -56,11 +56,9 @@ export function ChatContainer({
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [copyNoticeOpen, setCopyNoticeOpen] = useState(false);
 
-  const { threads, loadThreads, generateTitleForFirstMessage, models } =
-    useAppStore();
+  const { threads, loadThreads, generateTitleForFirstMessage } = useAppStore();
 
   // Get persisted thread state and actions from context
   const {
@@ -99,6 +97,15 @@ export function ChatContainer({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMentionActiveIndex(0);
   }, [mentionQuery, mentionOpen, mentionCandidates.length]);
+
+  useEffect(() => {
+    if (!mentionOpen) return;
+    const list = mentionListRef.current;
+    const activeItem = list?.querySelector<HTMLButtonElement>(
+      `[data-mention-index="${mentionActiveIndex}"]`,
+    );
+    activeItem?.scrollIntoView({ block: "nearest" });
+  }, [mentionActiveIndex, mentionOpen]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>,
@@ -250,6 +257,21 @@ export function ChatContainer({
 
     return [...threadMessages, ...streamingMsgs];
   }, [threadMessages, streamData.messages]);
+
+  const streamingAssistantIds = useMemo(() => {
+    if (!isLoading) return new Set<string>();
+
+    const persistedIds = new Set(threadMessages.map((message) => message.id));
+    const ids = ((streamData.messages || []) as StreamMessage[]).flatMap(
+      (message) => {
+        if (message.type !== "ai" || typeof message.id !== "string") {
+          return [];
+        }
+        return persistedIds.has(message.id) ? [] : [message.id];
+      },
+    );
+    return new Set(ids);
+  }, [isLoading, threadMessages, streamData.messages]);
 
   // Build tool results map from tool messages
   const toolResults = useMemo(() => {
@@ -442,7 +464,8 @@ export function ChatContainer({
       textarea.style.height = "auto";
       const nextHeight = Math.min(textarea.scrollHeight, 200);
       textarea.style.height = `${nextHeight}px`;
-      textarea.style.overflowY = textarea.scrollHeight > 200 ? "auto" : "hidden";
+      textarea.style.overflowY =
+        textarea.scrollHeight > 200 ? "auto" : "hidden";
     }
   };
 
@@ -464,41 +487,8 @@ export function ChatContainer({
     );
   };
 
-  const workspaceLabel = workspacePath?.split("/").pop() || "未连接工作区";
-  const currentModelLabel =
-    models.find((model) => model.id === currentModel)?.name ||
-    currentModel?.replace(/^oac:/, "") ||
-    "未选择模型";
-
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background/20">
-      <div className="app-hairline flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-        <div className="min-w-0 space-y-1">
-          <div className="text-section-header">Active Session</div>
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-foreground">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm">
-              <span className="size-1.5 rounded-full bg-primary" />
-              {currentModelLabel}
-            </span>
-            <span className="inline-flex min-w-0 items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm">
-              <Folder className="size-3.5 shrink-0 text-primary" />
-              <span className="truncate max-w-[18rem]">{workspaceLabel}</span>
-            </span>
-            {pendingApproval && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/35 bg-amber-500/10 px-3 py-1 text-xs text-amber-700 dark:text-amber-300">
-                <ShieldAlert className="size-3.5" />
-                等待审批
-              </span>
-            )}
-          </div>
-        </div>
-        {tokenUsage && (
-          <div className="shrink-0">
-            <ContextUsageIndicator tokenUsage={tokenUsage} modelId={currentModel} />
-          </div>
-        )}
-      </div>
-
       {/* Messages */}
       <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
         <div className="px-4 py-5">
@@ -542,30 +532,16 @@ export function ChatContainer({
               <MessageBubble
                 key={message.id}
                 message={message}
+                isStreaming={streamingAssistantIds.has(message.id)}
                 toolResults={toolResults}
                 pendingApproval={pendingApproval}
                 onApprovalDecision={handleApprovalDecision}
               />
             ))}
 
-            {/* Streaming indicator and inline TODOs */}
-            {isLoading && (
-              <div className="animate-enter space-y-3">
-                <div className="app-flat-surface flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-muted-foreground">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-background-interactive/80 text-primary">
-                    <Loader2 className="size-4 animate-spin" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-foreground">智能体思考中…</div>
-                    <div className="text-xs text-muted-foreground">
-                      正在整理回复、工具调用与任务状态。
-                    </div>
-                  </div>
-                  <div className="text-section-header">Live</div>
-                </div>
-                <div className="pl-1">
-                  {todos.length > 0 && <ChatTodos todos={todos} />}
-                </div>
+            {todos.length > 0 && isLoading && (
+              <div className="pl-1">
+                <ChatTodos todos={todos} />
               </div>
             )}
 
@@ -636,7 +612,7 @@ export function ChatContainer({
       {/* Input */}
       <div className="border-t border-border/60 px-4 py-4">
         <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
-          <div className="relative app-flat-surface flex flex-col gap-3 rounded-[26px] px-4 py-4">
+          <div className="relative app-flat-surface flex flex-col gap-3 overflow-visible rounded-[26px] px-4 py-4">
             {copyNoticeOpen && (
               <div className="animate-enter absolute -top-14 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/12 px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-[0_12px_32px_color-mix(in_srgb,#10b981_15%,transparent)] backdrop-blur-sm dark:text-emerald-300">
                 <Check className="size-3.5" />
@@ -675,23 +651,31 @@ export function ChatContainer({
                   composingRef.current = false;
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="输入消息…（@ 可引用工作区文件或文件夹）"
+                placeholder="输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"
                 disabled={isLoading}
-                className="min-w-0 flex-1 resize-none rounded-[22px] border border-border/75 bg-background/75 px-4 py-3.5 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/70 disabled:opacity-50"
+                className="chat-input-scrollbar min-w-0 flex-1 resize-none rounded-[22px] border border-border/75 bg-background/75 px-4 py-3.5 pr-3 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/70 disabled:opacity-50"
                 rows={1}
-                style={{ minHeight: "48px", maxHeight: "200px", overflowY: "hidden" }}
+                style={{
+                  minHeight: "48px",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                }}
               />
               {mentionOpen && mentionCandidates.length > 0 && (
-                <div className="app-flat-surface absolute bottom-full left-0 right-14 z-50 mb-2 max-h-48 overflow-y-auto rounded-2xl py-2">
+                <div
+                  ref={mentionListRef}
+                  className="absolute bottom-full left-0 right-14 z-50 mb-3 max-h-56 overflow-y-auto rounded-2xl border border-border bg-popover py-2 shadow-[0_18px_48px_color-mix(in_srgb,#020617_22%,transparent)]"
+                >
                   {mentionCandidates.map((f, idx) => (
                     <button
                       key={f.path}
+                      data-mention-index={idx}
                       type="button"
                       className={cn(
-                        "mx-1 w-[calc(100%-0.5rem)] truncate rounded-xl px-3 py-2 text-left text-xs font-mono transition-colors",
+                        "mx-1 block w-[calc(100%-0.5rem)] truncate rounded-xl px-3 py-2 text-left text-xs font-mono transition-colors",
                         idx === mentionActiveIndex
                           ? "bg-primary/18 text-foreground ring-1 ring-inset ring-primary/45"
-                          : "hover:bg-muted dark:hover:bg-background-interactive",
+                          : "hover:bg-muted",
                       )}
                       onMouseEnter={() => setMentionActiveIndex(idx)}
                       onMouseDown={(e) => {
@@ -732,21 +716,12 @@ export function ChatContainer({
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                <ModelSwitcher threadId={threadId} onOpenSettings={() => setSettingsOpen(true)} />
+                <ModelSwitcher
+                  threadId={threadId}
+                  onOpenSettings={onOpenSettings}
+                />
                 <div className="w-px h-4 bg-border" />
                 <WorkspacePicker threadId={threadId} />
-                <div className="w-px h-4 bg-border" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1 rounded-full px-3 text-xs text-muted-foreground"
-                  onClick={() => setSettingsOpen(true)}
-                  title="集中管理自定义模型、技能和 MCP 配置"
-                >
-                  <Settings2 className="size-3.5" />
-                  设置
-                </Button>
                 <div className="w-px h-4 bg-border" />
                 <Button
                   type="button"
@@ -761,19 +736,25 @@ export function ChatContainer({
                   复制会话到Markdown
                 </Button>
               </div>
-              <div className="text-[11px] text-muted-foreground">
-                Enter 发送，Shift+Enter 换行，@ 引用文件
-              </div>
+              <ContextUsageIndicator
+                tokenUsage={tokenUsage}
+                modelId={currentModel}
+                className="rounded-full border border-border/70 bg-card/70 px-3 py-1 backdrop-blur-sm"
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-2 px-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {pendingApproval && (
+                <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/35 bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-300">
+                  <ShieldAlert className="size-3.5" />
+                  等待审批
+                </span>
+              )}
             </div>
           </div>
         </form>
       </div>
-
-      <SettingsHubDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        threadId={threadId}
-      />
     </div>
   );
 }

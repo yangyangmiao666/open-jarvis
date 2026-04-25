@@ -178,9 +178,21 @@ html.light {
       "Noto Sans CJK SC",
       sans-serif;
     background-image:
-      radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 8%, transparent), transparent 28%),
-      radial-gradient(circle at top right, color-mix(in srgb, var(--accent) 7%, transparent), transparent 32%),
-      linear-gradient(180deg, color-mix(in srgb, var(--background-elevated) 72%, transparent), var(--background));
+      radial-gradient(
+        circle at top left,
+        color-mix(in srgb, var(--primary) 8%, transparent),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at top right,
+        color-mix(in srgb, var(--accent) 7%, transparent),
+        transparent 32%
+      ),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--background-elevated) 72%, transparent),
+        var(--background)
+      );
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -218,13 +230,19 @@ html.light {
 }
 
 .app-shell {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--background-elevated) 78%, transparent), color-mix(in srgb, var(--background) 96%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background-elevated) 78%, transparent),
+    color-mix(in srgb, var(--background) 96%, transparent)
+  );
 }
 
 .app-panel {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, transparent), color-mix(in srgb, var(--background-elevated) 94%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 96%, transparent),
+    color-mix(in srgb, var(--background-elevated) 94%, transparent)
+  );
   border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
   box-shadow:
     0 8px 24px color-mix(in srgb, #000 8%, transparent),
@@ -232,8 +250,11 @@ html.light {
 }
 
 .app-toolbar {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--background-elevated) 92%, transparent), color-mix(in srgb, var(--background) 88%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background-elevated) 92%, transparent),
+    color-mix(in srgb, var(--background) 88%, transparent)
+  );
   backdrop-filter: blur(14px);
 }
 
@@ -248,7 +269,12 @@ html.light {
   right: 0;
   bottom: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--border-emphasis) 72%, transparent), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--border-emphasis) 72%, transparent),
+    transparent
+  );
 }
 
 .app-elevated-hover {
@@ -569,51 +595,126 @@ html.light {
 }
 
 .think-block {
-  overflow: hidden;
-  border-left: 2px solid color-mix(in srgb, var(--primary) 45%, transparent);
-  border-radius: 0;
-  background: transparent;
+  margin: 0.35rem 0;
+  border-left: 3px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  padding-left: 0.9rem;
 }
 
 .think-summary {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.25rem 0 0.25rem 0.875rem;
+  gap: 0.875rem;
+  width: 100%;
+  padding: 0.1rem 0;
   cursor: pointer;
-  list-style: none;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: color-mix(in srgb, var(--foreground) 64%, transparent);
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--foreground) 72%, transparent);
   transition:
+    transform var(--duration-fast) var(--ease-standard),
     background-color var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
 }
 
 .think-summary:hover {
   color: var(--foreground);
 }
 
-.think-summary::-webkit-details-marker {
-  display: none;
+.think-icon-shell {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.think-summary-title {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 58%, transparent);
+}
+
+.think-summary-text {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--foreground) 78%, transparent);
 }
 
 .think-chevron {
+  flex-shrink: 0;
+  margin-top: 0.45rem;
   transition: transform 160ms ease;
 }
 
-.think-block[open] .think-chevron {
+.think-block.is-open .think-chevron {
   transform: rotate(180deg);
 }
 
 .think-content {
-  margin-left: 0.875rem;
-  border-left: 1px dashed color-mix(in srgb, var(--primary) 24%, transparent);
-  padding: 0.25rem 0 0.25rem 0.875rem;
+  margin: 0.45rem 0 0;
+  padding: 0 0 0.1rem;
   color: color-mix(in srgb, var(--foreground) 82%, transparent);
   animation: soft-fade var(--duration-base) var(--ease-standard) both;
+}
+
+.chat-input-scrollbar {
+  scrollbar-gutter: stable;
+}
+
+.chat-input-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.chat-input-scrollbar::-webkit-scrollbar-track {
+  margin: 10px 0;
+  background: transparent;
+}
+
+.chat-input-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border-emphasis) 70%, transparent);
+}
+
+.streaming-markdown .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0 0.55rem;
+}
+
+.streaming-markdown .katex {
+  font-size: 1.02em;
+}
+
+.message-loading-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 48%, transparent);
+  animation: message-dot-bounce 1s infinite ease-in-out;
+}
+
+@keyframes message-dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+
+  40% {
+    transform: translateY(-0.22rem);
+    opacity: 1;
+  }
 }
 
 /* Window drag region for frameless window */

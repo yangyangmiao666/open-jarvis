@@ -91,13 +91,11 @@ export function ContextUsageIndicator({
   tokenUsage,
   modelId,
   className,
-}: ContextUsageIndicatorProps): React.JSX.Element | null {
-  if (!tokenUsage) {
-    return null;
-  }
+}: ContextUsageIndicatorProps): React.JSX.Element {
+  const hasUsage = Boolean(tokenUsage);
 
   const contextLimit = getContextLimit(modelId);
-  const usedTokens = tokenUsage.inputTokens;
+  const usedTokens = tokenUsage?.inputTokens ?? 0;
   const usagePercent = Math.min((usedTokens / contextLimit) * 100, 100);
 
   // Determine color based on usage
@@ -124,7 +122,15 @@ export function ContextUsageIndicator({
   }
 
   const hasCacheData =
-    tokenUsage.cacheReadTokens || tokenUsage.cacheCreationTokens;
+    (tokenUsage?.cacheReadTokens ?? 0) > 0 ||
+    (tokenUsage?.cacheCreationTokens ?? 0) > 0;
+
+  if (!hasUsage) {
+    colorClass = "text-muted-foreground";
+    bgColorClass = "bg-muted/70";
+    barColorClass = "bg-muted-foreground/40";
+    statusText = "等待中";
+  }
 
   return (
     <Popover>
@@ -139,11 +145,15 @@ export function ContextUsageIndicator({
         >
           <CircleGauge className="size-3.5" />
           <span className="font-mono">
-            {formatTokenCount(usedTokens)} / {formatTokenCount(contextLimit)}
+            {hasUsage
+              ? `${formatTokenCount(usedTokens)} / ${formatTokenCount(contextLimit)}`
+              : "上下文窗口"}
           </span>
-          <span className="text-[10px] opacity-70">
-            ({usagePercent.toFixed(0)}%)
-          </span>
+          {hasUsage ? (
+            <span className="text-[10px] opacity-70">
+              ({usagePercent.toFixed(0)}%)
+            </span>
+          ) : null}
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -176,11 +186,15 @@ export function ContextUsageIndicator({
                   "h-full rounded-full transition-all",
                   barColorClass,
                 )}
-                style={{ width: `${usagePercent}%` }}
+                style={{ width: `${hasUsage ? usagePercent : 0}%` }}
               />
             </div>
             <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>{formatTokenCountFull(usedTokens)} tokens</span>
+              <span>
+                {hasUsage
+                  ? `${formatTokenCountFull(usedTokens)} tokens`
+                  : "等待首条响应后显示"}
+              </span>
               <span>{formatTokenCountFull(contextLimit)} max</span>
             </div>
           </div>
@@ -199,7 +213,7 @@ export function ContextUsageIndicator({
                   <span>输入</span>
                 </div>
                 <span className="font-mono">
-                  {formatTokenCountFull(tokenUsage.inputTokens)}
+                  {formatTokenCountFull(tokenUsage?.inputTokens ?? 0)}
                 </span>
               </div>
 
@@ -210,7 +224,7 @@ export function ContextUsageIndicator({
                   <span>输出</span>
                 </div>
                 <span className="font-mono">
-                  {formatTokenCountFull(tokenUsage.outputTokens)}
+                  {formatTokenCountFull(tokenUsage?.outputTokens ?? 0)}
                 </span>
               </div>
 
@@ -221,7 +235,7 @@ export function ContextUsageIndicator({
                   <span>总计</span>
                 </div>
                 <span className="font-mono">
-                  {formatTokenCountFull(tokenUsage.totalTokens)}
+                  {formatTokenCountFull(tokenUsage?.totalTokens ?? 0)}
                 </span>
               </div>
             </div>
@@ -236,7 +250,7 @@ export function ContextUsageIndicator({
             <div className="space-y-1">
               {hasCacheData ? (
                 <>
-                  {tokenUsage.cacheReadTokens !== undefined &&
+                  {tokenUsage?.cacheReadTokens !== undefined &&
                     tokenUsage.cacheReadTokens > 0 && (
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 text-green-500">
@@ -249,7 +263,7 @@ export function ContextUsageIndicator({
                       </div>
                     )}
 
-                  {tokenUsage.cacheCreationTokens !== undefined &&
+                  {tokenUsage?.cacheCreationTokens !== undefined &&
                     tokenUsage.cacheCreationTokens > 0 && (
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 text-blue-500">
@@ -272,9 +286,11 @@ export function ContextUsageIndicator({
           <div className="pt-2 border-t border-border">
             <div className="text-[10px] text-muted-foreground">
               最后更新：
-              {tokenUsage.lastUpdated.toLocaleTimeString("zh-CN", {
-                hour12: false,
-              })}
+              {hasUsage
+                ? tokenUsage?.lastUpdated.toLocaleTimeString("zh-CN", {
+                    hour12: false,
+                  })
+                : "等待首条响应"}
             </div>
           </div>
         </div>

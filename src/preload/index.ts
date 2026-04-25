@@ -201,11 +201,11 @@ const api = {
     exportServers: (): Promise<{ mcpServers: Record<string, unknown> }> => {
       return ipcRenderer.invoke("mcp:exportServers");
     },
-    getEnabledForThread: (threadId: string): Promise<string[]> => {
+    getEnabledForThread: (threadId?: string): Promise<string[]> => {
       return ipcRenderer.invoke("mcp:getEnabledForThread", threadId);
     },
     setEnabledForThread: (
-      threadId: string,
+      threadId: string | undefined,
       serverIds: string[],
     ): Promise<string[]> => {
       return ipcRenderer.invoke("mcp:setEnabledForThread", {
@@ -292,21 +292,21 @@ const api = {
     setSources: (paths: string[]): Promise<void> =>
       ipcRenderer.invoke("skills:setSources", paths),
     listWorkspaceSkillFolders: (
-      threadId: string,
+      threadId?: string,
     ): Promise<{ success: boolean; folders?: string[]; error?: string }> =>
       ipcRenderer.invoke("skills:listWorkspaceSkillFolders", threadId),
     importFolder: (
-      threadId: string,
+      threadId?: string,
     ): Promise<{ success: boolean; importedName?: string; error?: string }> =>
       ipcRenderer.invoke("skills:importFolder", { threadId }),
     createSkill: (
-      threadId: string,
+      threadId: string | undefined,
       name: string,
       markdown?: string,
     ): Promise<{ success: boolean; folder?: string; error?: string }> =>
       ipcRenderer.invoke("skills:createSkill", { threadId, name, markdown }),
     deleteSkillFolders: (
-      threadId: string,
+      threadId: string | undefined,
       folderNames: string[],
     ): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke("skills:deleteSkillFolders", {
@@ -314,12 +314,12 @@ const api = {
         folderNames,
       }),
     readSkillMarkdown: (
-      threadId: string,
+      threadId: string | undefined,
       folderName: string,
     ): Promise<{ success: boolean; content?: string; error?: string }> =>
       ipcRenderer.invoke("skills:readSkillMarkdown", { threadId, folderName }),
     writeSkillMarkdown: (
-      threadId: string,
+      threadId: string | undefined,
       folderName: string,
       content: string,
     ): Promise<{ success: boolean; error?: string }> =>
@@ -329,7 +329,7 @@ const api = {
         content,
       }),
     renameSkillFolder: (
-      threadId: string,
+      threadId: string | undefined,
       oldName: string,
       newName: string,
     ): Promise<{ success: boolean; folder?: string; error?: string }> =>
