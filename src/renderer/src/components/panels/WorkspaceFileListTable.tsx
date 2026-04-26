@@ -5,6 +5,14 @@ import {
   GripVertical,
   ChevronDown,
   ChevronRight,
+  File,
+  FileCode,
+  FileJson,
+  FileText,
+  FileType,
+  Folder,
+  FolderOpen,
+  Image,
 } from "lucide-react";
 import { cn, formatDateTimeWithYear } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
@@ -370,10 +378,12 @@ export function WorkspaceFileListTable({
                     ) : (
                       <span className="w-4 shrink-0" />
                     )}
-                    <span className="truncate">
-                      {node.is_dir ? "📁 " : ""}
-                      {node.name}
-                    </span>
+                    <ListFileIcon
+                      name={node.name}
+                      isDir={node.is_dir}
+                      isOpen={isOpen}
+                    />
+                    <span className="truncate">{node.name}</span>
                   </div>
                 </td>
                 <td className="px-2 py-1 tabular-nums text-muted-foreground">
@@ -396,4 +406,60 @@ export function WorkspaceFileListTable({
       </table>
     </div>
   );
+}
+
+function ListFileIcon({
+  name,
+  isDir,
+  isOpen,
+}: {
+  name: string;
+  isDir: boolean;
+  isOpen?: boolean;
+}): React.JSX.Element {
+  if (isDir) {
+    return isOpen ? (
+      <FolderOpen className="mr-1 size-3.5 shrink-0 text-amber-500" />
+    ) : (
+      <Folder className="mr-1 size-3.5 shrink-0 text-amber-500" />
+    );
+  }
+
+  const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
+
+  switch (ext) {
+    case "ts":
+    case "tsx":
+      return <FileCode className="mr-1 size-3.5 shrink-0 text-blue-400" />;
+    case "js":
+    case "jsx":
+      return <FileCode className="mr-1 size-3.5 shrink-0 text-yellow-400" />;
+    case "json":
+      return <FileJson className="mr-1 size-3.5 shrink-0 text-yellow-600" />;
+    case "md":
+    case "mdx":
+      return (
+        <FileText className="mr-1 size-3.5 shrink-0 text-muted-foreground" />
+      );
+    case "py":
+      return <FileCode className="mr-1 size-3.5 shrink-0 text-green-400" />;
+    case "css":
+    case "scss":
+    case "sass":
+      return <FileCode className="mr-1 size-3.5 shrink-0 text-pink-400" />;
+    case "html":
+      return <FileCode className="mr-1 size-3.5 shrink-0 text-orange-400" />;
+    case "svg":
+    case "png":
+    case "jpg":
+    case "jpeg":
+    case "gif":
+    case "webp":
+      return <Image className="mr-1 size-3.5 shrink-0 text-purple-400" />;
+    case "yml":
+    case "yaml":
+      return <FileType className="mr-1 size-3.5 shrink-0 text-red-400" />;
+    default:
+      return <File className="mr-1 size-3.5 shrink-0 text-muted-foreground" />;
+  }
 }

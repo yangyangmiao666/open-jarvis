@@ -4,6 +4,7 @@ import {
   ChevronRight,
   FolderTree,
   LibraryBig,
+  Search,
   Sparkles,
   SquarePen,
   WandSparkles,
@@ -11,7 +12,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -35,10 +35,10 @@ export function SkillsDialog({
   onOpenChange,
 }: SkillsDialogProps): React.JSX.Element {
   const workspaceSkillTarget = undefined;
-  const globalSkillDir = "~/.deepagents/skills";
   const [sources, setSources] = useState<string[]>([]);
   const [newSource, setNewSource] = useState("");
   const [folders, setFolders] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -82,11 +82,22 @@ export function SkillsDialog({
     void reload();
     setStatus(null);
     setCurrentPage(1);
+    setSearchQuery("");
   }, [open]);
 
+  const filteredFolders = useMemo(() => {
+    const keyword = searchQuery.trim().toLowerCase();
+    if (!keyword) return folders;
+    return folders.filter((folder) => folder.toLowerCase().includes(keyword));
+  }, [folders, searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(folders.length / PAGE_SIZE)),
-    [folders.length],
+    () => Math.max(1, Math.ceil(filteredFolders.length / PAGE_SIZE)),
+    [filteredFolders.length],
   );
 
   useEffect(() => {
@@ -98,8 +109,8 @@ export function SkillsDialog({
   const pagedFolders = useMemo(() => {
     const safePage = Math.min(currentPage, totalPages);
     const start = (safePage - 1) * PAGE_SIZE;
-    return folders.slice(start, start + PAGE_SIZE);
-  }, [folders, currentPage, totalPages]);
+    return filteredFolders.slice(start, start + PAGE_SIZE);
+  }, [filteredFolders, currentPage, totalPages]);
 
   const addSource = (): void => {
     const target = newSource.trim();
@@ -261,20 +272,16 @@ export function SkillsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[92vh] w-[min(96vw,88rem)] max-w-[88rem] flex flex-col overflow-hidden">
-          <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_16%,transparent),transparent_42%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-6 pr-14">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-              <WandSparkles className="size-3.5" />
-              Skills Workspace
-            </div>
-            <DialogTitle className="mt-4 text-[1.7rem] tracking-[-0.04em]">
-              技能配置
-            </DialogTitle>
-            <DialogDescription className="max-w-2xl text-sm leading-6">
-              全局维护技能源路径与工作区 .deepagents/skills 目录，使用卡片分页浏览技能并在子弹窗中完成新增与编辑。
-            </DialogDescription>
-            <div className="text-xs text-muted-foreground">
-              全局技能目录：{globalSkillDir}
+        <DialogContent className="h-[88vh] max-h-[92vh] w-[min(96vw,88rem)] max-w-[88rem] flex flex-col overflow-hidden pb-2 sm:pb-2">
+          <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_16%,transparent),transparent_42%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-4 pr-14">
+            <div className="flex items-center gap-3">
+              <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                <WandSparkles className="size-3.5" />
+                Skills Workspace
+              </div>
+              <DialogTitle className="text-xl tracking-[-0.03em]">
+                技能配置
+              </DialogTitle>
             </div>
           </DialogHeader>
 
@@ -382,9 +389,21 @@ export function SkillsDialog({
                 </div>
               </div>
 
+              <div className="mt-3 shrink-0">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="搜索技能目录名"
+                    className="h-10 rounded-2xl pl-9 text-xs"
+                  />
+                </div>
+              </div>
+
               <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span>
-                  共 {folders.length} 个技能目录，已选 {selectedCount} 个
+                  匹配 {filteredFolders.length} / {folders.length} 个技能目录，已选 {selectedCount} 个
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
@@ -418,6 +437,10 @@ export function SkillsDialog({
                 ) : folders.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
                     当前工作区还没有技能目录。
+                  </div>
+                ) : filteredFolders.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
+                    没有匹配的技能目录，请尝试其他关键词。
                   </div>
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -502,11 +525,6 @@ export function SkillsDialog({
             <DialogTitle>
               {editorMode === "create" ? "新增技能" : "编辑技能"}
             </DialogTitle>
-            <DialogDescription>
-              {editorMode === "create"
-                ? "填写目录名并可选输入 SKILL.md 正文，保存后自动创建目录。"
-                : "修改目录名和 SKILL.md 内容，保存时会自动完成重命名与写入。"}
-            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 min-h-0 flex flex-col">

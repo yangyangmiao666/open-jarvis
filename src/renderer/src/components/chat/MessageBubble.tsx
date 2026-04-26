@@ -112,8 +112,8 @@ export function MessageBubble({
     >
       <div
         className={cn(
-          "flex w-full max-w-[88%] gap-3",
-          isUser ? "flex-row-reverse" : "flex-row",
+          "flex w-full max-w-[90%] gap-3",
+          isUser ? "ml-auto flex-row-reverse" : "mr-auto flex-row",
         )}
       >
         <div className="w-10 shrink-0 pt-0.5">
@@ -184,10 +184,9 @@ export function MessageBubble({
           <div className="space-y-2">
             <div
               className={cn(
-                "overflow-hidden rounded-[22px] border p-4",
                 isUser
-                  ? "border-primary/14 bg-primary/[0.08]"
-                  : "border-border/75 bg-card/96 backdrop-blur-sm",
+                  ? "ml-auto w-fit max-w-full overflow-hidden rounded-[22px] border border-primary/14 bg-primary/[0.08] p-4"
+                  : "pt-0.5",
               )}
             >
               {content}

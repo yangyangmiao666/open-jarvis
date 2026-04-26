@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, Cable, Copy, Layers3 } from "lucide-react";
+import { Plus, Trash2, Pencil, Cable, Copy, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -69,6 +68,17 @@ export function MCPConfigDialog({
   const [argsText, setArgsText] = useState("");
   const [importJson, setImportJson] = useState("");
   const [status, setStatus] = useState<string | null>(null);
+  const [serverSearch, setServerSearch] = useState("");
+
+  const filteredServers = useMemo(
+    () =>
+      serverSearch.trim()
+        ? servers.filter((s) =>
+            s.name.toLowerCase().includes(serverSearch.toLowerCase()),
+          )
+        : servers,
+    [servers, serverSearch],
+  );
 
   const enabledIdSet = useMemo(
     () => new Set(enabledMcpServerIds),
@@ -162,25 +172,16 @@ export function MCPConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-5xl flex flex-col">
-        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_18%,transparent),transparent_44%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-6 pr-14 sm:px-7">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-                <Cable className="size-3.5" />
-                MCP Workspace
-              </div>
-              <DialogTitle className="mt-4 text-[1.75rem] tracking-[-0.04em]">
-                MCP 配置
-              </DialogTitle>
-              <DialogDescription className="mt-3 max-w-2xl text-sm leading-6">
-                管理全局 MCP server 列表，并配置所有会话默认启用的工具能力。
-              </DialogDescription>
+      <DialogContent className="max-h-[90vh] max-w-5xl flex flex-col pb-2 sm:pb-2">
+        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_18%,transparent),transparent_44%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-4 pr-14 sm:px-7">
+          <div className="flex items-center gap-3">
+            <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+              <Cable className="size-3.5" />
+              MCP Workspace
             </div>
-            <div className="hidden shrink-0 items-center gap-2 rounded-[22px] border border-border/70 bg-background/55 px-4 py-3 text-xs text-muted-foreground backdrop-blur-sm md:flex">
-              <Layers3 className="size-4 text-primary" />
-              分区更清晰，操作更集中
-            </div>
+            <DialogTitle className="text-xl tracking-[-0.03em]">
+              MCP 配置
+            </DialogTitle>
           </div>
         </DialogHeader>
 
@@ -268,20 +269,28 @@ export function MCPConfigDialog({
             <div className="flex items-center justify-between gap-2">
               <div>
                 <div className="text-sm font-medium">全局 Server 列表</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  首版运行时优先支持 stdio；远程 transport 先保存配置，暂不连接。
-                </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() => beginEditing(emptyForm())}
-              >
-                <Plus className="size-4" />
-                添加
-              </Button>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={serverSearch}
+                    onChange={(e) => setServerSearch(e.target.value)}
+                    placeholder="搜索..."
+                    className="h-8 w-36 rounded-xl pl-8 text-xs"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => beginEditing(emptyForm())}
+                >
+                  <Plus className="size-4" />
+                  添加
+                </Button>
+              </div>
             </div>
 
             {editing && (
@@ -412,12 +421,12 @@ export function MCPConfigDialog({
 
             <ScrollArea className="flex-1 rounded-md border border-border min-h-[240px]">
               <div className="p-2 space-y-1">
-                {servers.length === 0 && !editing && (
+                {filteredServers.length === 0 && !editing && (
                   <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-                    暂无 MCP server 配置
+                    {serverSearch.trim() ? "无匹配结果" : "暂无 MCP server 配置"}
                   </p>
                 )}
-                {servers.map((server) => (
+                {filteredServers.map((server) => (
                   <div
                     key={server.id}
                     className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-muted/40"

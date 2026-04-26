@@ -125,6 +125,50 @@ const defaultStreamData: StreamData = {
   stream: null,
 };
 
+function tokenUsageStorageKey(threadId: string): string {
+  return `openwork-thread-${threadId}-token-usage`;
+}
+
+function loadPersistedTokenUsage(threadId: string): TokenUsage | null {
+  try {
+    const raw = localStorage.getItem(tokenUsageStorageKey(threadId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+      cacheReadTokens?: number;
+      cacheCreationTokens?: number;
+      lastUpdated?: string;
+    };
+    if (typeof parsed.inputTokens !== "number") return null;
+    return {
+      inputTokens: parsed.inputTokens,
+      outputTokens: parsed.outputTokens ?? 0,
+      totalTokens: parsed.totalTokens ?? 0,
+      cacheReadTokens: parsed.cacheReadTokens,
+      cacheCreationTokens: parsed.cacheCreationTokens,
+      lastUpdated: parsed.lastUpdated ? new Date(parsed.lastUpdated) : new Date(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistTokenUsage(threadId: string, usage: TokenUsage): void {
+  try {
+    localStorage.setItem(
+      tokenUsageStorageKey(threadId),
+      JSON.stringify({
+        ...usage,
+        lastUpdated: usage.lastUpdated.toISOString(),
+      }),
+    );
+  } catch {
+    // Ignore localStorage failures (quota/private mode)
+  }
+}
+
 const ThreadContext = createContext<ThreadContextValue | null>(null);
 
 // Custom event types from the stream
@@ -245,6 +289,14 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
   // Stream data store (not React state - we use subscriptions)
   const streamDataRef = useRef<Record<string, StreamData>>({});
   const streamSubscribersRef = useRef<Record<string, Set<() => void>>>({});
+
+  useEffect(() => {
+    for (const [threadId, state] of Object.entries(threadStates)) {
+      if (state.tokenUsage) {
+        persistTokenUsage(threadId, state.tokenUsage);
+      }
+    }
+  }, [threadStates]);
 
   // Notify subscribers for a thread
   const notifyStreamSubscribers = useCallback((threadId: string) => {
@@ -789,7 +841,13 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
 
       setThreadStates((prev) => {
         if (prev[threadId]) return prev;
-        return { ...prev, [threadId]: createDefaultThreadState() };
+        return {
+          ...prev,
+          [threadId]: {
+            ...createDefaultThreadState(),
+            tokenUsage: loadPersistedTokenUsage(threadId),
+          },
+        };
       });
 
       loadThreadHistory(threadId);

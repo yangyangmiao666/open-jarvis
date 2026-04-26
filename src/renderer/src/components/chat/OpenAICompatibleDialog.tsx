@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Pencil, Boxes, Sparkles, Layers3 } from "lucide-react";
+import { Plus, Trash2, Pencil, Boxes, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -71,24 +70,15 @@ export function OpenAICompatibleDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-5xl flex flex-col overflow-hidden">
-        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_18%,transparent),transparent_44%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-6 pr-14 sm:px-7">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-                <Boxes className="size-3.5" />
-                Models Workspace
-              </div>
-              <DialogTitle className="mt-4 text-[1.75rem] tracking-[-0.04em]">
-                自定义模型配置
-              </DialogTitle>
-              <DialogDescription className="mt-3 max-w-2xl text-sm leading-6">
-                维护 OpenAI Compatible 接入配置，包括本地网关、代理服务和私有部署模型。保存后模型切换器会自动刷新。
-              </DialogDescription>
+        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_18%,transparent),transparent_44%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-4 pr-14 sm:px-7">
+          <div className="flex items-center gap-3">
+            <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+              <Boxes className="size-3.5" />
+              Models Workspace
             </div>
-            <div className="hidden shrink-0 items-center gap-2 rounded-[22px] border border-border/70 bg-background/55 px-4 py-3 text-xs text-muted-foreground backdrop-blur-sm md:flex">
-              <Layers3 className="size-4 text-primary" />
-              分区更清晰，操作更集中
-            </div>
+            <DialogTitle className="text-xl tracking-[-0.03em]">
+              自定义模型配置
+            </DialogTitle>
           </div>
         </DialogHeader>
 

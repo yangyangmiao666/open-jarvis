@@ -41,7 +41,7 @@ const COLLAPSE_THRESHOLD = 55; // px - auto-collapse when below this
 interface SectionHeaderProps {
   title: string;
   icon: React.ElementType;
-  badge?: number;
+  badge?: number | string;
   isOpen: boolean;
   onToggle: () => void;
 }
@@ -67,7 +67,7 @@ function SectionHeader({
       />
       <Icon className="size-4 text-foreground/80" />
       <span className="flex-1 text-left">{title}</span>
-      {badge !== undefined && badge > 0 && (
+      {badge !== undefined && badge !== 0 && badge !== "" && (
         <span className="rounded-full border border-border/70 bg-background/55 px-2 py-0.5 text-[10px] text-muted-foreground tabular-nums">
           {badge}
         </span>
@@ -368,7 +368,7 @@ export function RightPanel(): React.JSX.Element {
         <SectionHeader
           title="文件"
           icon={FolderTree}
-          badge={workspaceFiles.length}
+          badge={workspaceFiles.length > 0 ? `${workspaceFiles.length}个文件` : undefined}
           isOpen={filesOpen}
           onToggle={() => setFilesOpen((prev) => !prev)}
         />

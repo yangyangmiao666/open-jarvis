@@ -107,13 +107,7 @@ export function ChatContainer({
     activeItem?.scrollIntoView({ block: "nearest" });
   }, [mentionActiveIndex, mentionOpen]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>,
-  ): void => {
-    const v = e.target.value;
-    setInput(v);
-    if (composingRef.current) return;
-    const pos = e.target.selectionStart ?? v.length;
+  const parseMentionAtCursor = (v: string, pos: number): void => {
     let i = pos - 1;
     while (i >= 0 && v[i] !== "@" && v[i] !== "\n") {
       i--;
@@ -134,6 +128,16 @@ export function ChatContainer({
     mentionStartRef.current = i;
     setMentionQuery(afterAt);
     setMentionOpen(true);
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ): void => {
+    const v = e.target.value;
+    setInput(v);
+    if (composingRef.current) return;
+    const pos = e.target.selectionStart ?? v.length;
+    parseMentionAtCursor(v, pos);
   };
 
   const pickMention = (path: string): void => {
@@ -649,6 +653,8 @@ export function ChatContainer({
                 }}
                 onCompositionEnd={() => {
                   composingRef.current = false;
+                  const ta = inputRef.current;
+                  if (ta) parseMentionAtCursor(ta.value, ta.selectionStart ?? ta.value.length);
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"
