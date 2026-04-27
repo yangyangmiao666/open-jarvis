@@ -53,9 +53,18 @@ bun run dev
 |---------------------|--------------------------|
 | `bun run dev`       | electron-vite 开发模式（热更新）  |
 | `bun run build`     | 类型检查 + 打包到 `out/`        |
+| `bun run package:dir` | 生成本机可运行应用目录到 `release/` |
+| `bun run dist`      | 生成发行包；macOS 默认输出 `.dmg` 安装包 |
 | `bun run start`     | 预览已构建产物                  |
 | `bun run typecheck` | 主进程 + 渲染进程 TypeScript 检查 |
 | `bun run lint`      | ESLint                   |
+
+安装包构建说明：
+
+- `bun run package:dir`：生成未安装版应用，便于本机直接验包。
+- `bun run dist`：按当前平台生成发行包；在 macOS 上会输出 `.dmg` 与 `.zip` 到 `release/`。
+- `bun run dist:mac`、`bun run dist:win`、`bun run dist:linux`：分别生成各平台目标。
+- 当前脚本默认关闭了本地自动签名发现，方便先完成 unsigned 本地打包；如需正式签名与 notarization，可在 CI 或发布机上按证书环境变量覆盖。
 
 ## 项目结构（精简）
 
