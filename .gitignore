@@ -47,7 +47,9 @@ coverage/
 
 # Misc
 *.local
+resources/tooling/
 
 .eslintcache
 bun.lock
 
+verify_sandbox_temp

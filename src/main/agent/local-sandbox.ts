@@ -24,6 +24,7 @@ import {
   type SandboxBackendProtocolV2,
 } from "deepagents";
 import { decodeTextBuffer } from "../text-encoding";
+import { getEmbeddedToolingRuntime } from "../tooling";
 
 /** Match deepagents FilesystemBackend formatting (read tool UX). */
 const EMPTY_CONTENT_WARNING =
@@ -233,6 +234,10 @@ function needsJavaScriptWorkspaceRuntime(command: string): boolean {
   return JS_COMMAND_PATTERN.test(command);
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
 /**
  * Options for LocalSandbox configuration.
  */
@@ -281,6 +286,7 @@ export class LocalSandbox
   private readonly maxOutputBytes: number;
   private readonly env: Record<string, string>;
   private readonly workingDir: string;
+  private readonly embeddedTooling = getEmbeddedToolingRuntime();
 
   constructor(options: LocalSandboxOptions = {}) {
     super({
@@ -307,28 +313,55 @@ export class LocalSandbox
   private buildWorkspaceRuntimeCommand(command: string): string {
     const prelude: string[] = ['export PATH="$PWD/node_modules/.bin:$PATH"'];
 
-    if (needsPythonWorkspaceRuntime(command)) {
+    const requiresPython = needsPythonWorkspaceRuntime(command);
+    const requiresJavaScript = needsJavaScriptWorkspaceRuntime(command);
+
+    if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
       prelude.push(
-        "if ! command -v uv >/dev/null 2>&1; then",
-        "  printf '%s\\n' 'Error: uv is required for Python commands so Jarvis can use a workspace-local .venv. Install uv on this machine, then retry.' >&2",
-        "  printf '%s\\n' 'Suggested macOS command: brew install uv' >&2",
-        "  exit 127",
-        "fi",
-        'if [ ! -x "$PWD/.venv/bin/python" ]; then',
-        '  uv venv "$PWD/.venv" >/dev/null',
-        "fi",
-        'export VIRTUAL_ENV="$PWD/.venv"',
-        'export PATH="$VIRTUAL_ENV/bin:$PATH"',
+        `export OPEN_JARVIS_TOOLING_ROOT=${shellQuote(this.embeddedTooling.rootDir)}`,
+        `export OPEN_JARVIS_TOOLING_BIN=${shellQuote(this.embeddedTooling.binDir)}`,
+        `export OPEN_JARVIS_UV=${shellQuote(this.embeddedTooling.uvPath)}`,
+        `export OPEN_JARVIS_BUN=${shellQuote(this.embeddedTooling.bunPath)}`,
+        `export OPEN_JARVIS_PYTHON=${shellQuote(this.embeddedTooling.pythonPath)}`,
+        `export UV_PYTHON_INSTALL_DIR=${shellQuote(this.embeddedTooling.pythonInstallDir)}`,
+        'export UV_NO_PROGRESS="true"',
       );
     }
 
-    if (needsJavaScriptWorkspaceRuntime(command)) {
+    if (requiresPython) {
+      if (!this.embeddedTooling) {
+        prelude.push(
+          "printf '%s\\n' 'Error: embedded Python tooling is not available. Run the packaging flow that prepares bundled tooling first.' >&2",
+          "exit 127",
+        );
+      } else {
       prelude.push(
-        "if ! command -v bun >/dev/null 2>&1; then",
-        "  printf '%s\\n' 'Error: bun is required for JS/TS commands so Jarvis can use workspace-local tooling. Install bun on this machine, then retry.' >&2",
-        "  printf '%s\\n' 'Suggested macOS command: brew install bun' >&2",
+        'if [ ! -x "$OPEN_JARVIS_UV" ] || [ ! -x "$OPEN_JARVIS_PYTHON" ]; then',
+        "  printf '%s\\n' 'Error: embedded uv/python runtime is incomplete in this app package.' >&2",
         "  exit 127",
         "fi",
+        'if [ ! -x "$PWD/.venv/bin/python" ]; then',
+        '  "$OPEN_JARVIS_UV" venv "$PWD/.venv" --python "$OPEN_JARVIS_PYTHON" >/dev/null',
+        "fi",
+        'export VIRTUAL_ENV="$PWD/.venv"',
+        'export PATH="$VIRTUAL_ENV/bin:$OPEN_JARVIS_TOOLING_BIN:$PATH"',
+      );
+      }
+    }
+
+    if (requiresJavaScript) {
+      if (!this.embeddedTooling) {
+        prelude.push(
+          "printf '%s\\n' 'Error: embedded JavaScript tooling is not available. Run the packaging flow that prepares bundled tooling first.' >&2",
+          "exit 127",
+        );
+      } else {
+      prelude.push(
+        'if [ ! -x "$OPEN_JARVIS_BUN" ]; then',
+        "  printf '%s\\n' 'Error: embedded bun runtime is incomplete in this app package.' >&2",
+        "  exit 127",
+        "fi",
+        'export PATH="$OPEN_JARVIS_TOOLING_BIN:$PATH"',
         "npm() {",
         '  case "${1-}" in',
         '    install|i) shift; bun install "$@" ;;',
@@ -367,8 +400,9 @@ export class LocalSandbox
         "  fi",
         "}",
         'tsx() { bun "$@"; }',
-        'ts-node() { bun "$@"; }',
+        "alias ts-node='bun'",
       );
+      }
     }
 
     prelude.push(command);

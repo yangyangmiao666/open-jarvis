@@ -64,6 +64,7 @@ bun run dev
 - `bun run package:dir`：生成未安装版应用，便于本机直接验包。
 - `bun run dist`：按当前平台生成发行包；在 macOS 上会输出 `.dmg` 与 `.zip` 到 `release/`。
 - `bun run dist:mac`、`bun run dist:win`、`bun run dist:linux`：分别生成各平台目标。
+- 打包前会联网下载并嵌入固定版本的 `uv 0.11.7`、`bun 1.3.13` 与内置 Python 运行时，终端用户机器无需预装这些环境即可由智能体在工作区创建 `.venv` 并执行 Python / JS 命令。
 - 当前脚本默认关闭了本地自动签名发现，方便先完成 unsigned 本地打包；如需正式签名与 notarization，可在 CI 或发布机上按证书环境变量覆盖。
 
 ## 项目结构（精简）
