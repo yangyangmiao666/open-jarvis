@@ -92,6 +92,9 @@ interface CustomAPI {
       path: string | null,
     ) => Promise<string | null>;
     select: (threadId?: string) => Promise<string | null>;
+    openCurrentFolder: (
+      threadId?: string,
+    ) => Promise<{ success: boolean; error?: string }>;
     loadFromDisk: (threadId: string) => Promise<{
       success: boolean;
       files: Array<{

@@ -637,6 +637,19 @@ function FilesContent(): React.JSX.Element {
     console.warn("[FilesContent] syncToDisk is not yet implemented");
   }
 
+  async function handleOpenWorkspaceFolder(): Promise<void> {
+    if (!workspacePath) return;
+
+    try {
+      const result = await window.api.workspace.openCurrentFolder(currentThreadId ?? undefined);
+      if (!result.success) {
+        console.error("[FilesContent] Open workspace folder error:", result.error);
+      }
+    } catch (e) {
+      console.error("[FilesContent] Open workspace folder error:", e);
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header with sync button */}
@@ -677,6 +690,17 @@ function FilesContent(): React.JSX.Element {
             </button>
           </div>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleOpenWorkspaceFolder}
+          disabled={!workspacePath}
+          className="h-7 rounded-full px-2 text-[10px]"
+          title={workspacePath ? `打开 ${workspacePath}` : "暂无工作区文件夹可打开"}
+        >
+          <FolderOpen className="size-3" />
+          <span className="ml-1">打开</span>
+        </Button>
         <Button
           variant="ghost"
           size="sm"

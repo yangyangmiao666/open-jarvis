@@ -1,4 +1,4 @@
-import { IpcMain, dialog, app } from "electron";
+import { IpcMain, dialog, app, shell } from "electron";
 import Store from "electron-store";
 import * as fs from "fs/promises";
 import * as path from "path";
@@ -9,6 +9,7 @@ import type {
   SetApiKeyParams,
   WorkspaceSetParams,
   WorkspaceLoadParams,
+  WorkspaceOpenFolderParams,
   WorkspaceFileParams,
   OpenAICompatibleProfile,
 } from "../types";
@@ -392,6 +393,32 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
     return selectedPath;
   });
 
+  ipcMain.handle(
+    "workspace:openCurrentFolder",
+    async (_event, { threadId }: WorkspaceOpenFolderParams = {}) => {
+      const workspacePath = threadId
+        ? await ipcRendererWorkspaceGet(threadId)
+        : (store.get("workspacePath", null) as string | null);
+
+      if (!workspacePath) {
+        return {
+          success: false,
+          error: "No workspace configured",
+        };
+      }
+
+      const errorMessage = await shell.openPath(workspacePath);
+      if (errorMessage) {
+        return {
+          success: false,
+          error: errorMessage,
+        };
+      }
+
+      return { success: true };
+    },
+  );
+
   // Load files from disk into the workspace view
   ipcMain.handle(
     "workspace:loadFromDisk",
@@ -614,4 +641,19 @@ export { getApiKey } from "../storage";
 
 export function getDefaultModel(): string {
   return store.get("defaultModel", "claude-sonnet-4-5-20250929") as string;
+}
+
+async function ipcRendererWorkspaceGet(threadId?: string): Promise<string | null> {
+  if (!threadId) {
+    return store.get("workspacePath", null) as string | null;
+  }
+
+  const { getThread } = await import("../db");
+  const thread = getThread(threadId);
+  if (!thread?.metadata) {
+    return store.get("workspacePath", null) as string | null;
+  }
+
+  const metadata = JSON.parse(thread.metadata);
+  return metadata.workspacePath || (store.get("workspacePath", null) as string | null);
 }

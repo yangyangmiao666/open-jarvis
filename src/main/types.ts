@@ -45,6 +45,10 @@ export interface WorkspaceLoadParams {
   threadId: string;
 }
 
+export interface WorkspaceOpenFolderParams {
+  threadId?: string;
+}
+
 export interface WorkspaceFileParams {
   threadId: string;
   filePath: string;

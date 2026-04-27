@@ -20,7 +20,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAppStore } from "@/lib/store";
-import { useThreadStream, useCurrentThread } from "@/lib/thread-context";
+import {
+  useThreadStream,
+  useCurrentThread,
+  useThreadState,
+} from "@/lib/thread-context";
 import { cn, formatRelativeTime, truncate } from "@/lib/utils";
 import {
   ContextMenu,
@@ -184,6 +188,7 @@ export function ThreadSidebar({
     updateThread,
     setShowKanbanView,
   } = useAppStore();
+  const currentThread = useThreadState(currentThreadId);
 
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -212,6 +217,16 @@ export function ThreadSidebar({
   };
 
   const handleNewThread = async (): Promise<void> => {
+    if (
+      currentThreadId &&
+      currentThread &&
+      currentThread.messages.length === 0 &&
+      currentThread.draftInput.trim().length === 0
+    ) {
+      await selectThread(currentThreadId);
+      return;
+    }
+
     await createThread({ title: `新会话 ${new Date().toLocaleDateString()}` });
   };
 

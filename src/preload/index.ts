@@ -227,6 +227,11 @@ const api = {
     select: (threadId?: string): Promise<string | null> => {
       return ipcRenderer.invoke("workspace:select", threadId);
     },
+    openCurrentFolder: (
+      threadId?: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke("workspace:openCurrentFolder", { threadId });
+    },
     loadFromDisk: (
       threadId: string,
     ): Promise<{
