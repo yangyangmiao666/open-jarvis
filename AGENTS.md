@@ -8,7 +8,7 @@
 - 主进程：TypeScript，负责窗口、IPC、线程数据、模型与工作区文件访问、嵌入式工具链解析。
 - 智能体运行时：deepagents `createDeepAgent` + LangGraph；每个线程使用独立的 `SqlJsSaver` 检查点。
 - 渲染层：React 19 + Tailwind CSS 4 + Radix UI + Zustand。
-- 状态分层：全局 UI 与线程列表在 `store.ts`；线程内消息、草稿、文件、todo、subagent、审批态在 `thread-context.tsx`。
+- 状态分层：全局 UI 与线程列表在 `store.ts`；线程内消息、草稿、文件、todo、subagent、审批态、token usage 在 `thread-context.tsx`。
 - 包管理与脚本：统一使用 Bun，根目录 `packageManager` 固定为 `bun@1.3.13`。
 
 ## 2. 顶层目录
@@ -28,7 +28,7 @@
 - `src/main/index.ts`
 	- 创建 BrowserWindow，处理 macOS `trafficLightPosition` 与首屏最大化。
 	- 初始化数据库 `initializeDatabase()`。
-	- 注册全部 IPC：agent / threads / models(workspace) / mcp / skills。
+	- 注册全部 IPC：approval / agent / threads / models(workspace) / mcp / skills。
 	- 退出前调用 `closeAllRuntimeResources()`，清理 agent 与 MCP 连接。
 
 ### 3.2 Agent 运行时
@@ -49,7 +49,8 @@
 
 - `src/main/agent/mcp-runtime.ts`
 	- 管理 MCP 连接与工具包装。
-	- 目前主要围绕 stdio 传输；改工具命名或连接生命周期时先看这里。
+	- 支持 `stdio`、`streamable_http`、`sse` 三种传输；远程连接支持自定义 headers。
+	- 连接缓存按 `server.id + 配置签名` 维度失效；改工具命名、传输配置或连接生命周期时先看这里。
 
 ### 3.3 线程、存储与配置
 
@@ -61,6 +62,10 @@
 
 - `src/main/storage.ts`
 	- `.openwork` 目录、API Key、线程 checkpoint 路径等持久化入口。
+
+- `src/main/approval-settings.ts`
+	- 线程审批模式读写，以及工作区 `.open-jarvis/approval-rules.json` 规则匹配。
+	- `createApprovalSignature()` 对工具参数做归一化，避免命令细节波动导致规则失配。
 
 - `src/main/mcp-config.ts`
 	- MCP server 配置 CRUD、导入导出、线程启用状态。
@@ -92,6 +97,10 @@
 	- `agent:invoke`、`agent:resume`、`agent:interrupt`、`agent:cancel`。
 	- 对话流、HITL 审批与取消都从这里进主进程。
 
+- `src/main/ipc/approval.ts`
+	- `approval:getMode`、`approval:setMode`、`approval:shouldAutoApprove`。
+	- 审批模式切换与工作区自动批准判断都从这里进主进程。
+
 - `src/main/ipc/threads.ts`
 	- 线程列表、读取、创建、更新、批量删除、历史、标题生成。
 
@@ -115,6 +124,7 @@
 - `src/preload/index.d.ts`
 	- `window.api` 的类型契约。
 	- 任何新增 IPC 或方法签名变更，都必须同步这里，否则渲染层类型会漂移。
+	- 当前 `approval`、`mcp`、`workspace`、`skills` 都已经是独立契约面，不要只改实现不改声明。
 
 ## 5. 渲染层地图
 
@@ -133,12 +143,14 @@
 - `src/renderer/src/lib/store.ts`
 	- 全局 Zustand store。
 	- 保存线程列表、当前线程 id、模型列表、provider 列表、设置弹窗状态、看板开关等。
-	- `createThread()` 会继承当前线程的 `model` 和 `workspacePath`。
+	- `createThread()` 会继承当前线程的 `model`、`workspacePath`、`approvalMode`。
+	- 删除最后一个线程时会立刻补一个新线程，避免 `currentThreadId === null` 造成工作区相关状态悬空。
 
 - `src/renderer/src/lib/thread-context.tsx`
-	- 线程内状态源：`messages`、`draftInput`、`todos`、`workspaceFiles`、`workspacePath`、`subagents`、`pendingApproval`、`currentModel` 等。
+	- 线程内状态源：`messages`、`draftInput`、`todos`、`workspaceFiles`、`workspacePath`、`subagents`、`pendingApproval`、`currentModel`、`tokenUsage` 等。
 	- `ThreadProvider` 为每个活跃线程挂接 `useStream()`。
-	- 新线程默认状态是消息空数组、草稿空字符串、无工作区文件。
+	- 新线程默认状态是消息空数组、草稿空字符串、无工作区文件、审批模式 `manual`。
+	- token usage 会落到 localStorage，用于上下文窗口监控。
 
 ### 5.3 左侧会话栏
 
@@ -158,12 +170,17 @@
 
 - `src/renderer/src/components/chat/ToolCallRenderer.tsx`
 	- 工具调用卡片与结果展示。
+	- 待审批工具会显示专门的状态与批准/拒绝/编辑交互。
 
 - `src/renderer/src/components/chat/StreamingMarkdown.tsx`
 	- 流式 Markdown 展示。
 
 - `src/renderer/src/components/chat/ThinkAwareMarkdown.tsx`
 	- 对 reasoning / think 类内容做额外展示处理。
+
+- `src/renderer/src/components/chat/ContextUsageIndicator.tsx`
+	- 显示输入 / 输出 / 缓存 token 使用量与模型上下文窗口占比。
+	- 模型上限采用内置近似值；若改模型清单，最好同步这里。
 
 - `src/renderer/src/components/chat/ModelSwitcher.tsx`
 	- 当前线程模型切换。
@@ -181,6 +198,7 @@
 	- 每段高度可拖拽。
 	- 文件区头部负责工作区路径显示、树/列表切换、关联/更换/同步按钮。
 	- 当前还新增了“打开”按钮，可直接打开当前工作区文件夹。
+	- 面板本身不决定数据，只消费 `thread-context` 中的 `todos` / `workspaceFiles` / `subagents`。
 
 - `src/renderer/src/components/panels/WorkspaceFileListTable.tsx`
 	- 文件列表视图，带排序、列宽持久化、目录展开。
@@ -257,6 +275,7 @@
 - 文本文件读取必须走 `workspace:readFile` 或 `LocalSandbox`，两者都应使用 `decodeTextBuffer()`。
 - 二进制文件走 `workspace:readBinaryFile`。
 - 当前工作区文件夹可通过 `workspace:openCurrentFolder` 在系统文件管理器中打开。
+- 工作区审批规则存放在 `.open-jarvis/approval-rules.json`，不要把这类规则误写到 `.openwork`。
 
 ## 7. 嵌入式工具链
 
@@ -286,6 +305,7 @@
 1. 先看 `src/renderer/src/components/sidebar/ThreadSidebar.tsx`。
 2. 再看 `src/renderer/src/lib/store.ts` 的 `createThread()` 是否需要继承更多 metadata。
 3. 只有涉及持久化字段时再下探 `src/main/ipc/threads.ts` 与 `src/main/db`。
+4. 若删线程后出现“无工作区”之类回归，优先核对 `deleteThreads()` 的兜底新线程逻辑。
 
 ### 9.3 改工作区文件面板
 
@@ -299,6 +319,24 @@
 1. Agent 行为优先看 `src/main/agent/runtime.ts` 与 `system-prompt.ts`。
 2. 本地文件沙箱与编码问题看 `local-sandbox.ts` 与 `text-encoding.ts`。
 3. 嵌入式 bun / uv / Python 相关问题看 `tooling.ts` 与 `prepare-embedded-tooling.mjs`。
+
+### 9.5 改审批 / HITL 行为
+
+1. 线程级模式切换先看 `src/main/ipc/approval.ts` 与 `src/main/approval-settings.ts`。
+2. UI 交互先看 `src/renderer/src/components/chat/ToolCallRenderer.tsx` 与对话区底部审批栏。
+3. 若要记住“以后自动批准”，必须同步确认工作区规则文件 `.open-jarvis/approval-rules.json` 的写入逻辑。
+
+### 9.6 改 MCP 配置或连接方式
+
+1. CRUD 与导入导出先看 `src/main/ipc/mcp.ts`、`src/main/mcp-config.ts`。
+2. 传输实现与缓存失效看 `src/main/agent/mcp-runtime.ts`。
+3. 渲染层入口在 `src/renderer/src/components/chat/MCPConfigDialog.tsx`。
+
+### 9.7 改上下文窗口 / token 统计
+
+1. UI 展示在 `src/renderer/src/components/chat/ContextUsageIndicator.tsx`。
+2. 事件汇总与传递在 `src/renderer/src/lib/electron-transport.ts`。
+3. 每线程持久化与消费在 `src/renderer/src/lib/thread-context.tsx`。
 
 ## 10. 验证命令
 
@@ -316,6 +354,8 @@ bun run package:dir
 bun run package:mac
 bun run dist
 bun run dist:mac
+bun run dist:win
+bun run dist:linux
 ```
 
 提交前最少建议执行：
