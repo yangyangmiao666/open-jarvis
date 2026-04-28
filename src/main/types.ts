@@ -120,6 +120,7 @@ export interface MCPServerConfig {
   command: string;
   args: string[];
   env: Record<string, string>;
+  headers: Record<string, string>;
   cwd: string;
   url: string;
   enabled: boolean;
@@ -130,6 +131,7 @@ export interface MCPImportedServerInput {
   command?: string;
   args?: unknown;
   env?: unknown;
+  headers?: unknown;
   cwd?: string;
   url?: string;
   transport?: string;

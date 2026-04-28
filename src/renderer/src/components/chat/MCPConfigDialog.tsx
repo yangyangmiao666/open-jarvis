@@ -29,6 +29,7 @@ const emptyForm = (): Omit<MCPServerConfig, "id"> & { id?: string } => ({
   command: "",
   args: [],
   env: {},
+  headers: {},
   cwd: "",
   url: "",
   enabled: true,
@@ -65,6 +66,7 @@ export function MCPConfigDialog({
     (Omit<MCPServerConfig, "id"> & { id?: string }) | null
   >(null);
   const [envText, setEnvText] = useState("");
+  const [headersText, setHeadersText] = useState("");
   const [argsText, setArgsText] = useState("");
   const [importJson, setImportJson] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export function MCPConfigDialog({
   ): void => {
     setEditing(next);
     setEnvText(stringifyEnv(next.env));
+    setHeadersText(stringifyEnv(next.headers));
     setArgsText(next.args.join("\n"));
   };
 
@@ -120,6 +123,7 @@ export function MCPConfigDialog({
     const payload = {
       ...editing,
       env: parseEnv(envText),
+      headers: parseEnv(headersText),
       args: argsText
         .split("\n")
         .map((arg) => arg.trim())
@@ -381,19 +385,33 @@ export function MCPConfigDialog({
                     </div>
                   </>
                 ) : (
-                  <div className="space-y-1">
-                    <label htmlFor="mcp-url" className="text-sm font-medium">
-                      服务地址
-                    </label>
-                    <Input
-                      id="mcp-url"
-                      value={editing.url}
-                      onChange={(event) =>
-                        setEditing({ ...editing, url: event.target.value })
-                      }
-                      placeholder="例如：https://mcp.example.com"
-                    />
-                  </div>
+                  <>
+                    <div className="space-y-1">
+                      <label htmlFor="mcp-url" className="text-sm font-medium">
+                        服务地址
+                      </label>
+                      <Input
+                        id="mcp-url"
+                        value={editing.url}
+                        onChange={(event) =>
+                          setEditing({ ...editing, url: event.target.value })
+                        }
+                        placeholder="例如：https://mcp.example.com"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium">请求头</label>
+                      <textarea
+                        value={headersText}
+                        onChange={(event) => setHeadersText(event.target.value)}
+                        placeholder="每行一个 Header=Value"
+                        className={textAreaClassName}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        例如：x-browser-use-api-key=bu_xxx
+                      </p>
+                    </div>
+                  </>
                 )}
 
                 <div className="flex items-center justify-between gap-2">

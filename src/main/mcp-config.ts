@@ -37,6 +37,19 @@ function normalizeEnv(value: unknown): Record<string, string> {
   );
 }
 
+function normalizeHeaders(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      key,
+      String(entry ?? ""),
+    ]),
+  );
+}
+
 export function normalizeMCPServerConfig(
   config: Omit<MCPServerConfig, "id"> & { id?: string },
 ): MCPServerConfig {
@@ -51,6 +64,9 @@ export function normalizeMCPServerConfig(
     args: config.args.map((arg) => arg.trim()).filter((arg) => arg.length > 0),
     env: Object.fromEntries(
       Object.entries(config.env).filter(([key]) => key.trim().length > 0),
+    ),
+    headers: Object.fromEntries(
+      Object.entries(config.headers).filter(([key]) => key.trim().length > 0),
     ),
     cwd: config.cwd.trim(),
     url: config.url.trim(),
@@ -81,6 +97,7 @@ export function getMCPServers(): MCPServerConfig[] {
       ...item,
       args: normalizeArgs(item.args),
       env: normalizeEnv(item.env),
+      headers: normalizeHeaders(item.headers),
     }),
   );
 }
@@ -127,6 +144,7 @@ export function exportMCPServers(): { mcpServers: Record<string, unknown> } {
         if (server.cwd) entry.cwd = server.cwd;
       } else {
         entry.url = server.url;
+        if (Object.keys(server.headers).length > 0) entry.headers = server.headers;
       }
 
       return [server.name, entry];
@@ -164,6 +182,7 @@ export function importMCPServersFromJson(json: string): MCPImportResult {
         command: typeof value?.command === "string" ? value.command : "",
         args: normalizeArgs(value?.args),
         env: normalizeEnv(value?.env),
+        headers: normalizeHeaders(value?.headers),
         cwd: typeof value?.cwd === "string" ? value.cwd : "",
         url: typeof value?.url === "string" ? value.url : "",
         enabled: true,
