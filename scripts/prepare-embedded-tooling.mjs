@@ -3,12 +3,17 @@ import {
   cpSync,
   createWriteStream,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
+  readlinkSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
@@ -178,6 +183,49 @@ function stageDirectory(sourcePath, destinationPath) {
     force: true,
     preserveTimestamps: true,
   });
+}
+
+function rewriteSymlinksToStagedPaths(sourceRootDir, stagedRootDir, currentDir = stagedRootDir) {
+  const sourceRootRealPath = realpathSync(sourceRootDir);
+
+  for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
+    const entryPath = join(currentDir, entry.name);
+    const entryStats = lstatSync(entryPath);
+
+    if (entryStats.isSymbolicLink()) {
+      const resolvedSourceTarget = realpathSync(entryPath);
+      const sourceRelativeTarget = relative(sourceRootRealPath, resolvedSourceTarget);
+
+      if (sourceRelativeTarget.startsWith("..")) {
+        throw new Error(
+          `Embedded Python symlink points outside install root: ${entryPath} -> ${readlinkSync(entryPath)}`,
+        );
+      }
+
+      const stagedTargetPath = join(stagedRootDir, sourceRelativeTarget);
+      const targetStats = statSync(stagedTargetPath);
+      const relativeLinkTarget = relative(currentDir, stagedTargetPath) || ".";
+
+      unlinkSync(entryPath);
+      symlinkSync(relativeLinkTarget, entryPath, targetStats.isDirectory() ? "dir" : "file");
+      continue;
+    }
+
+    if (entryStats.isDirectory()) {
+      rewriteSymlinksToStagedPaths(sourceRootDir, stagedRootDir, entryPath);
+    }
+  }
+}
+
+function removeTopLevelSymlinks(rootDir) {
+  for (const entry of readdirSync(rootDir, { withFileTypes: true })) {
+    const entryPath = join(rootDir, entry.name);
+    const entryStats = lstatSync(entryPath);
+
+    if (entryStats.isSymbolicLink()) {
+      unlinkSync(entryPath);
+    }
+  }
 }
 
 function extractTarGz(archivePath, destinationDir) {
@@ -356,6 +404,8 @@ async function main() {
   stageExecutable(uvPath, join(binDir, "uv"));
   stageExecutable(bunPath, join(binDir, "bun"));
   stageDirectory(pythonInstallDir, pythonDir);
+  rewriteSymlinksToStagedPaths(pythonInstallDir, pythonDir);
+  removeTopLevelSymlinks(pythonDir);
 
   const embeddedPythonPath = resolvePythonExecutable(pythonDir);
   const embeddedPythonRelativePath = relative(toolingRoot, embeddedPythonPath);
