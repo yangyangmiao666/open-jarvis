@@ -476,6 +476,27 @@ export class SqlJsSaver extends BaseCheckpointSaver {
     this.saveToDisk();
   }
 
+  async truncateThread(threadId: string, checkpointId: string | null): Promise<void> {
+    await this.initialize();
+    if (!this.db) throw new Error("Database not initialized");
+
+    if (!checkpointId) {
+      await this.deleteThread(threadId);
+      return;
+    }
+
+    this.db.run(
+      `DELETE FROM writes WHERE thread_id = ? AND checkpoint_id > ?`,
+      [threadId, checkpointId],
+    );
+    this.db.run(
+      `DELETE FROM checkpoints WHERE thread_id = ? AND checkpoint_id > ?`,
+      [threadId, checkpointId],
+    );
+
+    this.saveToDisk();
+  }
+
   /**
    * Close the database and save any pending changes
    */

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { User, Cpu, Copy } from "lucide-react";
+import { User, Cpu, Copy, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Message, HITLRequest } from "@/types";
 import { singleMessageToMarkdown } from "@/lib/chat-markdown";
@@ -15,8 +15,10 @@ interface ToolResultInfo {
 interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
+  canResend?: boolean;
   toolResults?: Map<string, ToolResultInfo>;
   pendingApproval?: HITLRequest | null;
+  onResend?: (message: Message) => void | Promise<void>;
   onApprovalDecision?: (
     decision: "approve" | "reject" | "edit",
     options?: { rememberForWorkspace?: boolean },
@@ -26,8 +28,10 @@ interface MessageBubbleProps {
 export function MessageBubble({
   message,
   isStreaming,
+  canResend,
   toolResults,
   pendingApproval,
+  onResend,
   onApprovalDecision,
 }: MessageBubbleProps): React.JSX.Element | null {
   const isUser = message.role === "user";
@@ -115,8 +119,10 @@ export function MessageBubble({
     >
       <div
         className={cn(
-          "flex w-full max-w-[90%] gap-3",
-          isUser ? "ml-auto flex-row-reverse" : "mr-auto flex-row",
+          "flex w-full max-w-[86%] gap-3",
+          isUser
+            ? "ml-auto mr-4 flex-row-reverse sm:mr-8"
+            : "ml-4 mr-auto flex-row sm:ml-8",
         )}
       >
         <div className="w-10 shrink-0 pt-0.5">
@@ -146,16 +152,29 @@ export function MessageBubble({
           >
             {isUser ? (
               <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:text-foreground"
-                  title="复制此条为 Markdown"
-                  onClick={() => void copyAsMarkdown()}
-                >
-                  <Copy className="size-3.5" />
-                </Button>
+                <div className="flex w-0 items-center justify-end gap-1 overflow-hidden opacity-0 transition-all duration-200 group-hover/msg:w-[3.75rem] group-hover/msg:opacity-100">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-foreground"
+                    title="重发此条消息"
+                    disabled={!canResend}
+                    onClick={() => void onResend?.(message)}
+                  >
+                    <RotateCcw className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-foreground"
+                    title="复制此条为 Markdown"
+                    onClick={() => void copyAsMarkdown()}
+                  >
+                    <Copy className="size-3.5" />
+                  </Button>
+                </div>
                 <span className="text-section-header">{getLabel()}</span>
               </>
             ) : (
@@ -173,7 +192,7 @@ export function MessageBubble({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:text-foreground"
+                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:translate-y-0 hover:text-foreground"
                   title="复制此条为 Markdown"
                   onClick={() => void copyAsMarkdown()}
                 >
@@ -188,7 +207,7 @@ export function MessageBubble({
               <div
                 className={cn(
                   isUser
-                    ? "ml-auto w-fit max-w-full overflow-hidden rounded-[22px] border border-primary/14 bg-primary/[0.08] p-4"
+                    ? "ml-auto w-fit max-w-full overflow-hidden rounded-[22px] border border-primary/14 bg-primary/[0.08] px-4 py-3.5"
                     : "pt-0.5",
                 )}
               >

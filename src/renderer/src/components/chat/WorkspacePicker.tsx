@@ -61,7 +61,7 @@ export function WorkspacePicker({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-8 gap-1.5 rounded-full px-3 text-xs",
+            "h-8 gap-1.5 rounded-full px-3 text-xs hover:translate-y-0",
             workspacePath ? "text-foreground" : "text-amber-500",
           )}
           disabled={!threadId}

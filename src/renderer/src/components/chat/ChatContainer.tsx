@@ -73,6 +73,7 @@ export function ChatContainer({
     currentModel,
     draftInput: input,
     workspaceFiles,
+    setMessages,
     setTodos,
     setWorkspaceFiles,
     setWorkspacePath,
@@ -253,6 +254,10 @@ export function ChatContainer({
   }, [isLoading, streamData.messages, loadThreads, appendMessage]);
 
   const displayMessages = useMemo(() => {
+    if (!isLoading) {
+      return threadMessages;
+    }
+
     const threadMessageIds = new Set(threadMessages.map((m) => m.id));
 
     const streamingMsgs: Message[] = (
@@ -282,7 +287,7 @@ export function ChatContainer({
       });
 
     return [...threadMessages, ...streamingMsgs];
-  }, [threadMessages, streamData.messages]);
+  }, [isLoading, threadMessages, streamData.messages]);
 
   const streamingAssistantIds = useMemo(() => {
     if (!isLoading) return new Set<string>();
@@ -384,68 +389,154 @@ export function ChatContainer({
     inputRef.current?.focus();
   }, [threadId]);
 
+  const extractMessageText = useCallback((message: Message): string => {
+    if (typeof message.content === "string") {
+      return message.content.trim();
+    }
+
+    return message.content
+      .filter((block) => block.type === "text" && block.text)
+      .map((block) => block.text?.trim() ?? "")
+      .filter(Boolean)
+      .join("\n\n");
+  }, []);
+
+  const submitUserMessage = useCallback(
+    async (messageText: string): Promise<void> => {
+      if (!messageText.trim() || isLoading || !stream) return;
+
+      if (!workspacePath) {
+        setError("发送消息前请先选择工作区文件夹。");
+        return;
+      }
+
+      if (threadError) {
+        clearError();
+      }
+
+      if (pendingApproval) {
+        setPendingApproval(null);
+      }
+
+      setInput("");
+
+      const isFirstMessage = threadMessages.length === 0;
+
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: messageText,
+        created_at: new Date(),
+      };
+      appendMessage(userMessage);
+
+      if (isFirstMessage) {
+        const currentThread = threads.find((t) => t.thread_id === threadId);
+        const hasDefaultTitle =
+          Boolean(currentThread?.title?.startsWith("Thread ")) ||
+          Boolean(currentThread?.title?.startsWith("新会话 "));
+        if (hasDefaultTitle) {
+          generateTitleForFirstMessage(threadId, messageText);
+        }
+      }
+
+      await stream.submit(
+        {
+          messages: [{ type: "human", content: messageText }],
+        },
+        {
+          config: {
+            configurable: {
+              thread_id: threadId,
+              model_id: currentModel,
+              ...(referencedPaths.length > 0
+                ? { referenced_paths: referencedPaths }
+                : {}),
+            },
+          },
+        },
+      );
+      setReferencedPaths([]);
+    },
+    [
+      appendMessage,
+      clearError,
+      currentModel,
+      generateTitleForFirstMessage,
+      isLoading,
+      pendingApproval,
+      referencedPaths,
+      setError,
+      setInput,
+      setPendingApproval,
+      stream,
+      threadError,
+      threadId,
+      threadMessages.length,
+      threads,
+      workspacePath,
+    ],
+  );
+
   const handleDismissError = (): void => {
     clearError();
   };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !stream) return;
-
-    if (!workspacePath) {
-      setError("发送消息前请先选择工作区文件夹。");
-      return;
-    }
-
-    if (threadError) {
-      clearError();
-    }
-
-    if (pendingApproval) {
-      setPendingApproval(null);
-    }
-
-    const message = input.trim();
-    setInput("");
-
-    const isFirstMessage = threadMessages.length === 0;
-
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: message,
-      created_at: new Date(),
-    };
-    appendMessage(userMessage);
-
-    if (isFirstMessage) {
-      const currentThread = threads.find((t) => t.thread_id === threadId);
-      const hasDefaultTitle =
-        Boolean(currentThread?.title?.startsWith("Thread ")) ||
-        Boolean(currentThread?.title?.startsWith("新会话 "));
-      if (hasDefaultTitle) {
-        generateTitleForFirstMessage(threadId, message);
-      }
-    }
-
-    await stream.submit(
-      {
-        messages: [{ type: "human", content: message }],
-      },
-      {
-        config: {
-          configurable: {
-            thread_id: threadId,
-            model_id: currentModel,
-            ...(referencedPaths.length > 0
-              ? { referenced_paths: referencedPaths }
-              : {}),
-          },
-        },
-      },
-    );
-    setReferencedPaths([]);
+    await submitUserMessage(input.trim());
   };
+
+  const handleResendMessage = useCallback(
+    async (message: Message): Promise<void> => {
+      if (message.role !== "user" || isLoading) return;
+
+      const messageText = extractMessageText(message);
+      if (!messageText) return;
+
+      const rewindIndex = threadMessages.findIndex((item) => item.id === message.id);
+      if (rewindIndex === -1) {
+        setError("未找到要重发的消息。请切换会话后重试。");
+        return;
+      }
+
+      const userMessageOrdinal = threadMessages
+        .slice(0, rewindIndex + 1)
+        .filter((item) => item.role === "user").length - 1;
+
+      if (userMessageOrdinal < 0) {
+        setError("未找到可回滚的用户消息。请稍后重试。");
+        return;
+      }
+
+      try {
+        await window.api.threads.rewindToMessage(
+          threadId,
+          userMessageOrdinal,
+          messageText,
+        );
+        setMessages(threadMessages.slice(0, rewindIndex));
+        setReferencedPaths([]);
+        setPendingApproval(null);
+        clearError();
+        await submitUserMessage(messageText);
+      } catch (error) {
+        console.error("[ChatContainer] Failed to resend message:", error);
+        setError("重发消息失败，请稍后再试。");
+      }
+    },
+    [
+      clearError,
+      extractMessageText,
+      isLoading,
+      setError,
+      setMessages,
+      setPendingApproval,
+      submitUserMessage,
+      threadId,
+      threadMessages,
+    ],
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (mentionOpen && mentionCandidates.length > 0) {
@@ -520,15 +611,35 @@ export function ChatContainer({
         <div className="px-4 py-5">
           <div className="mx-auto max-w-3xl space-y-4">
             {displayMessages.length === 0 && !isLoading && (
-              <div className="app-flat-surface animate-scale-in mx-auto flex max-w-xl flex-col items-center justify-center gap-4 rounded-[28px] px-8 py-14 text-center text-muted-foreground">
-                <div className="text-section-header">新会话</div>
+              <div className="app-flat-surface animate-scale-in relative mx-auto flex max-w-2xl flex-col items-center justify-center overflow-hidden rounded-[32px] px-8 py-14 text-center text-muted-foreground">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--primary)_16%,transparent),transparent_42%),linear-gradient(135deg,color-mix(in_srgb,var(--card)_92%,transparent),color-mix(in_srgb,var(--background-elevated)_84%,transparent))]" />
+                <div className="pointer-events-none absolute -right-16 top-8 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+                <div className="pointer-events-none absolute -left-12 bottom-2 h-28 w-28 rounded-full bg-accent/10 blur-3xl" />
+                <div className="relative flex flex-col items-center gap-4">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase backdrop-blur-sm">
+                    <span className="size-1.5 rounded-full bg-primary" />
+                    新会话
+                  </div>
                 {workspacePath ? (
                   <>
-                    <div className="text-xl font-semibold tracking-[-0.03em] text-foreground">
-                      开始与 Jarvis 协作
+                    <div className="space-y-3">
+                      <div className="text-2xl font-semibold tracking-[-0.04em] text-foreground sm:text-[2rem]">
+                        从这个工作区开始推进一个明确结果
+                      </div>
+                      <div className="mx-auto max-w-xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+                        你已经连接了工作区，Jarvis 现在可以直接阅读代码、修改文件、执行命令，并把过程整理成可追踪的结果。
+                      </div>
                     </div>
-                    <div className="text-sm leading-6 text-muted-foreground">
-                      当前会话已经绑定工作区，可以直接提问、要求修改文件，或让智能体执行操作。
+                    <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+                      <span className="rounded-full border border-border/70 bg-background/65 px-3 py-1.5 backdrop-blur-sm">
+                        当前目录: {workspacePath.split("/").pop()}
+                      </span>
+                      <span className="rounded-full border border-border/70 bg-background/65 px-3 py-1.5 backdrop-blur-sm">
+                        试试: “梳理这个模块”
+                      </span>
+                      <span className="rounded-full border border-border/70 bg-background/65 px-3 py-1.5 backdrop-blur-sm">
+                        或者: “帮我改并验证”
+                      </span>
                     </div>
                   </>
                 ) : (
@@ -551,6 +662,7 @@ export function ChatContainer({
                     </button>
                   </div>
                 )}
+                </div>
               </div>
             )}
 
@@ -559,8 +671,10 @@ export function ChatContainer({
                 key={message.id}
                 message={message}
                 isStreaming={streamingAssistantIds.has(message.id)}
+                canResend={!isLoading && message.role === "user"}
                 toolResults={toolResults}
                 pendingApproval={pendingApproval}
+                onResend={handleResendMessage}
                 onApprovalDecision={handleApprovalDecision}
               />
             ))}
@@ -770,7 +884,7 @@ export function ChatContainer({
                 type="button"
                 variant={approvalMode === "auto" ? "nominal" : "outline"}
                 size="sm"
-                className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs"
+                className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs hover:translate-y-0"
                 onClick={() => void handleApprovalModeToggle()}
                 title={
                   approvalMode === "auto"
@@ -790,7 +904,7 @@ export function ChatContainer({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs text-muted-foreground"
+                className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs text-muted-foreground hover:translate-y-0"
                 disabled={displayMessages.length === 0}
                 onClick={() => void copyConversationMarkdown()}
                 title="复制当前会话全部消息为 Markdown（含工具调用与结果）"
@@ -798,10 +912,11 @@ export function ChatContainer({
                 <Copy className="size-3.5" />
                 复制 Markdown
               </Button>
+              <div className="h-4 w-px shrink-0 bg-border" />
               <ContextUsageIndicator
                 tokenUsage={tokenUsage}
                 modelId={currentModel}
-                className="ml-auto shrink-0 rounded-full border border-border/70 bg-card/70 px-3 py-1 backdrop-blur-sm"
+                className="shrink-0 rounded-full border border-border/70 bg-card/70 px-3 py-1 backdrop-blur-sm"
               />
             </div>
           </div>

@@ -41,6 +41,12 @@ export interface ThreadUpdateParams {
   updates: Partial<Thread>;
 }
 
+export interface ThreadRewindParams {
+  threadId: string;
+  userMessageOrdinal: number;
+  messageText: string;
+}
+
 // Workspace IPC
 export interface WorkspaceSetParams {
   threadId?: string;

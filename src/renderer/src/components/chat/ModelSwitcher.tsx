@@ -150,7 +150,7 @@ export function ModelSwitcher({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 rounded-full px-3 text-xs text-muted-foreground hover:text-foreground"
+            className="h-8 gap-1.5 rounded-full px-3 text-xs text-muted-foreground hover:translate-y-0 hover:text-foreground"
           >
             {selectedModel ? (
               <>

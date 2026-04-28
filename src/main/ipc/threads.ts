@@ -10,7 +10,67 @@ import {
 import { getCheckpointer, closeCheckpointer } from "../agent/runtime";
 import { deleteThreadCheckpoint } from "../storage";
 import { generateTitle } from "../services/title-generator";
-import type { Thread, ThreadUpdateParams } from "../types";
+import type { Message, Thread, ThreadRewindParams, ThreadUpdateParams } from "../types";
+
+function extractMessageText(message: Message): string {
+  if (typeof message.content === "string") {
+    return message.content.trim();
+  }
+
+  return message.content
+    .filter((block) => block.type === "text" && block.text)
+    .map((block) => block.text?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function extractCheckpointMessages(checkpoint: unknown): Message[] {
+  const channelValues = (checkpoint as {
+    checkpoint?: {
+      channel_values?: {
+        messages?: Array<{
+          id?: string;
+          _getType?: () => string;
+          type?: string;
+          content?: string | unknown[];
+          tool_calls?: unknown[];
+          tool_call_id?: string;
+          name?: string;
+        }>;
+      };
+    };
+  }).checkpoint?.channel_values;
+
+  if (!Array.isArray(channelValues?.messages)) {
+    return [];
+  }
+
+  return channelValues.messages.map((msg, index) => {
+    let role: Message["role"] = "assistant";
+    const resolvedType =
+      typeof msg._getType === "function" ? msg._getType() : msg.type;
+
+    if (resolvedType === "human") role = "user";
+    else if (resolvedType === "tool") role = "tool";
+    else if (resolvedType === "system") role = "system";
+
+    return {
+      id: msg.id || `msg-${index}`,
+      role,
+      content:
+        typeof msg.content === "string"
+          ? msg.content
+          : Array.isArray(msg.content)
+            ? (msg.content as Message["content"])
+            : "",
+      tool_calls: msg.tool_calls as Message["tool_calls"],
+      ...(role === "tool" &&
+        msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
+      ...(role === "tool" && msg.name && { name: msg.name }),
+      created_at: new Date(),
+    };
+  });
+}
 
 export function registerThreadHandlers(ipcMain: IpcMain): void {
   // List all threads
@@ -148,6 +208,56 @@ export function registerThreadHandlers(ipcMain: IpcMain): void {
       return [];
     }
   });
+
+  ipcMain.handle(
+    "threads:rewindToMessage",
+    async (_event, { threadId, userMessageOrdinal, messageText }: ThreadRewindParams) => {
+      const checkpointer = await getCheckpointer(threadId);
+
+      const checkpoints: Array<{
+        config?: { configurable?: { checkpoint_id?: string } };
+        checkpoint?: unknown;
+      }> = [];
+      for await (const checkpoint of checkpointer.list(
+        { configurable: { thread_id: threadId } },
+        { limit: 200 },
+      )) {
+        checkpoints.push(checkpoint as typeof checkpoints[number]);
+      }
+
+      if (checkpoints.length === 0) {
+        throw new Error("Thread history is empty");
+      }
+
+      let keepCheckpointId: string | null = null;
+      let foundTarget = false;
+      const normalizedTargetText = messageText.trim();
+
+      for (const checkpoint of checkpoints.reverse()) {
+        const messages = extractCheckpointMessages(checkpoint);
+        const userMessages = messages.filter((message) => message.role === "user");
+        const candidate = userMessages[userMessageOrdinal];
+
+        if (
+          candidate &&
+          extractMessageText(candidate) === normalizedTargetText
+        ) {
+          foundTarget = true;
+          break;
+        }
+        keepCheckpointId = checkpoint.config?.configurable?.checkpoint_id ?? null;
+      }
+
+      if (!foundTarget) {
+        throw new Error("Target message not found in thread history");
+      }
+
+      await checkpointer.truncateThread(threadId, keepCheckpointId);
+      await checkpointer.flush();
+
+      return { success: true, checkpointId: keepCheckpointId };
+    },
+  );
 
   // Generate a title from a message
   ipcMain.handle("threads:generateTitle", async (_event, message: string) => {

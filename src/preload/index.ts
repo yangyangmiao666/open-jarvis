@@ -145,6 +145,17 @@ const api = {
     getHistory: (threadId: string): Promise<unknown[]> => {
       return ipcRenderer.invoke("threads:history", threadId);
     },
+    rewindToMessage: (
+      threadId: string,
+      userMessageOrdinal: number,
+      messageText: string,
+    ): Promise<{ success: boolean; checkpointId: string | null }> => {
+      return ipcRenderer.invoke("threads:rewindToMessage", {
+        threadId,
+        userMessageOrdinal,
+        messageText,
+      });
+    },
     generateTitle: (message: string): Promise<string> => {
       return ipcRenderer.invoke("threads:generateTitle", message);
     },

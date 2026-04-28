@@ -152,20 +152,64 @@ export const useAppStore = create<AppState>((set, get) => ({
   deleteThreads: async (threadIds: string[]) => {
     if (threadIds.length === 0) return;
     const idSet = new Set(threadIds);
+    const previousState = get();
+    const currentThreadId = previousState.currentThreadId;
+    let replacementMetadata: Record<string, unknown> | undefined;
+
+    if (currentThreadId) {
+      try {
+        const currentThread = await window.api.threads.get(currentThreadId);
+        const metadata = currentThread?.metadata;
+        if (metadata) {
+          replacementMetadata = {
+            ...(typeof metadata.model === "string"
+              ? { model: metadata.model }
+              : {}),
+            ...(typeof metadata.workspacePath === "string"
+              ? { workspacePath: metadata.workspacePath }
+              : {}),
+            ...(metadata.approvalMode === "manual" ||
+            metadata.approvalMode === "auto"
+              ? { approvalMode: metadata.approvalMode }
+              : {}),
+          };
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
     try {
       if (threadIds.length === 1) {
         await window.api.threads.delete(threadIds[0]);
       } else {
         await window.api.threads.deleteMany(threadIds);
       }
-      set((state) => {
-        const threads = state.threads.filter((t) => !idSet.has(t.thread_id));
-        const wasCurrent =
-          state.currentThreadId && idSet.has(state.currentThreadId);
-        const newCurrentId = wasCurrent
-          ? threads[0]?.thread_id || null
-          : state.currentThreadId;
-        return { threads, currentThreadId: newCurrentId };
+
+      const remainingThreads = previousState.threads.filter(
+        (thread) => !idSet.has(thread.thread_id),
+      );
+      const wasCurrent =
+        previousState.currentThreadId && idSet.has(previousState.currentThreadId);
+
+      if (remainingThreads.length === 0) {
+        const replacementThread = await window.api.threads.create({
+          ...replacementMetadata,
+          title: `新会话 ${new Date().toLocaleDateString()}`,
+        });
+        set({
+          threads: [replacementThread],
+          currentThreadId: replacementThread.thread_id,
+          showKanbanView: false,
+        });
+        return;
+      }
+
+      set({
+        threads: remainingThreads,
+        currentThreadId: wasCurrent
+          ? remainingThreads[0]?.thread_id || null
+          : previousState.currentThreadId,
       });
     } catch (error) {
       console.error("[Store] Failed to delete threads:", error);

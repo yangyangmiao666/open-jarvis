@@ -581,7 +581,6 @@ export function ToolCallRenderer({
 
   const formattedContent = renderFormattedContent();
   const formattedResult = renderFormattedResult();
-  const hasFormattedDisplay = formattedContent || formattedResult;
 
   const inlineApprovalButtons =
     Boolean(needsApproval && onApprovalDecision) && showInlineApprovalActions;
@@ -685,17 +684,6 @@ export function ToolCallRenderer({
           )}
         </div>
       ) : null}
-
-      {/* Formatted content (only visible when collapsed AND has result) */}
-      {hasFormattedDisplay &&
-        !isExpanded &&
-        !needsApproval &&
-        result !== undefined && (
-          <div className="border-t border-border px-3 py-2 space-y-2 overflow-hidden">
-            {formattedContent}
-            {formattedResult}
-          </div>
-        )}
 
       {/* Expanded content - raw details */}
       {isExpanded && !needsApproval && (

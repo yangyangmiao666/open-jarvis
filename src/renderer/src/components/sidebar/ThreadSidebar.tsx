@@ -427,7 +427,7 @@ export function ThreadSidebar({
               ? `将永久删除所选的 ${selectedIds.size} 个会话及其消息记录，此操作不可恢复。`
               : "将永久删除该会话及其消息记录，此操作不可恢复。"}
           </p>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:gap-3">
             <Button
               type="button"
               variant="secondary"

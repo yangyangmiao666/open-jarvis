@@ -55,6 +55,11 @@ interface CustomAPI {
     delete: (threadId: string) => Promise<void>;
     deleteMany: (threadIds: string[]) => Promise<void>;
     getHistory: (threadId: string) => Promise<unknown[]>;
+    rewindToMessage: (
+      threadId: string,
+      userMessageOrdinal: number,
+      messageText: string,
+    ) => Promise<{ success: boolean; checkpointId: string | null }>;
     generateTitle: (message: string) => Promise<string>;
   };
   approval: {
