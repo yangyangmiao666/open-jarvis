@@ -15,7 +15,7 @@
     "openwork": "./bin/cli.js",
     "open-jarvis": "./bin/cli.js"
   },
-  "author": "LangChain",
+  "author": "Yang-yang Miao",
   "license": "MIT",
   "homepage": "https://github.com/langchain-ai/openwork",
   "repository": {
@@ -121,8 +121,9 @@
   },
   "packageManager": "bun@1.3.13",
   "build": {
-    "appId": "com.langchain.openjarvis",
+    "appId": "com.ustc.openjarvis",
     "productName": "Open-Jarvis",
+    "copyright": "Copyright © 2026 Yang-yang Miao. All rights reserved.",
     "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "release"

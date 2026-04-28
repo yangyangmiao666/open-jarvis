@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, nativeImage } from "electron";
 import Store from "electron-store";
 import { join } from "path";
 import { closeAllRuntimeResources } from "./agent/runtime";
+import { registerApprovalHandlers } from "./ipc/approval";
 import { registerAgentHandlers } from "./ipc/agent";
 import { registerMCPHandlers } from "./ipc/mcp";
 import { registerThreadHandlers } from "./ipc/threads";
@@ -112,6 +113,7 @@ app.whenReady().then(async () => {
   await initializeDatabase();
 
   // Register IPC handlers
+  registerApprovalHandlers(ipcMain);
   registerAgentHandlers(ipcMain);
   registerThreadHandlers(ipcMain);
   registerModelHandlers(ipcMain);

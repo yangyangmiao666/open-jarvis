@@ -119,6 +119,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           ) {
             merged.workspacePath = prev.workspacePath;
           }
+          if (
+            merged.approvalMode === undefined &&
+            (prev.approvalMode === "manual" || prev.approvalMode === "auto")
+          ) {
+            merged.approvalMode = prev.approvalMode;
+          }
         }
       } catch {
         /* ignore */

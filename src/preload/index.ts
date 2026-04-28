@@ -1,9 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
+  ApprovalMode,
   Thread,
   ModelConfig,
   Provider,
   StreamEvent,
+  HITLRequest,
   HITLDecision,
   MCPImportResult,
   MCPServerConfig,
@@ -145,6 +147,26 @@ const api = {
     },
     generateTitle: (message: string): Promise<string> => {
       return ipcRenderer.invoke("threads:generateTitle", message);
+    },
+  },
+  approval: {
+    getMode: (threadId: string): Promise<ApprovalMode> => {
+      return ipcRenderer.invoke("approval:getMode", threadId);
+    },
+    setMode: (threadId: string, mode: ApprovalMode): Promise<ApprovalMode> => {
+      return ipcRenderer.invoke("approval:setMode", { threadId, mode });
+    },
+    shouldAutoApprove: (
+      threadId: string,
+      request: HITLRequest,
+    ): Promise<{
+      approved: boolean;
+      reason: "mode" | "workspace-rule" | null;
+    }> => {
+      return ipcRenderer.invoke("approval:shouldAutoApprove", {
+        threadId,
+        request,
+      });
     },
   },
   models: {

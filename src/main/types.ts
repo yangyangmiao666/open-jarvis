@@ -16,7 +16,13 @@ export interface AgentInvokeParams {
 
 export interface AgentResumeParams {
   threadId: string;
-  command: { resume?: { decision?: string } };
+  command: {
+    resume?: {
+      decision?: string;
+      rememberForWorkspace?: boolean;
+      request?: HITLRequest;
+    };
+  };
   modelId?: string;
 }
 
@@ -132,7 +138,16 @@ export interface ThreadMetadata {
   model?: string;
   workspacePath?: string;
   enabledMcpServerIds?: string[];
+  approvalMode?: ApprovalMode;
   [key: string]: unknown;
+}
+
+export type ApprovalMode = "manual" | "auto";
+
+export interface WorkspaceApprovalRule {
+  toolName: string;
+  signature: string;
+  createdAt: string;
 }
 
 // Provider configuration

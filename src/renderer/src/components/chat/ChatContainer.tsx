@@ -7,6 +7,8 @@ import {
   Copy,
   ShieldAlert,
   Check,
+  Shield,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,7 +21,7 @@ import { WorkspacePicker } from "./WorkspacePicker";
 import { selectWorkspaceFolder } from "@/lib/workspace-utils";
 import { ChatTodos } from "./ChatTodos";
 import { ContextUsageIndicator } from "./ContextUsageIndicator";
-import type { Message } from "@/types";
+import type { ApprovalMode, Message } from "@/types";
 import { cn } from "@/lib/utils";
 import { messagesToMarkdown } from "@/lib/chat-markdown";
 
@@ -79,6 +81,8 @@ export function ChatContainer({
     setError,
     clearError,
     setDraftInput: setInput,
+    approvalMode,
+    setApprovalMode,
   } = useCurrentThread(threadId);
 
   // Get the stream data via subscription - reactive updates without re-rendering provider
@@ -159,14 +163,23 @@ export function ChatContainer({
   };
 
   const handleApprovalDecision = useCallback(
-    async (decision: "approve" | "reject" | "edit"): Promise<void> => {
+    async (
+      decision: "approve" | "reject" | "edit",
+      options?: { rememberForWorkspace?: boolean },
+    ): Promise<void> => {
       if (!pendingApproval || !stream) return;
 
       setPendingApproval(null);
 
       try {
         await stream.submit(null, {
-          command: { resume: { decision } },
+          command: {
+            resume: {
+              decision,
+              rememberForWorkspace: options?.rememberForWorkspace,
+              request: pendingApproval,
+            },
+          },
           config: {
             configurable: { thread_id: threadId, model_id: currentModel },
           },
@@ -177,6 +190,15 @@ export function ChatContainer({
     },
     [pendingApproval, setPendingApproval, stream, threadId, currentModel],
   );
+
+  const handleApprovalModeToggle = useCallback(async (): Promise<void> => {
+    const nextMode: ApprovalMode = approvalMode === "auto" ? "manual" : "auto";
+    try {
+      await setApprovalMode(nextMode);
+    } catch (error) {
+      console.error("[ChatContainer] Failed to update approval mode:", error);
+    }
+  }, [approvalMode, setApprovalMode]);
 
   const agentValues = stream?.values as AgentStreamValues | undefined;
   const streamTodos = agentValues?.todos;
@@ -603,10 +625,22 @@ export function ChatContainer({
               </Button>
               <Button
                 type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  void handleApprovalDecision("approve", {
+                    rememberForWorkspace: true,
+                  })
+                }
+              >
+                允许此工作区后续类似命令
+              </Button>
+              <Button
+                type="button"
                 size="sm"
                 onClick={() => void handleApprovalDecision("approve")}
               >
-                批准
+                本次批准
               </Button>
             </div>
           </div>
@@ -654,7 +688,11 @@ export function ChatContainer({
                 onCompositionEnd={() => {
                   composingRef.current = false;
                   const ta = inputRef.current;
-                  if (ta) parseMentionAtCursor(ta.value, ta.selectionStart ?? ta.value.length);
+                  if (ta)
+                    parseMentionAtCursor(
+                      ta.value,
+                      ta.selectionStart ?? ta.value.length,
+                    );
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"
@@ -720,32 +758,50 @@ export function ChatContainer({
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <ModelSwitcher
-                  threadId={threadId}
-                  onOpenSettings={onOpenSettings}
-                />
-                <div className="w-px h-4 bg-border" />
-                <WorkspacePicker threadId={threadId} />
-                <div className="w-px h-4 bg-border" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1 rounded-full px-3 text-xs text-muted-foreground"
-                  disabled={displayMessages.length === 0}
-                  onClick={() => void copyConversationMarkdown()}
-                  title="复制当前会话全部消息为 Markdown（含工具调用与结果）"
-                >
-                  <Copy className="size-3.5" />
-                  复制会话到Markdown
-                </Button>
-              </div>
+            <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <ModelSwitcher
+                threadId={threadId}
+                onOpenSettings={onOpenSettings}
+              />
+              <div className="h-4 w-px shrink-0 bg-border" />
+              <WorkspacePicker threadId={threadId} />
+              <div className="h-4 w-px shrink-0 bg-border" />
+              <Button
+                type="button"
+                variant={approvalMode === "auto" ? "nominal" : "outline"}
+                size="sm"
+                className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs"
+                onClick={() => void handleApprovalModeToggle()}
+                title={
+                  approvalMode === "auto"
+                    ? "当前为自动通过审批，点击切换为人工审批"
+                    : "当前为人工审批，点击切换为自动通过"
+                }
+              >
+                {approvalMode === "auto" ? (
+                  <ShieldCheck className="size-3.5" />
+                ) : (
+                  <Shield className="size-3.5" />
+                )}
+                {approvalMode === "auto" ? "自动审批" : "人工审批"}
+              </Button>
+              <div className="h-4 w-px shrink-0 bg-border" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs text-muted-foreground"
+                disabled={displayMessages.length === 0}
+                onClick={() => void copyConversationMarkdown()}
+                title="复制当前会话全部消息为 Markdown（含工具调用与结果）"
+              >
+                <Copy className="size-3.5" />
+                复制 Markdown
+              </Button>
               <ContextUsageIndicator
                 tokenUsage={tokenUsage}
                 modelId={currentModel}
-                className="rounded-full border border-border/70 bg-card/70 px-3 py-1 backdrop-blur-sm"
+                className="ml-auto shrink-0 rounded-full border border-border/70 bg-card/70 px-3 py-1 backdrop-blur-sm"
               />
             </div>
           </div>

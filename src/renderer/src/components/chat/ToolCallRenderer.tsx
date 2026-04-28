@@ -28,7 +28,10 @@ interface ToolCallRendererProps {
   needsApproval?: boolean;
   /** 为 false 时仍显示「待审批」样式与预览，但不渲染内联按钮（由对话区底部固定栏操作） */
   showInlineApprovalActions?: boolean;
-  onApprovalDecision?: (decision: "approve" | "reject" | "edit") => void;
+  onApprovalDecision?: (
+    decision: "approve" | "reject" | "edit",
+    options?: { rememberForWorkspace?: boolean },
+  ) => void;
 }
 
 const TOOL_ICONS: Record<

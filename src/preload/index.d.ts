@@ -1,8 +1,10 @@
 import type {
+  ApprovalMode,
   Thread,
   ModelConfig,
   Provider,
   StreamEvent,
+  HITLRequest,
   HITLDecision,
   MCPImportResult,
   MCPServerConfig,
@@ -54,6 +56,17 @@ interface CustomAPI {
     deleteMany: (threadIds: string[]) => Promise<void>;
     getHistory: (threadId: string) => Promise<unknown[]>;
     generateTitle: (message: string) => Promise<string>;
+  };
+  approval: {
+    getMode: (threadId: string) => Promise<ApprovalMode>;
+    setMode: (threadId: string, mode: ApprovalMode) => Promise<ApprovalMode>;
+    shouldAutoApprove: (
+      threadId: string,
+      request: HITLRequest,
+    ) => Promise<{
+      approved: boolean;
+      reason: "mode" | "workspace-rule" | null;
+    }>;
   };
   models: {
     list: () => Promise<ModelConfig[]>;

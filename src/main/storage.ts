@@ -1,10 +1,19 @@
-import {homedir} from "os";
-import {join} from "path";
-import {existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync,} from "fs";
-import type {ProviderId} from "./types";
+import { homedir } from "os";
+import { join } from "path";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "fs";
+import type { ProviderId } from "./types";
 
-const OPENWORK_DIR = join(homedir(), ".openwork");
-const ENV_FILE = join(OPENWORK_DIR, ".env");
+const OPEN_JARVIS_DIR = join(homedir(), ".open-jarvis");
+const LEGACY_OPENWORK_DIR = join(homedir(), ".openwork");
+const ENV_FILE = join(OPEN_JARVIS_DIR, ".env");
 
 // Environment variable names for each provider
 const ENV_VAR_NAMES: Record<ProviderId, string> = {
@@ -16,10 +25,19 @@ const ENV_VAR_NAMES: Record<ProviderId, string> = {
 };
 
 export function getOpenworkDir(): string {
-  if (!existsSync(OPENWORK_DIR)) {
-    mkdirSync(OPENWORK_DIR, { recursive: true });
+  if (!existsSync(OPEN_JARVIS_DIR)) {
+    if (existsSync(LEGACY_OPENWORK_DIR)) {
+      try {
+        renameSync(LEGACY_OPENWORK_DIR, OPEN_JARVIS_DIR);
+      } catch {
+        mkdirSync(OPEN_JARVIS_DIR, { recursive: true });
+        cpSync(LEGACY_OPENWORK_DIR, OPEN_JARVIS_DIR, { recursive: true });
+      }
+    } else {
+      mkdirSync(OPEN_JARVIS_DIR, { recursive: true });
+    }
   }
-  return OPENWORK_DIR;
+  return OPEN_JARVIS_DIR;
 }
 
 export function getDbPath(): string {

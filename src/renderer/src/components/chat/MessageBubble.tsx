@@ -17,7 +17,10 @@ interface MessageBubbleProps {
   isStreaming?: boolean;
   toolResults?: Map<string, ToolResultInfo>;
   pendingApproval?: HITLRequest | null;
-  onApprovalDecision?: (decision: "approve" | "reject" | "edit") => void;
+  onApprovalDecision?: (
+    decision: "approve" | "reject" | "edit",
+    options?: { rememberForWorkspace?: boolean },
+  ) => void;
 }
 
 export function MessageBubble({
@@ -135,97 +138,97 @@ export function MessageBubble({
         </div>
 
         <div className="flex-1 min-w-0 space-y-2 overflow-hidden">
-        <div
-          className={cn(
-            "flex items-center gap-2",
-            isUser ? "justify-end" : "justify-between",
-          )}
-        >
-          {isUser ? (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:text-foreground"
-                title="复制此条为 Markdown"
-                onClick={() => void copyAsMarkdown()}
-              >
-                <Copy className="size-3.5" />
-              </Button>
-              <span className="text-section-header">{getLabel()}</span>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              "flex items-center gap-2",
+              isUser ? "justify-end" : "justify-between",
+            )}
+          >
+            {isUser ? (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:text-foreground"
+                  title="复制此条为 Markdown"
+                  onClick={() => void copyAsMarkdown()}
+                >
+                  <Copy className="size-3.5" />
+                </Button>
                 <span className="text-section-header">{getLabel()}</span>
-                {isStreaming && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
-                    <span className="animate-tactical-pulse size-1.5 rounded-full bg-primary" />
-                    Live
-                  </span>
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:text-foreground"
-                title="复制此条为 Markdown"
-                onClick={() => void copyAsMarkdown()}
-              >
-                <Copy className="size-3.5" />
-              </Button>
-            </>
-          )}
-        </div>
-
-        {content && (
-          <div className="space-y-2">
-            <div
-              className={cn(
-                isUser
-                  ? "ml-auto w-fit max-w-full overflow-hidden rounded-[22px] border border-primary/14 bg-primary/[0.08] p-4"
-                  : "pt-0.5",
-              )}
-            >
-              {content}
-            </div>
-            {!isUser && isStreaming && (
-              <div className="inline-flex items-center gap-1.5 pl-1 text-muted-foreground">
-                <span className="message-loading-dot" />
-                <span className="message-loading-dot [animation-delay:120ms]" />
-                <span className="message-loading-dot [animation-delay:240ms]" />
-              </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-section-header">{getLabel()}</span>
+                  {isStreaming && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
+                      <span className="animate-tactical-pulse size-1.5 rounded-full bg-primary" />
+                      Live
+                    </span>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:text-foreground"
+                  title="复制此条为 Markdown"
+                  onClick={() => void copyAsMarkdown()}
+                >
+                  <Copy className="size-3.5" />
+                </Button>
+              </>
             )}
           </div>
-        )}
 
-        {/* Tool calls */}
-        {hasToolCalls && (
-          <div className="space-y-2 overflow-hidden">
-            {message.tool_calls!.map((toolCall, index) => {
-              const result = toolResults?.get(toolCall.id);
-              const pendingId = pendingApproval?.tool_call?.id;
-              const needsApproval = Boolean(
-                pendingId && pendingId === toolCall.id,
-              );
-              return (
-                <ToolCallRenderer
-                  key={`${toolCall.id || `tc-${index}`}-${needsApproval ? "pending" : "done"}`}
-                  toolCall={toolCall}
-                  result={result?.content}
-                  isError={result?.is_error}
-                  needsApproval={needsApproval}
-                  showInlineApprovalActions={!pendingApproval}
-                  onApprovalDecision={
-                    needsApproval ? onApprovalDecision : undefined
-                  }
-                />
-              );
-            })}
-          </div>
-        )}
+          {content && (
+            <div className="space-y-2">
+              <div
+                className={cn(
+                  isUser
+                    ? "ml-auto w-fit max-w-full overflow-hidden rounded-[22px] border border-primary/14 bg-primary/[0.08] p-4"
+                    : "pt-0.5",
+                )}
+              >
+                {content}
+              </div>
+              {!isUser && isStreaming && (
+                <div className="inline-flex items-center gap-1.5 pl-1 text-muted-foreground">
+                  <span className="message-loading-dot" />
+                  <span className="message-loading-dot [animation-delay:120ms]" />
+                  <span className="message-loading-dot [animation-delay:240ms]" />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tool calls */}
+          {hasToolCalls && (
+            <div className="space-y-2 overflow-hidden">
+              {message.tool_calls!.map((toolCall, index) => {
+                const result = toolResults?.get(toolCall.id);
+                const pendingId = pendingApproval?.tool_call?.id;
+                const needsApproval = Boolean(
+                  pendingId && pendingId === toolCall.id,
+                );
+                return (
+                  <ToolCallRenderer
+                    key={`${toolCall.id || `tc-${index}`}-${needsApproval ? "pending" : "done"}`}
+                    toolCall={toolCall}
+                    result={result?.content}
+                    isError={result?.is_error}
+                    needsApproval={needsApproval}
+                    showInlineApprovalActions={!pendingApproval}
+                    onApprovalDecision={
+                      needsApproval ? onApprovalDecision : undefined
+                    }
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

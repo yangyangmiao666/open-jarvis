@@ -13,7 +13,14 @@ import {
 /* eslint-disable react-refresh/only-export-components */
 import { useStream } from "@langchain/langgraph-sdk/react";
 import { ElectronIPCTransport } from "./electron-transport";
-import type { Message, Todo, FileInfo, Subagent, HITLRequest } from "@/types";
+import type {
+  ApprovalMode,
+  Message,
+  Todo,
+  FileInfo,
+  Subagent,
+  HITLRequest,
+} from "@/types";
 import type { DeepAgent } from "../../../main/agent/types";
 
 // Open file tab type
@@ -48,6 +55,7 @@ export interface ThreadState {
   fileContents: Record<string, string>;
   tokenUsage: TokenUsage | null;
   draftInput: string;
+  approvalMode: ApprovalMode;
 }
 
 // Stream instance type
@@ -82,6 +90,7 @@ export interface ThreadActions {
   setActiveTab: (tab: "agent" | string) => void;
   setFileContents: (path: string, content: string) => void;
   setDraftInput: (input: string) => void;
+  setApprovalMode: (mode: ApprovalMode) => Promise<void>;
 }
 
 // Context value
@@ -117,6 +126,7 @@ const createDefaultThreadState = (): ThreadState => ({
   fileContents: {},
   tokenUsage: null,
   draftInput: "",
+  approvalMode: "manual",
 });
 
 const defaultStreamData: StreamData = {
@@ -148,7 +158,9 @@ function loadPersistedTokenUsage(threadId: string): TokenUsage | null {
       totalTokens: parsed.totalTokens ?? 0,
       cacheReadTokens: parsed.cacheReadTokens,
       cacheCreationTokens: parsed.cacheCreationTokens,
-      lastUpdated: parsed.lastUpdated ? new Date(parsed.lastUpdated) : new Date(),
+      lastUpdated: parsed.lastUpdated
+        ? new Date(parsed.lastUpdated)
+        : new Date(),
     };
   } catch {
     return null;
@@ -438,14 +450,48 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       switch (data.type) {
         case "interrupt":
           if (data.request) {
-            console.log(
-              "[ThreadContext] Setting pendingApproval for thread:",
-              threadId,
-              data.request,
-            );
-            updateThreadState(threadId, () => ({
-              pendingApproval: data.request,
-            }));
+            void window.api.approval
+              .shouldAutoApprove(threadId, data.request)
+              .then(async (result) => {
+                if (!result.approved) {
+                  console.log(
+                    "[ThreadContext] Setting pendingApproval for thread:",
+                    threadId,
+                    data.request,
+                  );
+                  updateThreadState(threadId, () => ({
+                    pendingApproval: data.request,
+                  }));
+                  return;
+                }
+
+                const stream = streamDataRef.current[threadId]?.stream;
+                if (!stream) {
+                  updateThreadState(threadId, () => ({
+                    pendingApproval: data.request,
+                  }));
+                  return;
+                }
+
+                await stream.submit(null, {
+                  command: {
+                    resume: {
+                      decision: "approve",
+                      request: data.request,
+                    },
+                  },
+                  config: { configurable: { thread_id: threadId } },
+                });
+              })
+              .catch((error) => {
+                console.error(
+                  "[ThreadContext] Auto-approval check failed:",
+                  error,
+                );
+                updateThreadState(threadId, () => ({
+                  pendingApproval: data.request,
+                }));
+              });
           }
           break;
         case "workspace":
@@ -569,7 +615,9 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         },
         setEnabledMcpServerIds: (serverIds: string[]) => {
           const nextIds = Array.from(
-            new Set(serverIds.map((id) => id.trim()).filter((id) => id.length > 0)),
+            new Set(
+              serverIds.map((id) => id.trim()).filter((id) => id.length > 0),
+            ),
           );
           updateThreadState(threadId, () => ({ enabledMcpServerIds: nextIds }));
           void window.api.mcp.setEnabledForThread(undefined, nextIds);
@@ -657,6 +705,10 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         setDraftInput: (input: string) => {
           updateThreadState(threadId, () => ({ draftInput: input }));
         },
+        setApprovalMode: async (mode: ApprovalMode) => {
+          updateThreadState(threadId, () => ({ approvalMode: mode }));
+          await window.api.approval.setMode(threadId, mode);
+        },
       };
 
       actionsCache.current[threadId] = actions;
@@ -671,11 +723,12 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
 
       // Load global settings and mirror them into the current thread view.
       try {
-        const [workspacePath, currentModel, enabledMcpServerIds] =
+        const [workspacePath, currentModel, enabledMcpServerIds, approvalMode] =
           await Promise.all([
             window.api.workspace.get(),
             window.api.models.getDefault(),
             window.api.mcp.getEnabledForThread(),
+            window.api.approval.getMode(threadId),
           ]);
 
         if (workspacePath) {
@@ -689,6 +742,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         updateThreadState(threadId, () => ({
           currentModel,
           enabledMcpServerIds,
+          approvalMode,
         }));
       } catch (error) {
         console.error("[ThreadContext] Failed to load thread details:", error);

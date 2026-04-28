@@ -4,6 +4,7 @@ import { HumanMessage } from "@langchain/core/messages";
 import { Command } from "@langchain/langgraph";
 import type { StreamMode } from "@langchain/langgraph";
 import { createAgentRuntime } from "../agent/runtime";
+import { rememberWorkspaceApproval } from "../approval-settings";
 import { getThread } from "../db";
 import { getOpenworkDir } from "../storage";
 import type {
@@ -214,6 +215,14 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         // Resume from checkpoint by streaming with Command containing the decision
         // The HITL middleware expects { decisions: [{ type: 'approve' | 'reject' | 'edit' }] }
         const decisionType = command?.resume?.decision || "approve";
+        if (
+          decisionType === "approve" &&
+          command?.resume?.rememberForWorkspace &&
+          workspacePath &&
+          command.resume.request
+        ) {
+          rememberWorkspaceApproval(workspacePath, command.resume.request);
+        }
         const resumeValue = { decisions: [{ type: decisionType }] };
         const stream = await agent.stream(
           new Command({ resume: resumeValue }),
