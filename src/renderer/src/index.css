@@ -71,94 +71,103 @@
   --duration-fast: 140ms;
   --duration-base: 220ms;
   --duration-slow: 360ms;
+
+  /* Editorial typography */
+  --font-sans:
+    "SF Pro Display", "SF Pro Text", "Avenir Next", "Helvetica Neue",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans CJK SC", sans-serif;
+  --font-display:
+    "Iowan Old Style", "Palatino Linotype", "Times New Roman",
+    "Songti SC", "STSong", serif;
 }
 
 /* 深色（默认，由 html.dark 与 initTheme 应用） */
 html.dark,
 :root {
   /* Foundation */
-  --radius: 12px;
-  --background: #202123;
-  --background-elevated: #2a2b32;
-  --background-interactive: #353740;
-  --foreground: #f5f7fb;
+  --radius: 14px;
+  --background: #10141b;
+  --background-elevated: #141a23;
+  --background-interactive: #1b2430;
+  --foreground: #eaf1fb;
 
   /* Borders */
-  --border: #3b3d47;
-  --border-emphasis: #515463;
-  --input: #343742;
-  --ring: #62d4a8;
+  --border: #253243;
+  --border-emphasis: #39506a;
+  --input: #192332;
+  --ring: #65b7ff;
 
   /* Text hierarchy */
-  --muted: #2a2b32;
-  --muted-foreground: #a7acbb;
-  --tertiary-foreground: #7e8496;
+  --muted: #141b25;
+  --muted-foreground: #94a7bf;
+  --tertiary-foreground: #70839a;
 
   /* Semantic mapping for shadcn compatibility */
-  --card: #2b2d36;
-  --card-foreground: #f5f7fb;
-  --popover: #262831;
-  --popover-foreground: #f5f7fb;
-  --primary: #19c37d;
-  --primary-foreground: #04170f;
-  --secondary: #333640;
-  --secondary-foreground: #f5f7fb;
-  --accent: #53b7ff;
-  --accent-foreground: #061827;
-  --destructive: #f97070;
+  --card: #141c27;
+  --card-foreground: #eaf1fb;
+  --popover: #16202c;
+  --popover-foreground: #eaf1fb;
+  --primary: #58b6ff;
+  --primary-foreground: #071522;
+  --secondary: #1c2836;
+  --secondary-foreground: #eaf1fb;
+  --accent: #8b9bff;
+  --accent-foreground: #0c1230;
+  --destructive: #ff7b94;
 
   /* Status colors */
-  --status-critical: #f97070;
-  --status-warning: #ffb84d;
-  --status-nominal: #19c37d;
-  --status-info: #53b7ff;
+  --status-critical: #ff7b94;
+  --status-warning: #ffbf69;
+  --status-nominal: #52c7b8;
+  --status-info: #7bb8ff;
 
   /* Sidebar */
-  --sidebar: #17181c;
-  --sidebar-foreground: #f5f7fb;
-  --sidebar-primary: #19c37d;
-  --sidebar-primary-foreground: #04170f;
-  --sidebar-accent: #23252d;
-  --sidebar-accent-foreground: #f5f7fb;
-  --sidebar-border: #30323b;
-  --sidebar-ring: #19c37d;
+  --sidebar: #101720;
+  --sidebar-foreground: #eaf1fb;
+  --sidebar-primary: #58b6ff;
+  --sidebar-primary-foreground: #071522;
+  --sidebar-accent: #17212d;
+  --sidebar-accent-foreground: #eaf1fb;
+  --sidebar-border: #243243;
+  --sidebar-ring: #58b6ff;
 }
 
 html.light {
-  --background: #f7f7f8;
-  --background-elevated: #ffffff;
-  --background-interactive: #ececf1;
-  --foreground: #1f2330;
-  --border: #d9dce5;
-  --border-emphasis: #c4c9d6;
-  --input: #dde1ea;
-  --ring: #10a37f;
-  --muted: #ececf1;
-  --muted-foreground: #6d7385;
-  --tertiary-foreground: #9298a8;
-  --card: #ffffff;
-  --card-foreground: #1f2330;
-  --popover: #ffffff;
-  --popover-foreground: #1f2330;
-  --primary: #10a37f;
-  --primary-foreground: #f3fffb;
-  --secondary: #ececf1;
-  --secondary-foreground: #1f2330;
-  --accent: #4da6ff;
-  --accent-foreground: #08192d;
-  --destructive: #dc5f5f;
-  --status-critical: #dc5f5f;
-  --status-warning: #d28a2d;
-  --status-nominal: #10a37f;
-  --status-info: #2f8cff;
-  --sidebar: #ececf1;
-  --sidebar-foreground: #1f2330;
-  --sidebar-primary: #10a37f;
-  --sidebar-primary-foreground: #f3fffb;
-  --sidebar-accent: #e4e6ee;
-  --sidebar-accent-foreground: #1f2330;
-  --sidebar-border: #d9dce5;
-  --sidebar-ring: #10a37f;
+  --background: #edf4ff;
+  --background-elevated: #f7fbff;
+  --background-interactive: #ddeafb;
+  --foreground: #162131;
+  --border: #c8d9f0;
+  --border-emphasis: #a9c0e1;
+  --input: #d6e4f8;
+  --ring: #4098ff;
+  --muted: #e5effd;
+  --muted-foreground: #70849e;
+  --tertiary-foreground: #97a8be;
+  --card: #fbfdff;
+  --card-foreground: #162131;
+  --popover: #f8fbff;
+  --popover-foreground: #162131;
+  --primary: #4098ff;
+  --primary-foreground: #f4f9ff;
+  --secondary: #deebfb;
+  --secondary-foreground: #162131;
+  --accent: #6d82ff;
+  --accent-foreground: #f7f8ff;
+  --destructive: #f06a86;
+  --status-critical: #f06a86;
+  --status-warning: #e7ad57;
+  --status-nominal: #39b7aa;
+  --status-info: #4098ff;
+  --sidebar: #dfeafb;
+  --sidebar-foreground: #162131;
+  --sidebar-primary: #4098ff;
+  --sidebar-primary-foreground: #f4f9ff;
+  --sidebar-accent: #edf4ff;
+  --sidebar-accent-foreground: #162131;
+  --sidebar-border: #c5d8f1;
+  --sidebar-ring: #4098ff;
 }
 
 @layer base {
@@ -167,34 +176,42 @@ html.light {
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family:
-      ui-sans-serif,
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "PingFang SC",
-      "Hiragino Sans GB",
-      "Microsoft YaHei",
-      "Noto Sans CJK SC",
-      sans-serif;
+    font-family: var(--font-sans);
     background-image:
       radial-gradient(
-        circle at top left,
-        color-mix(in srgb, var(--primary) 8%, transparent),
-        transparent 28%
+        960px 520px at -8% -10%,
+        color-mix(in srgb, var(--primary) 13%, transparent),
+        transparent 62%
       ),
       radial-gradient(
-        circle at top right,
-        color-mix(in srgb, var(--accent) 7%, transparent),
-        transparent 32%
+        780px 460px at 110% -4%,
+        color-mix(in srgb, var(--accent) 10%, transparent),
+        transparent 66%
+      ),
+      radial-gradient(
+        700px 380px at 50% 112%,
+        color-mix(in srgb, var(--primary) 7%, transparent),
+        transparent 75%
       ),
       linear-gradient(
         180deg,
-        color-mix(in srgb, var(--background-elevated) 72%, transparent),
-        var(--background)
+        color-mix(in srgb, var(--background-elevated) 76%, transparent),
+        color-mix(in srgb, var(--background) 98%, transparent)
+      ),
+      linear-gradient(
+        0deg,
+        color-mix(in srgb, var(--foreground) 2%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--foreground) 2%, transparent) 1px,
+        transparent 1px
       );
+    background-size: auto, auto, auto, auto, 40px 40px, 40px 40px;
     background-attachment: fixed;
     min-height: 100vh;
+    letter-spacing: 0.01em;
   }
 
   pre,
@@ -230,32 +247,57 @@ html.light {
 }
 
 .app-shell {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--background-elevated) 78%, transparent),
-    color-mix(in srgb, var(--background) 96%, transparent)
-  );
+  position: relative;
+  background:
+    radial-gradient(
+      540px 200px at 50% 0%,
+      color-mix(in srgb, var(--foreground) 4%, transparent),
+      transparent 72%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background-elevated) 86%, transparent),
+      color-mix(in srgb, var(--background) 98%, transparent)
+    );
+}
+
+.app-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 2%, transparent),
+      transparent 34%,
+      color-mix(in srgb, var(--primary) 3%, transparent) 100%
+    );
+  opacity: 0.75;
 }
 
 .app-panel {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--card) 96%, transparent),
-    color-mix(in srgb, var(--background-elevated) 94%, transparent)
+    color-mix(in srgb, var(--card) 95%, transparent),
+    color-mix(in srgb, var(--background-elevated) 90%, transparent)
   );
-  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
   box-shadow:
-    0 8px 24px color-mix(in srgb, #000 8%, transparent),
-    inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent);
+    0 18px 52px color-mix(in srgb, #000 10%, transparent),
+    0 1px 0 color-mix(in srgb, #fff 8%, transparent) inset,
+    0 -1px 0 color-mix(in srgb, #000 6%, transparent) inset;
+  backdrop-filter: blur(20px) saturate(112%);
 }
 
 .app-toolbar {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--background-elevated) 92%, transparent),
-    color-mix(in srgb, var(--background) 88%, transparent)
+    color-mix(in srgb, var(--background-elevated) 84%, transparent),
+    color-mix(in srgb, var(--background) 78%, transparent)
   );
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(18px) saturate(108%);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--border) 68%, transparent);
 }
 
 .app-hairline {
@@ -288,19 +330,92 @@ html.light {
 .app-elevated-hover:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 10px 28px color-mix(in srgb, #000 9%, transparent),
-    inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent);
+    0 18px 34px color-mix(in srgb, #000 10%, transparent),
+    0 1px 0 color-mix(in srgb, #fff 10%, transparent) inset;
 }
 
 .app-flat-surface {
-  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
-  background: color-mix(in srgb, var(--card) 88%, transparent);
-  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card) 82%, transparent),
+      color-mix(in srgb, var(--background-elevated) 74%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
+    0 12px 24px color-mix(in srgb, #000 3%, transparent);
+  backdrop-filter: blur(14px) saturate(108%);
+}
+
+.app-tabstrip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  height: 100%;
+  padding: 0.42rem 0.65rem;
+}
+
+.app-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2rem;
+  max-width: 15rem;
+  flex-shrink: 0;
+  padding: 0 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 72%, transparent),
+    color-mix(in srgb, var(--background-elevated) 62%, transparent)
+  );
+  font-size: 0.84rem;
+  line-height: 1;
+  color: color-mix(in srgb, var(--muted-foreground) 94%, transparent);
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-emphasized),
+    border-color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.app-tab:hover {
+  color: var(--foreground);
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--border-emphasis));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background-interactive) 88%, transparent),
+    color-mix(in srgb, var(--card) 82%, transparent)
+  );
+  box-shadow: 0 10px 18px color-mix(in srgb, #000 4%, transparent);
+}
+
+.app-tab-active {
+  color: var(--foreground);
+  border: 1px solid color-mix(in srgb, var(--primary) 56%, var(--border-emphasis));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 98%, transparent),
+    color-mix(in srgb, var(--background-elevated) 94%, transparent)
+  );
+  box-shadow:
+    0 14px 24px color-mix(in srgb, #000 6%, transparent),
+    0 1px 0 color-mix(in srgb, #fff 12%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.app-tab-close:hover {
+  background: color-mix(in srgb, var(--background-interactive) 78%, transparent);
 }
 
 /* Tactical typography utilities */
 .text-section-header {
-  @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground;
+  @apply text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground;
 }
 
 .text-data {
@@ -309,6 +424,11 @@ html.light {
 
 .text-hero-metric {
   @apply text-5xl font-light tracking-tight tabular-nums;
+}
+
+.app-display-title {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
 }
 
 /* Status color utilities */

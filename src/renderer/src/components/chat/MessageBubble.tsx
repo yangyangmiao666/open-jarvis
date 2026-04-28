@@ -1,9 +1,10 @@
 import { useCallback } from "react";
-import { User, Cpu, Copy, RotateCcw } from "lucide-react";
+import { User, Copy, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Message, HITLRequest } from "@/types";
 import { singleMessageToMarkdown } from "@/lib/chat-markdown";
 import { Button } from "@/components/ui/button";
+import { JarvisMark } from "@/components/branding/JarvisMark";
 import { ToolCallRenderer } from "./ToolCallRenderer";
 import { ThinkAwareMarkdown } from "./ThinkAwareMarkdown";
 
@@ -135,10 +136,10 @@ export function MessageBubble({
             </div>
           ) : (
             <div
-              className="flex size-9 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary"
+              className="flex size-9 items-center justify-center rounded-2xl border border-primary/20 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_18%,transparent),color-mix(in_srgb,var(--accent)_10%,transparent))] text-primary shadow-[0_12px_28px_color-mix(in_srgb,var(--primary)_14%,transparent)]"
               title="Jarvis"
             >
-              <Cpu className="size-[15px]" strokeWidth={1.75} />
+              <JarvisMark className="size-[16px]" />
             </div>
           )}
         </div>

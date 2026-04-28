@@ -9,13 +9,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[0_10px_24px_color-mix(in_srgb,var(--primary)_22%,transparent)] hover:-translate-y-0.5 hover:bg-primary/95 hover:shadow-[0_18px_34px_color-mix(in_srgb,var(--primary)_28%,transparent)]",
+          "bg-primary text-primary-foreground shadow-[0_12px_30px_color-mix(in_srgb,var(--primary)_26%,transparent)] hover:-translate-y-0.5 hover:bg-primary/95 hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--primary)_34%,transparent)]",
         destructive:
-          "bg-destructive text-white shadow-[0_10px_24px_color-mix(in_srgb,var(--destructive)_18%,transparent)] hover:-translate-y-0.5 hover:bg-destructive/92",
+          "bg-destructive text-white shadow-[0_12px_28px_color-mix(in_srgb,var(--destructive)_18%,transparent)] hover:-translate-y-0.5 hover:bg-destructive/92",
         outline:
-          "border-border/90 bg-background/30 backdrop-blur-sm hover:-translate-y-0.5 hover:border-border-emphasis hover:bg-background-interactive/80",
+          "border-border/80 bg-card/32 text-foreground/92 backdrop-blur-md shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)] hover:-translate-y-0.5 hover:border-border-emphasis hover:bg-background-interactive/82",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)] hover:-translate-y-0.5 hover:bg-secondary/88",
+          "bg-secondary text-secondary-foreground shadow-[0_10px_24px_color-mix(in_srgb,#000_4%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)] hover:-translate-y-0.5 hover:bg-secondary/88",
         ghost:
           "text-muted-foreground hover:-translate-y-0.5 hover:bg-background-interactive/85 hover:text-foreground",
         link: "border-none px-0 text-primary underline-offset-4 hover:text-primary/80 hover:underline",

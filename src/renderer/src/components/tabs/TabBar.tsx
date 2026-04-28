@@ -39,7 +39,7 @@ export function TabBar({
   return (
     <div
       className={cn(
-        "app-toolbar flex h-11 items-center gap-1 overflow-x-auto px-2 scrollbar-hide",
+        "app-tabstrip overflow-x-auto scrollbar-hide",
         className,
       )}
     >
@@ -47,13 +47,13 @@ export function TabBar({
       <button
         onClick={() => setActiveTab("agent")}
         className={cn(
-          "flex h-9 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-medium transition-all",
+          "app-tab font-medium",
           activeTab === "agent"
-            ? "bg-primary/12 text-primary"
-            : "text-muted-foreground hover:bg-background-interactive hover:text-foreground",
+            ? "app-tab-active"
+            : "",
         )}
       >
-        <Bot className="size-4" />
+        <Bot className={cn("size-4", activeTab === "agent" ? "text-primary" : "text-muted-foreground")} />
         <span>智能体</span>
       </button>
 
@@ -113,10 +113,10 @@ function FileTab({
           onClick={onSelect}
           onMouseDown={handleMouseDown}
           className={cn(
-            "group flex h-9 max-w-[220px] shrink-0 items-center gap-2 rounded-2xl px-3 text-sm transition-all",
+            "app-tab group",
             isActive
-              ? "bg-card text-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border-emphasis)_80%,transparent)]"
-              : "text-muted-foreground hover:bg-background-interactive hover:text-foreground",
+              ? "app-tab-active"
+              : "",
           )}
           title={file.path}
         >
@@ -133,7 +133,7 @@ function FileTab({
               }
             }}
             className={cn(
-              "flex size-5 items-center justify-center rounded-full transition-colors hover:bg-background-interactive",
+              "app-tab-close flex size-5 items-center justify-center rounded-full transition-colors",
               isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}
           >
@@ -163,9 +163,9 @@ function FileIcon({ name }: { name: string }): React.JSX.Element {
     case "css":
     case "scss":
     case "html":
-      return <FileCode className="size-3.5 text-blue-400 shrink-0" />;
+      return <FileCode className="size-3.5 text-primary shrink-0" />;
     case "json":
-      return <FileJson className="size-3.5 text-yellow-500 shrink-0" />;
+      return <FileJson className="size-3.5 text-accent shrink-0" />;
     case "md":
     case "mdx":
     case "txt":

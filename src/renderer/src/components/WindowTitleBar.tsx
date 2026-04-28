@@ -17,7 +17,7 @@ export function WindowTitleBar(): ReactElement {
       {isMac ? (
         <div className="pointer-events-none w-[78px] shrink-0" aria-hidden />
       ) : null}
-      <h1 className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[13px] font-semibold tracking-[-0.02em] text-foreground/90">
+      <h1 className="app-display-title pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[14px] text-foreground/90">
         Open-Jarvis
       </h1>
     </header>

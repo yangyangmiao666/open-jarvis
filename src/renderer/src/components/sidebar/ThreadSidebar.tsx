@@ -7,7 +7,6 @@ import {
   Loader2,
   LayoutGrid,
   AlertCircle,
-  Cpu,
   Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ import {
   useThreadState,
 } from "@/lib/thread-context";
 import { cn, formatRelativeTime, truncate } from "@/lib/utils";
+import { JarvisMark } from "@/components/branding/JarvisMark";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -56,7 +56,6 @@ function ThreadStatusIcon({
 
   return <MessageSquare className="size-4 shrink-0 text-muted-foreground" />;
 }
-
 // Individual thread list item component
 function ThreadListItem({
   thread,
@@ -266,21 +265,29 @@ export function ThreadSidebar({
   };
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-hidden bg-sidebar/94 backdrop-blur-md">
+    <aside className="flex h-full w-full flex-col overflow-hidden bg-sidebar/82 backdrop-blur-xl">
       {/* 品牌区：紧贴标题栏下缘，在「红绿灯区域以下 ~ 本区分割线」之间垂直居中 */}
-      <div className="app-hairline flex min-h-[4.25rem] shrink-0 items-center gap-3 border-b border-sidebar-border/85 px-3 py-3">
+      <div className="app-hairline flex min-h-[4.75rem] shrink-0 items-center gap-3 border-b border-sidebar-border/80 px-3 py-3.5">
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary shadow-[0_16px_30px_color-mix(in_srgb,var(--primary)_12%,transparent)]"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.35rem] border border-primary/22 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_20%,transparent),color-mix(in_srgb,var(--accent)_12%,transparent))] text-primary shadow-[0_18px_38px_color-mix(in_srgb,var(--primary)_15%,transparent)]"
           aria-hidden
         >
-          <Cpu className="size-[22px]" strokeWidth={1.75} />
+          <JarvisMark className="size-[24px]" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-semibold uppercase tracking-wide text-sidebar-foreground">
-            Open-Jarvis
+          <p className="app-display-title truncate text-[1.02rem] leading-none text-sidebar-foreground">
+            Open Jarvis
           </p>
-          <p className="font-mono text-[10px] text-muted-foreground">
-            {__APP_VERSION__}
+          <div className="mt-1 flex items-center gap-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/85">
+              Workspace Agent
+            </p>
+            <p className="font-mono text-[10px] text-muted-foreground/90">
+              v{__APP_VERSION__}
+            </p>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            对话、文件与工具流的统一工作台
           </p>
         </div>
       </div>
@@ -407,6 +414,16 @@ export function ThreadSidebar({
           >
             <Settings className="size-4" />
           </Button>
+        </div>
+        <div className="mt-3 rounded-2xl border border-sidebar-border/70 bg-sidebar-accent/55 px-3 py-3.5">
+          <div className="flex items-baseline gap-2 text-sidebar-foreground/90">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Built by
+            </span>
+            <span className="app-display-title truncate text-[0.88rem] leading-none text-sidebar-foreground">
+              Yang-yang Miao
+            </span>
+          </div>
         </div>
       </div>
 

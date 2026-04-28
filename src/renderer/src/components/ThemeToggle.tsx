@@ -18,7 +18,7 @@ export function ThemeToggle({
       variant="ghost"
       size="icon"
       className={cn(
-        "size-9 shrink-0 rounded-full border border-border/70 bg-background/55 text-muted-foreground backdrop-blur-sm hover:text-foreground",
+        "size-8 shrink-0 rounded-[0.95rem] border border-border/55 bg-card/40 text-muted-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent)] backdrop-blur-md hover:border-border-emphasis hover:bg-card/72 hover:text-foreground",
         className,
       )}
       title={isDark ? "切换为亮色" : "切换为深色"}

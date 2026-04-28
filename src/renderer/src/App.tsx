@@ -106,14 +106,14 @@ function App(): React.JSX.Element {
 
   return (
     <ThreadProvider>
-      <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <div className="app-shell flex h-screen flex-col overflow-hidden bg-background">
         {isDarwin() ? <WindowTitleBar /> : null}
 
         <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
           {/* 左侧栏：与标题栏下缘对齐（红绿灯下方），不再被整行标签条垫高一格 */}
           <div
             style={{ width: leftWidth }}
-            className="flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar"
+            className="flex shrink-0 flex-col overflow-hidden border-r border-border/70 bg-sidebar/85 backdrop-blur-xl"
           >
             <ThreadSidebar onOpenSettings={() => setSettingsOpen(true)} />
           </div>
@@ -121,7 +121,7 @@ function App(): React.JSX.Element {
           <ResizeHandle onDrag={handleLeftResize} />
 
           <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="app-drag-region flex h-9 w-full shrink-0 border-b border-border bg-background">
+            <div className="app-toolbar app-drag-region flex h-10 w-full shrink-0 border-b border-border/70">
               <div className="flex min-w-0 flex-1 items-stretch overflow-hidden">
                 <div className="min-w-0 flex-1 overflow-hidden">
                   {showKanbanView ? (
@@ -130,7 +130,7 @@ function App(): React.JSX.Element {
                     currentThreadId && <TabBar className="h-full border-b-0" />
                   )}
                 </div>
-                <div className="app-no-drag flex shrink-0 items-center border-l border-border/60 pr-2">
+                <div className="app-no-drag flex shrink-0 items-center border-l border-border/50 pr-2 pl-2">
                   <ThemeToggle />
                 </div>
               </div>
@@ -157,7 +157,7 @@ function App(): React.JSX.Element {
                     )}
                   </main>
                   <ResizeHandle onDrag={handleRightResize} />
-                  <div style={{ width: rightWidth }} className="shrink-0">
+                  <div style={{ width: rightWidth }} className="app-panel shrink-0 border-l border-border/60">
                     <RightPanel />
                   </div>
                 </>
