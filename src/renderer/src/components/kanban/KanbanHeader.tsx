@@ -18,24 +18,13 @@ export function KanbanHeader({
   return (
     <div
       className={cn(
-        "flex items-center justify-between px-3 app-no-drag relative overflow-hidden",
+        "app-no-drag relative flex items-center justify-between overflow-hidden border-b border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_84%,transparent),color-mix(in_srgb,var(--background)_40%,transparent))] px-3",
         className,
       )}
     >
-      {/* Scan line effect */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03]">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(0deg, transparent, transparent 2px, currentColor 2px, currentColor 3px)",
-            backgroundSize: "100% 3px",
-          }}
-        />
-      </div>
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-[radial-gradient(circle_at_left,color-mix(in_srgb,var(--primary)_10%,transparent),transparent_70%)]" />
 
-      {/* Left side - Status indicator */}
-      <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+      <div className="relative flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         <div
           className={cn(
             "size-1.5 rounded-full",
@@ -54,7 +43,7 @@ export function KanbanHeader({
         variant={showSubagentsInKanban ? "secondary" : "ghost"}
         size="sm"
         onClick={() => setShowSubagentsInKanban(!showSubagentsInKanban)}
-        className="gap-2 h-7 relative"
+        className="relative h-8 gap-2 rounded-full px-3"
       >
         <Bot className="size-3.5" />
         {showSubagentsInKanban ? "隐藏" : "显示"}子智能体

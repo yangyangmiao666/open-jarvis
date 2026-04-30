@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Pencil, Boxes, Sparkles } from "lucide-react";
+import { Plus, Trash2, Pencil, Boxes, Sparkles, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,7 @@ export function OpenAICompatibleDialog({
   onSaved,
 }: OpenAICompatibleDialogProps): React.JSX.Element {
   const [profiles, setProfiles] = useState<OpenAICompatibleProfile[]>([]);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [editing, setEditing] = useState<
     (Omit<OpenAICompatibleProfile, "id"> & { id?: string }) | null
   >(null);
@@ -48,8 +49,13 @@ export function OpenAICompatibleDialog({
       void load();
 
       setEditing(null);
+      setShowApiKey(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    setShowApiKey(false);
+  }, [editing?.id]);
 
   const handleSave = async (): Promise<void> => {
     if (!editing) return;
@@ -71,7 +77,7 @@ export function OpenAICompatibleDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-5xl flex flex-col overflow-hidden">
-        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_18%,transparent),transparent_44%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-4 pr-14 sm:px-7">
+        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14 sm:px-7">
           <div className="flex items-center gap-3">
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               <Boxes className="size-3.5" />
@@ -107,7 +113,7 @@ export function OpenAICompatibleDialog({
               </Button>
             </div>
 
-            <ScrollArea className="min-h-0 flex-1 rounded-[22px] border border-border/70 bg-background/40">
+            <ScrollArea className="app-subtle-scroll min-h-0 flex-1 rounded-[22px] border border-border/70 bg-background/35">
               <div className="space-y-2 p-3">
                 {profiles.length === 0 && !editing && (
                   <div className="rounded-2xl border border-dashed border-border/70 px-3 py-8 text-center text-xs text-muted-foreground">
@@ -117,7 +123,7 @@ export function OpenAICompatibleDialog({
                 {profiles.map((p) => (
                   <div
                     key={p.id}
-                    className="flex items-center gap-2 rounded-2xl border border-transparent bg-background/55 px-3 py-2 text-xs transition-colors hover:border-border/70 hover:bg-muted/35"
+                    className="flex items-center gap-2 rounded-2xl border border-border/55 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_86%,transparent),color-mix(in_srgb,var(--background-elevated)_76%,transparent))] px-3 py-2 text-xs transition-colors hover:border-primary/20 hover:bg-background-interactive/65"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{p.name || p.model}</div>
@@ -160,7 +166,7 @@ export function OpenAICompatibleDialog({
 
           <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
             <div className="flex items-start gap-3">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background/75 text-primary shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background-elevated/80 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                 <Sparkles className="size-5" />
               </div>
               <div className="min-w-0">
@@ -205,15 +211,33 @@ export function OpenAICompatibleDialog({
                 <label htmlFor="oac-key" className="text-sm font-medium">
                   API 密钥
                 </label>
-                <Input
-                  id="oac-key"
-                  type="password"
-                  value={editing?.apiKey ?? ""}
-                  onChange={(e) =>
-                    setEditing({ ...(editing ?? emptyForm()), apiKey: e.target.value })
-                  }
-                  placeholder="可填占位符，若网关不要求密钥"
-                />
+                <div className="relative">
+                  <Input
+                    id="oac-key"
+                    type={showApiKey ? "text" : "password"}
+                    value={editing?.apiKey ?? ""}
+                    onChange={(e) =>
+                      setEditing({ ...(editing ?? emptyForm()), apiKey: e.target.value })
+                    }
+                    placeholder="可填占位符，若网关不要求密钥"
+                    className="pr-11"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showApiKey ? "隐藏 API 密钥" : "显示 API 密钥"}
+                    onClick={() => setShowApiKey((prev) => !prev)}
+                    className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background-interactive/75 hover:text-foreground"
+                  >
+                    {showApiKey ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  点击右侧按钮可在明文和点状密钥显示之间切换。
+                </p>
               </div>
               <div className="space-y-1">
                 <label htmlFor="oac-model" className="text-sm font-medium">

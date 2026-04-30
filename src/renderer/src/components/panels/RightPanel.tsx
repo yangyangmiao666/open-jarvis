@@ -340,10 +340,10 @@ export function RightPanel(): React.JSX.Element {
   return (
     <aside
       ref={containerRef}
-      className="flex h-full w-full flex-col overflow-hidden border-l border-border/70 bg-sidebar/75 backdrop-blur-md"
+      className="flex h-full w-full flex-col overflow-hidden border-l border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_94%,transparent),color-mix(in_srgb,var(--background)_88%,transparent))] backdrop-blur-md"
     >
       {/* TASKS */}
-      <div className="flex shrink-0 flex-col border-b border-border/65 bg-sidebar/55">
+      <div className="flex shrink-0 flex-col border-b border-border/65 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_76%,transparent),transparent)]">
         <SectionHeader
           title="任务"
           icon={ListTodo}
@@ -364,7 +364,7 @@ export function RightPanel(): React.JSX.Element {
       )}
 
       {/* FILES */}
-      <div className="flex shrink-0 flex-col border-b border-border/65 bg-sidebar/50">
+      <div className="flex shrink-0 flex-col border-b border-border/65 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_68%,transparent),transparent)]">
         <SectionHeader
           title="文件"
           icon={FolderTree}
@@ -383,7 +383,7 @@ export function RightPanel(): React.JSX.Element {
       {filesOpen && agentsOpen && <ResizeHandle onDrag={handleFilesResize} />}
 
       {/* AGENTS */}
-      <div className="flex shrink-0 flex-col bg-sidebar/45">
+      <div className="flex shrink-0 flex-col bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_58%,transparent),transparent)]">
         <SectionHeader
           title="子智能体"
           icon={GitBranch}
@@ -468,7 +468,7 @@ function TasksContent(): React.JSX.Element {
             {done}/{total}
           </span>
         </div>
-        <div className="h-1.5 rounded-full bg-background overflow-hidden">
+        <div className="h-1.5 overflow-hidden rounded-full bg-background-interactive/85">
           <div
             className="h-full bg-status-nominal transition-all duration-300"
             style={{ width: `${progress}%` }}
@@ -653,7 +653,7 @@ function FilesContent(): React.JSX.Element {
   return (
     <div className="flex flex-col h-full">
       {/* Header with sync button */}
-      <div className="flex items-center justify-between gap-1 border-b border-border/50 bg-background/30 px-3 py-2">
+      <div className="flex items-center justify-between gap-1 border-b border-border/50 bg-background/35 px-3 py-2 backdrop-blur-sm">
         <span
           className="text-[10px] text-muted-foreground truncate flex-1"
           title={workspacePath || undefined}
@@ -668,8 +668,8 @@ function FilesContent(): React.JSX.Element {
               className={cn(
                 "px-2 py-1",
                 fileView === "tree"
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/50",
+                  ? "bg-background-elevated text-foreground"
+                  : "text-muted-foreground hover:bg-background-interactive/75",
               )}
               onClick={() => setFileView("tree")}
             >
@@ -681,8 +681,8 @@ function FilesContent(): React.JSX.Element {
               className={cn(
                 "border-l border-border px-2 py-1",
                 fileView === "list"
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/50",
+                  ? "bg-background-elevated text-foreground"
+                  : "text-muted-foreground hover:bg-background-interactive/75",
               )}
               onClick={() => setFileView("list")}
             >
@@ -848,7 +848,7 @@ const FileTreeNode = memo(
         <div
           onClick={handleClick}
           className={cn(
-            "flex items-center gap-1.5 py-1 pr-3 text-xs hover:bg-background-interactive cursor-pointer",
+            "flex cursor-pointer items-center gap-1.5 rounded-lg py-1 pr-3 text-xs hover:bg-background-interactive/78",
           )}
           style={{ paddingLeft }}
         >
@@ -923,9 +923,9 @@ function FileIcon({
 }): React.JSX.Element {
   if (isDir) {
     return isOpen ? (
-      <FolderOpen className="size-3.5 text-amber-500 shrink-0" />
+      <FolderOpen className="size-3.5 shrink-0 text-primary" />
     ) : (
-      <Folder className="size-3.5 text-amber-500 shrink-0" />
+      <Folder className="size-3.5 shrink-0 text-primary" />
     );
   }
 
@@ -936,33 +936,33 @@ function FileIcon({
   switch (ext) {
     case "ts":
     case "tsx":
-      return <FileCode className="size-3.5 text-blue-400 shrink-0" />;
+      return <FileCode className="size-3.5 shrink-0 text-primary" />;
     case "js":
     case "jsx":
-      return <FileCode className="size-3.5 text-yellow-400 shrink-0" />;
+      return <FileCode className="size-3.5 shrink-0 text-foreground/72" />;
     case "json":
-      return <FileJson className="size-3.5 text-yellow-600 shrink-0" />;
+      return <FileJson className="size-3.5 shrink-0 text-foreground/72" />;
     case "md":
     case "mdx":
       return <FileText className="size-3.5 text-muted-foreground shrink-0" />;
     case "py":
-      return <FileCode className="size-3.5 text-green-400 shrink-0" />;
+      return <FileCode className="size-3.5 shrink-0 text-primary/85" />;
     case "css":
     case "scss":
     case "sass":
-      return <FileCode className="size-3.5 text-pink-400 shrink-0" />;
+      return <FileCode className="size-3.5 shrink-0 text-foreground/72" />;
     case "html":
-      return <FileCode className="size-3.5 text-orange-400 shrink-0" />;
+      return <FileCode className="size-3.5 shrink-0 text-foreground/72" />;
     case "svg":
     case "png":
     case "jpg":
     case "jpeg":
     case "gif":
     case "webp":
-      return <Image className="size-3.5 text-purple-400 shrink-0" />;
+      return <Image className="size-3.5 shrink-0 text-primary/80" />;
     case "yml":
     case "yaml":
-      return <FileType className="size-3.5 text-red-400 shrink-0" />;
+      return <FileType className="size-3.5 shrink-0 text-foreground/72" />;
     default:
       return <File className="size-3.5 text-muted-foreground shrink-0" />;
   }
@@ -993,13 +993,16 @@ function AgentsContent(): React.JSX.Element {
   return (
     <div className="p-3 space-y-2">
       {subagents.map((agent) => (
-        <div key={agent.id} className="p-3 rounded-sm border border-border">
+        <div
+          key={agent.id}
+          className="rounded-[18px] border border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_88%,transparent),color-mix(in_srgb,var(--background-elevated)_72%,transparent))] p-3 shadow-[0_6px_16px_color-mix(in_srgb,#000_3%,transparent)]"
+        >
           <div className="flex items-center gap-2 text-sm font-medium">
             <GitBranch className="size-3.5 text-status-info" />
             <span className="flex-1">{agent.name}</span>
             <span
               className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded",
+                "rounded-full px-1.5 py-0.5 text-[10px]",
                 agent.status === "pending" && "bg-muted text-muted-foreground",
                 agent.status === "running" &&
                   "bg-status-info/20 text-status-info",

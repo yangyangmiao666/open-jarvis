@@ -120,8 +120,8 @@ export function KanbanView(): React.JSX.Element {
   ];
 
   return (
-    <div className="flex h-full flex-col bg-background/20">
-      <div className="app-hairline shrink-0 px-4 py-4">
+    <div className="flex h-full flex-col bg-transparent">
+      <div className="app-hairline shrink-0 border-b border-border/50 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_76%,transparent),color-mix(in_srgb,var(--background)_36%,transparent))] px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-section-header">Overview</div>
@@ -129,7 +129,7 @@ export function KanbanView(): React.JSX.Element {
               会话与子智能体总览
             </div>
           </div>
-          <div className="rounded-full border border-border/70 bg-card/70 px-3 py-1 text-xs text-muted-foreground">
+          <div className="rounded-full border border-border/70 bg-background-elevated/80 px-3 py-1 text-xs text-muted-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)]">
             {threads.length} 个会话
           </div>
         </div>

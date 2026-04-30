@@ -2,7 +2,6 @@ import { IpcMain, dialog } from "electron";
 import Store from "electron-store";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { homedir } from "os";
 import { getThread } from "../db";
 import { getSkillSources, setSkillSources } from "../skill-config";
 import { getOpenworkDir } from "../storage";
@@ -32,7 +31,7 @@ function slugifySkillName(raw: string): string | null {
 }
 
 function getGlobalSkillsRoot(): string {
-  return path.join(homedir(), ".deepagents", "skills");
+  return path.join(getOpenworkDir(), "skills");
 }
 
 function getWorkspacePath(threadId?: string): string | null {

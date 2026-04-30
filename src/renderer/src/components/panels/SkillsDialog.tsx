@@ -273,7 +273,7 @@ export function SkillsDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="h-[88vh] max-h-[92vh] w-[min(96vw,88rem)] max-w-[88rem] flex flex-col overflow-hidden pb-2 sm:pb-2">
-          <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_16%,transparent),transparent_42%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-4 pr-14">
+          <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14">
             <div className="flex items-center gap-3">
               <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
                 <WandSparkles className="size-3.5" />
@@ -288,7 +288,7 @@ export function SkillsDialog({
           <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,0.74fr)_minmax(0,1.46fr)]">
             <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
               <div className="flex items-start gap-3">
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background/75 text-primary shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background-elevated/80 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                   <LibraryBig className="size-5" />
                 </div>
                 <div className="min-w-0">
@@ -302,7 +302,7 @@ export function SkillsDialog({
                 </div>
               </div>
 
-              <ScrollArea className="h-40 rounded-[22px] border border-border/70 bg-background/40">
+              <ScrollArea className="app-subtle-scroll h-40 rounded-[22px] border border-border/70 bg-background/35">
                 <div className="space-y-2 p-3">
                   {sources.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-border/70 px-3 py-8 text-center text-xs text-muted-foreground">
@@ -312,7 +312,7 @@ export function SkillsDialog({
                   {sources.map((source) => (
                     <div
                       key={source}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/65 px-3 py-2 text-xs font-mono"
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_86%,transparent),color-mix(in_srgb,var(--background-elevated)_74%,transparent))] px-3 py-2 text-xs font-mono"
                     >
                       <span className="truncate">{source}</span>
                       <Button
@@ -333,7 +333,7 @@ export function SkillsDialog({
                 <Input
                   value={newSource}
                   onChange={(event) => setNewSource(event.target.value)}
-                  placeholder="例如：/.deepagents/skills"
+                  placeholder="例如：~/.open-jarvis/skills"
                   className="text-xs"
                 />
                 <Button
@@ -350,7 +350,7 @@ export function SkillsDialog({
             <section className="app-flat-surface flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-border/70 px-5 py-5">
               <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background/75 text-primary shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background-elevated/80 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                     <FolderTree className="size-5" />
                   </div>
                   <div className="min-w-0">
@@ -429,7 +429,7 @@ export function SkillsDialog({
                 </div>
               </div>
 
-              <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[22px] border border-border/70 bg-background/35 p-3">
+              <div className="app-subtle-scroll mt-3 min-h-0 flex-1 overflow-y-auto rounded-[22px] border border-border/70 bg-background/35 p-3">
                 {!workspaceReady ? (
                   <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
                     请先在设置中选择全局工作区，随后即可导入、编辑和新建技能。
@@ -450,7 +450,7 @@ export function SkillsDialog({
                         <button
                           key={folderName}
                           type="button"
-                          className="group flex min-h-[162px] flex-col items-start rounded-[18px] border border-border/70 bg-background/72 p-4 text-left transition-colors hover:border-primary/35 hover:bg-background"
+                          className="group flex min-h-[162px] flex-col items-start rounded-[18px] border border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_86%,transparent),color-mix(in_srgb,var(--background-elevated)_74%,transparent))] p-4 text-left transition-colors hover:border-primary/24 hover:bg-background-interactive/55"
                           onClick={() => void openEditEditor(folderName)}
                         >
                           <div className="flex w-full items-start justify-between gap-2">
@@ -521,7 +521,7 @@ export function SkillsDialog({
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="max-h-[88vh] max-w-3xl flex flex-col">
-          <DialogHeader>
+          <DialogHeader className="rounded-[24px] border border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-5 py-4">
             <DialogTitle>
               {editorMode === "create" ? "新增技能" : "编辑技能"}
             </DialogTitle>

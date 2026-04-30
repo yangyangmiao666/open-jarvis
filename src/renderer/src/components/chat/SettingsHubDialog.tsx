@@ -35,9 +35,9 @@ function SettingsCard({
   onAction,
 }: SettingsCardProps): React.JSX.Element {
   return (
-    <div className="app-flat-surface group flex h-full flex-col gap-4 rounded-[28px] border border-border/70 px-5 py-5 transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:bg-background/72 hover:shadow-[0_24px_54px_color-mix(in_srgb,var(--primary)_10%,transparent)]">
+    <div className="app-flat-surface group flex h-full flex-col gap-4 rounded-[28px] border border-border/70 px-5 py-5 transition-all duration-200 hover:-translate-y-1 hover:border-primary/22 hover:bg-background/76 hover:shadow-[0_12px_28px_color-mix(in_srgb,var(--primary)_8%,transparent)]">
       <div className="flex items-center gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-[16px] border border-border/70 bg-background/75 text-primary shadow-[0_14px_30px_color-mix(in_srgb,var(--primary)_8%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)] transition-transform duration-200 group-hover:scale-[1.03]">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-[16px] border border-border/70 bg-background-elevated/80 text-primary shadow-[0_8px_20px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)] transition-transform duration-200 group-hover:scale-[1.03]">
           <Icon className="size-4.5" />
         </div>
         <div className="min-w-0">
@@ -72,7 +72,7 @@ export function SettingsHubDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-5xl overflow-hidden">
-          <DialogHeader className="relative overflow-hidden rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_18%,transparent),transparent_44%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-4 pr-14 sm:px-7">
+          <DialogHeader className="relative overflow-hidden rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14 sm:px-7">
             <div className="flex items-center gap-3">
               <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
                 <Orbit className="size-3.5" />
@@ -84,7 +84,7 @@ export function SettingsHubDialog({
             </div>
           </DialogHeader>
 
-          <div className="grid items-stretch gap-4 md:grid-cols-3">
+          <div className="grid items-stretch gap-4 bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--background-elevated)_38%,transparent))] md:grid-cols-3">
             <SettingsCard
               icon={Boxes}
               eyebrow="Models"
@@ -97,7 +97,7 @@ export function SettingsHubDialog({
               icon={Wrench}
               eyebrow="Skills"
               title="技能配置"
-              description="维护全局技能源以及当前全局工作区中的 .deepagents/skills 目录，统一处理导入、新建和编辑。"
+              description="维护全局技能源以及当前工作区中的 .deepagents/skills 目录，统一处理导入、新建和编辑。全局默认目录为 ~/.open-jarvis/skills。"
               actionLabel="打开技能配置"
               onAction={() => setSkillsOpen(true)}
             />

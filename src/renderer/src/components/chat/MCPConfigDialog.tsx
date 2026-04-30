@@ -177,7 +177,7 @@ export function MCPConfigDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-5xl flex flex-col pb-2 sm:pb-2">
-        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_18%,transparent),transparent_44%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))] px-6 py-4 pr-14 sm:px-7">
+        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14 sm:px-7">
           <div className="flex items-center gap-3">
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               <Cable className="size-3.5" />
@@ -200,7 +200,7 @@ export function MCPConfigDialog({
                 勾选后，后续会话在调用 agent 时会默认装配对应的 MCP 工具。
               </p>
 
-              <ScrollArea className="mt-3 h-[220px] rounded-[20px] border border-border/75">
+              <ScrollArea className="app-subtle-scroll mt-3 h-[220px] rounded-[20px] border border-border/75 bg-background/35">
                 <div className="p-2 space-y-2">
                   {servers.length === 0 && (
                     <p className="px-2 py-4 text-xs text-muted-foreground">
@@ -210,7 +210,7 @@ export function MCPConfigDialog({
                   {servers.map((server) => (
                     <label
                       key={server.id}
-                      className="flex items-start gap-2 rounded-2xl px-3 py-2 text-xs hover:bg-muted/40"
+                      className="flex items-start gap-2 rounded-2xl border border-transparent px-3 py-2 text-xs hover:border-primary/18 hover:bg-background-interactive/58"
                     >
                       <input
                         type="checkbox"
@@ -326,7 +326,7 @@ export function MCPConfigDialog({
                           transport: event.target.value as MCPTransportType,
                         })
                       }
-                      className="flex h-9 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                      className="flex h-9 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm shadow-sm"
                     >
                       <option value="stdio">stdio</option>
                       <option value="streamable_http">streamable_http</option>
@@ -437,7 +437,7 @@ export function MCPConfigDialog({
               </div>
             )}
 
-            <ScrollArea className="flex-1 rounded-md border border-border min-h-[240px]">
+            <ScrollArea className="app-subtle-scroll min-h-[240px] flex-1 rounded-[20px] border border-border bg-background/35">
               <div className="p-2 space-y-1">
                 {filteredServers.length === 0 && !editing && (
                   <p className="px-2 py-6 text-center text-xs text-muted-foreground">
@@ -447,16 +447,16 @@ export function MCPConfigDialog({
                 {filteredServers.map((server) => (
                   <div
                     key={server.id}
-                    className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-muted/40"
+                    className="flex items-center gap-2 rounded-2xl border border-transparent px-3 py-2 text-xs hover:border-primary/18 hover:bg-background-interactive/58"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate font-medium">{server.name}</span>
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                        <span className="rounded-full border border-border/60 bg-background-elevated/72 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
                           {server.transport}
                         </span>
                         {!server.enabled && (
-                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          <span className="rounded-full border border-border/60 bg-background-elevated/72 px-1.5 py-0.5 text-[10px] text-muted-foreground">
                             disabled
                           </span>
                         )}

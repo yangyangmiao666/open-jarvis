@@ -42,16 +42,16 @@ export function ThreadKanbanCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer rounded-[22px] border border-border/75 bg-card/92 shadow-none transition-all hover:-translate-y-0.5 hover:border-border-emphasis hover:bg-background-interactive",
+        "cursor-pointer rounded-[22px] border border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_94%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))] shadow-[0_8px_20px_color-mix(in_srgb,#000_4%,transparent)] transition-all hover:-translate-y-0.5 hover:border-primary/24 hover:bg-background-interactive/72",
         status === "in_progress" && "border-status-info/45",
-        status === "interrupted" && "!border-amber-500/45 !bg-amber-500/8",
+        status === "interrupted" && "!border-status-warning/45 !bg-status-warning/8",
       )}
       onClick={onClick}
     >
       <CardContent className="p-3">
         <div className="flex items-start gap-2">
           {status === "interrupted" ? (
-            <MessageSquare className="size-4 shrink-0 text-amber-500" />
+            <MessageSquare className="size-4 shrink-0 text-status-warning" />
           ) : (
             <ThreadStatusIcon threadId={thread.thread_id} />
           )}
@@ -88,7 +88,7 @@ export function SubagentKanbanCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer rounded-[22px] border border-dashed border-border/75 bg-card/85 shadow-none transition-all hover:-translate-y-0.5 hover:border-border-emphasis hover:bg-background-interactive",
+        "cursor-pointer rounded-[22px] border border-dashed border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_90%,transparent),color-mix(in_srgb,var(--background-elevated)_80%,transparent))] shadow-[0_6px_18px_color-mix(in_srgb,#000_3%,transparent)] transition-all hover:-translate-y-0.5 hover:border-primary/24 hover:bg-background-interactive/70",
         subagent.status === "running" && "border-status-info/50",
       )}
       onClick={onClick}

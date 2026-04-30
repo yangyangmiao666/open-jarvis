@@ -9,31 +9,47 @@ const store = new Store({
 });
 
 const KEY = "skillSources";
-const DEFAULT_SOURCE = "~/.deepagents/skills";
+const DEFAULT_SOURCE = "~/.open-jarvis/skills";
+const LEGACY_DEFAULT_SOURCE = "~/.deepagents/skills";
+const LEGACY_ABSOLUTE_SOURCE = path.join(homedir(), ".deepagents", "skills");
+const DEFAULT_ABSOLUTE_SOURCE = path.join(getOpenworkDir(), "skills");
 
 function normalizeSkillSourcePath(source: string): string {
   const trimmed = source.trim();
   if (!trimmed) return "";
 
-  // Legacy value from older versions; should point to user home skill dir.
-  if (trimmed === "/.deepagents/skills") {
+  // Legacy values from older versions; should point to the Open-Jarvis home skill dir.
+  if (
+    trimmed === "/.deepagents/skills" ||
+    trimmed === LEGACY_DEFAULT_SOURCE ||
+    trimmed === LEGACY_ABSOLUTE_SOURCE
+  ) {
+    return DEFAULT_SOURCE;
+  }
+
+  if (trimmed === "/.open-jarvis/skills" || trimmed === DEFAULT_ABSOLUTE_SOURCE) {
     return DEFAULT_SOURCE;
   }
 
   return trimmed;
 }
 
-/** POSIX-style paths stored relative to workspace root, e.g. `/.deepagents/skills`. */
+/** Sources may be user-home paths like `~/.open-jarvis/skills` or workspace-relative paths like `/.deepagents/skills`. */
 export function getSkillSources(): string[] {
-  const v = store.get(KEY, [DEFAULT_SOURCE]) as string[];
-  const normalized = (Array.isArray(v) ? v : [DEFAULT_SOURCE])
+  const hasStoredSources = store.has(KEY);
+  const storedValue = store.get(
+    KEY,
+    hasStoredSources ? [] : [DEFAULT_SOURCE],
+  ) as string[];
+  const normalized = (Array.isArray(storedValue) ? storedValue : [DEFAULT_SOURCE])
     .map((source) => normalizeSkillSourcePath(source))
     .filter(Boolean);
 
-  const finalSources = normalized.length > 0 ? normalized : [DEFAULT_SOURCE];
+  const finalSources =
+    normalized.length > 0 || hasStoredSources ? normalized : [DEFAULT_SOURCE];
 
   // Persist migrated values so old configs are upgraded once.
-  if (JSON.stringify(finalSources) !== JSON.stringify(v)) {
+  if (JSON.stringify(finalSources) !== JSON.stringify(storedValue)) {
     store.set(KEY, finalSources);
   }
 
@@ -44,7 +60,7 @@ export function setSkillSources(paths: string[]): void {
   const cleaned = paths
     .map((p) => normalizeSkillSourcePath(p))
     .filter(Boolean);
-  store.set(KEY, cleaned.length > 0 ? cleaned : [DEFAULT_SOURCE]);
+  store.set(KEY, cleaned);
 }
 
 /**
@@ -59,7 +75,7 @@ export function resolveSkillSourcesForWorkspace(
 ): string[] {
   return getSkillSources().map((source) => {
     const normalized = source.trim();
-    if (!normalized) return path.join(homedir(), ".deepagents", "skills");
+    if (!normalized) return DEFAULT_ABSOLUTE_SOURCE;
 
     if (normalized.startsWith("~/")) {
       return path.join(homedir(), normalized.slice(2));
