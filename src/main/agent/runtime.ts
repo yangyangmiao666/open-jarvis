@@ -15,6 +15,10 @@ import { closeAllMCPConnections, getMCPToolsForServers } from "./mcp-runtime";
 import { BASE_SYSTEM_PROMPT } from "./system-prompt";
 import { resolveSkillSourcesForWorkspace } from "../skill-config";
 import type { ThreadMetadata } from "../types";
+import {
+  getConfiguredContextWindow,
+  getContextWindowForModel,
+} from "../../model-context";
 
 /**
  * Generate the full system prompt for the agent.
@@ -299,6 +303,32 @@ class OpenAICompatibleChatCompletions extends ChatOpenAICompletions {
   }
 }
 
+function applyContextWindowProfile<T extends object>(
+  model: T,
+  contextWindow?: number,
+): T {
+  const configuredContextWindow = getConfiguredContextWindow(contextWindow);
+  if (configuredContextWindow === undefined) {
+    return model;
+  }
+
+  const maybeProfile = (model as { profile?: unknown }).profile;
+  const currentProfile =
+    typeof maybeProfile === "object" && maybeProfile !== null
+      ? (maybeProfile as Record<string, unknown>)
+      : {};
+
+  Object.defineProperty(model, "profile", {
+    value: {
+      ...currentProfile,
+      maxInputTokens: configuredContextWindow,
+    },
+    configurable: true,
+  });
+
+  return model;
+}
+
 export async function getCheckpointer(threadId: string): Promise<SqlJsSaver> {
   let checkpointer = checkpointers.get(threadId);
   if (!checkpointer) {
@@ -379,7 +409,7 @@ function getModelInstance(
       baseURL = `${baseURL}/v1`;
     }
     const key = profile.apiKey?.trim() ?? "";
-    return new ChatOpenAI({
+    const chatModel = new ChatOpenAI({
       model: profile.model,
       apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
       configuration: { baseURL },
@@ -390,6 +420,10 @@ function getModelInstance(
         configuration: { baseURL },
       }),
     });
+    return applyContextWindowProfile(
+      chatModel,
+      getContextWindowForModel(profile.model, profile.contextWindow),
+    );
   }
 
   // Default to model string (let deepagents handle it)

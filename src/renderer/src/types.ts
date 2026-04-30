@@ -79,6 +79,7 @@ export interface OpenAICompatibleProfile {
   baseUrl: string;
   apiKey: string;
   model: string;
+  contextWindow?: number;
 }
 
 export interface Provider {
@@ -92,6 +93,7 @@ export interface ModelConfig {
   name: string;
   provider: ProviderId;
   model: string;
+  contextWindow?: number;
   description?: string;
   available: boolean;
 }

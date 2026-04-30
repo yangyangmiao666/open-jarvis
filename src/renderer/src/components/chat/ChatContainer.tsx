@@ -60,7 +60,8 @@ export function ChatContainer({
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
   const [copyNoticeOpen, setCopyNoticeOpen] = useState(false);
 
-  const { threads, loadThreads, generateTitleForFirstMessage } = useAppStore();
+  const { threads, models, loadThreads, generateTitleForFirstMessage } =
+    useAppStore();
 
   // Get persisted thread state and actions from context
   const {
@@ -288,6 +289,14 @@ export function ChatContainer({
 
     return [...threadMessages, ...streamingMsgs];
   }, [isLoading, threadMessages, streamData.messages]);
+
+  const currentModelConfig = useMemo(
+    () =>
+      models.find(
+        (model) => model.id === currentModel || model.model === currentModel,
+      ),
+    [currentModel, models],
+  );
 
   const streamingAssistantIds = useMemo(() => {
     if (!isLoading) return new Set<string>();
@@ -916,6 +925,7 @@ export function ChatContainer({
               <ContextUsageIndicator
                 tokenUsage={tokenUsage}
                 modelId={currentModel}
+                contextWindow={currentModelConfig?.contextWindow}
                 className="shrink-0 rounded-full border border-border/70 bg-card/70 px-3 py-1 backdrop-blur-sm"
               />
             </div>

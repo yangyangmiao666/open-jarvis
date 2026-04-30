@@ -2,6 +2,7 @@ import Store from "electron-store";
 import { randomUUID } from "crypto";
 import { getOpenworkDir } from "./storage";
 import type { OpenAICompatibleProfile } from "./types";
+import { getConfiguredContextWindow } from "../model-context";
 
 const store = new Store({
   name: "settings",
@@ -36,6 +37,7 @@ export function upsertOpenAICompatibleProfile(
     baseUrl: profile.baseUrl.trim(),
     apiKey: profile.apiKey,
     model: modelTrim,
+    contextWindow: getConfiguredContextWindow(profile.contextWindow),
   };
   const idx = profiles.findIndex((p) => p.id === id);
   if (idx >= 0) {

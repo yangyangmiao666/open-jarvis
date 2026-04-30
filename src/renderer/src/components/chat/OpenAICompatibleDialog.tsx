@@ -24,6 +24,7 @@ const emptyForm = (): Omit<OpenAICompatibleProfile, "id"> & {
   baseUrl: "",
   apiKey: "",
   model: "",
+  contextWindow: undefined,
 });
 
 export function OpenAICompatibleDialog({
@@ -126,6 +127,12 @@ export function OpenAICompatibleDialog({
                       <div className="text-muted-foreground truncate font-mono">
                         模型：{p.model}
                       </div>
+                      <div className="text-muted-foreground truncate font-mono">
+                        上下文：
+                        {typeof p.contextWindow === "number"
+                          ? p.contextWindow.toLocaleString()
+                          : "自动推断"}
+                      </div>
                     </div>
                     <Button
                       type="button"
@@ -162,7 +169,7 @@ export function OpenAICompatibleDialog({
                   {editing ? "编辑配置" : "新增配置"}
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  填写 Base URL、API 密钥和模型 ID；保存后会立即进入模型列表。
+                  填写 Base URL、API 密钥、模型 ID 和上下文窗口；保存后会立即进入模型列表，并同步用于上下文窗口展示与压缩阈值计算。
                 </p>
               </div>
             </div>
@@ -220,6 +227,39 @@ export function OpenAICompatibleDialog({
                   }
                   placeholder="例如：gpt-4o、Qwen/Qwen2.5-7B-Instruct"
                 />
+              </div>
+              <div className="space-y-1">
+                <label
+                  htmlFor="oac-context-window"
+                  className="text-sm font-medium"
+                >
+                  上下文窗口
+                </label>
+                <Input
+                  id="oac-context-window"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={editing?.contextWindow ?? ""}
+                  onChange={(e) => {
+                    const rawValue = e.target.value.trim();
+                    const nextValue =
+                      rawValue.length === 0
+                        ? undefined
+                        : Number.parseInt(rawValue, 10);
+                    setEditing({
+                      ...(editing ?? emptyForm()),
+                      contextWindow:
+                        typeof nextValue === "number" && nextValue > 0
+                          ? nextValue
+                          : undefined,
+                    });
+                  }}
+                  placeholder="例如：64000、128000、1000000"
+                />
+                <p className="text-xs leading-5 text-muted-foreground">
+                  建议填写模型真实的最大输入 tokens。DeepSeek、Qwen、GLM、MiniMax 这类自定义模型会优先使用这里的值；不填时才退回自动推断。
+                </p>
               </div>
               <div className="flex gap-2 justify-end">
                 <Button

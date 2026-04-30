@@ -26,6 +26,7 @@ import {
   upsertOpenAICompatibleProfile,
   deleteOpenAICompatibleProfile,
 } from "../openai-compatible-profiles";
+import { getContextWindowForModel } from "../../model-context";
 
 // Store for non-sensitive settings only (no encryption needed)
 const store = new Store({
@@ -47,6 +48,7 @@ function profileToModelConfig(p: OpenAICompatibleProfile): ModelConfig {
     name: p.name || `自定义 (${p.model})`,
     provider: "openai_compatible",
     model: p.model,
+    contextWindow: getContextWindowForModel(p.model, p.contextWindow),
     description: "",
     available: p.baseUrl.trim().length > 0 && p.model.trim().length > 0,
   };
@@ -60,6 +62,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Claude Opus 4.5",
     provider: "anthropic",
     model: "claude-opus-4-5-20251101",
+    contextWindow: getContextWindowForModel("claude-opus-4-5-20251101"),
     description: "Premium model with maximum intelligence",
     available: true,
   },
@@ -68,6 +71,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Claude Sonnet 4.5",
     provider: "anthropic",
     model: "claude-sonnet-4-5-20250929",
+    contextWindow: getContextWindowForModel("claude-sonnet-4-5-20250929"),
     description: "Best balance of intelligence, speed, and cost for agents",
     available: true,
   },
@@ -76,6 +80,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Claude Haiku 4.5",
     provider: "anthropic",
     model: "claude-haiku-4-5-20251001",
+    contextWindow: getContextWindowForModel("claude-haiku-4-5-20251001"),
     description: "Fastest model with near-frontier intelligence",
     available: true,
   },
@@ -85,6 +90,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Claude Opus 4.1",
     provider: "anthropic",
     model: "claude-opus-4-1-20250805",
+    contextWindow: getContextWindowForModel("claude-opus-4-1-20250805"),
     description: "Previous generation premium model with extended thinking",
     available: true,
   },
@@ -93,6 +99,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Claude Sonnet 4",
     provider: "anthropic",
     model: "claude-sonnet-4-20250514",
+    contextWindow: getContextWindowForModel("claude-sonnet-4-20250514"),
     description: "Fast and capable previous generation model",
     available: true,
   },
@@ -102,6 +109,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "GPT-5.2",
     provider: "openai",
     model: "gpt-5.2",
+    contextWindow: getContextWindowForModel("gpt-5.2"),
     description:
       "Latest flagship with enhanced coding and agentic capabilities",
     available: true,
@@ -111,6 +119,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "GPT-5.1",
     provider: "openai",
     model: "gpt-5.1",
+    contextWindow: getContextWindowForModel("gpt-5.1"),
     description: "Advanced reasoning and robust performance",
     available: true,
   },
@@ -120,6 +129,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "o3",
     provider: "openai",
     model: "o3",
+    contextWindow: getContextWindowForModel("o3"),
     description: "Advanced reasoning for complex problem-solving",
     available: true,
   },
@@ -128,6 +138,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "o3 Mini",
     provider: "openai",
     model: "o3-mini",
+    contextWindow: getContextWindowForModel("o3-mini"),
     description: "Cost-effective reasoning with faster response times",
     available: true,
   },
@@ -136,6 +147,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "o4 Mini",
     provider: "openai",
     model: "o4-mini",
+    contextWindow: getContextWindowForModel("o4-mini"),
     description: "Fast, efficient reasoning model succeeding o3",
     available: true,
   },
@@ -144,6 +156,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "o1",
     provider: "openai",
     model: "o1",
+    contextWindow: getContextWindowForModel("o1"),
     description: "Premium reasoning for research, coding, math and science",
     available: true,
   },
@@ -153,6 +166,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "GPT-4.1",
     provider: "openai",
     model: "gpt-4.1",
+    contextWindow: getContextWindowForModel("gpt-4.1"),
     description: "Strong instruction-following with 1M context window",
     available: true,
   },
@@ -161,6 +175,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "GPT-4.1 Mini",
     provider: "openai",
     model: "gpt-4.1-mini",
+    contextWindow: getContextWindowForModel("gpt-4.1-mini"),
     description: "Faster, smaller version balancing performance and efficiency",
     available: true,
   },
@@ -169,6 +184,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "GPT-4.1 Nano",
     provider: "openai",
     model: "gpt-4.1-nano",
+    contextWindow: getContextWindowForModel("gpt-4.1-nano"),
     description: "Most cost-efficient for lighter tasks",
     available: true,
   },
@@ -177,6 +193,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "GPT-4o",
     provider: "openai",
     model: "gpt-4o",
+    contextWindow: getContextWindowForModel("gpt-4o"),
     description: "Versatile model for text generation and comprehension",
     available: true,
   },
@@ -185,6 +202,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "GPT-4o Mini",
     provider: "openai",
     model: "gpt-4o-mini",
+    contextWindow: getContextWindowForModel("gpt-4o-mini"),
     description: "Cost-efficient variant with faster response times",
     available: true,
   },
@@ -194,6 +212,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Gemini 3 Pro Preview",
     provider: "google",
     model: "gemini-3-pro-preview",
+    contextWindow: getContextWindowForModel("gemini-3-pro-preview"),
     description: "State-of-the-art reasoning and multimodal understanding",
     available: true,
   },
@@ -202,6 +221,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Gemini 3 Flash Preview",
     provider: "google",
     model: "gemini-3-flash-preview",
+    contextWindow: getContextWindowForModel("gemini-3-flash-preview"),
     description: "Fast frontier-class model with low latency and cost",
     available: true,
   },
@@ -210,6 +230,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Gemini 2.5 Pro",
     provider: "google",
     model: "gemini-2.5-pro",
+    contextWindow: getContextWindowForModel("gemini-2.5-pro"),
     description: "High-capability model for complex reasoning and coding",
     available: true,
   },
@@ -218,6 +239,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Gemini 2.5 Flash",
     provider: "google",
     model: "gemini-2.5-flash",
+    contextWindow: getContextWindowForModel("gemini-2.5-flash"),
     description: "Lightning-fast with balance of intelligence and latency",
     available: true,
   },
@@ -226,6 +248,7 @@ const AVAILABLE_MODELS: ModelConfig[] = [
     name: "Gemini 2.5 Flash Lite",
     provider: "google",
     model: "gemini-2.5-flash-lite",
+    contextWindow: getContextWindowForModel("gemini-2.5-flash-lite"),
     description: "Fast, low-cost, high-performance model",
     available: true,
   },
@@ -324,7 +347,10 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
     }
 
     const metadata = JSON.parse(thread.metadata);
-    return metadata.workspacePath || (store.get("workspacePath", null) as string | null);
+    return (
+      metadata.workspacePath ||
+      (store.get("workspacePath", null) as string | null)
+    );
   });
 
   // Set workspace path globally, optionally mirroring it into the thread metadata for compatibility
@@ -643,7 +669,9 @@ export function getDefaultModel(): string {
   return store.get("defaultModel", "claude-sonnet-4-5-20250929") as string;
 }
 
-async function ipcRendererWorkspaceGet(threadId?: string): Promise<string | null> {
+async function ipcRendererWorkspaceGet(
+  threadId?: string,
+): Promise<string | null> {
   if (!threadId) {
     return store.get("workspacePath", null) as string | null;
   }
@@ -655,5 +683,8 @@ async function ipcRendererWorkspaceGet(threadId?: string): Promise<string | null
   }
 
   const metadata = JSON.parse(thread.metadata);
-  return metadata.workspacePath || (store.get("workspacePath", null) as string | null);
+  return (
+    metadata.workspacePath ||
+    (store.get("workspacePath", null) as string | null)
+  );
 }
