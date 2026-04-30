@@ -87,128 +87,125 @@ html.dark,
 :root {
   /* Foundation */
   --radius: 14px;
-  --background: #10141b;
-  --background-elevated: #141a23;
-  --background-interactive: #1b2430;
-  --foreground: #eaf1fb;
+  --background: #0a0a0b;
+  --background-elevated: #101113;
+  --background-interactive: #17191d;
+  --foreground: #f5f5f7;
 
   /* Borders */
-  --border: #253243;
-  --border-emphasis: #39506a;
-  --input: #192332;
-  --ring: #65b7ff;
+  --border: #262a31;
+  --border-emphasis: #394150;
+  --input: #13151a;
+  --ring: #0a84ff;
 
   /* Text hierarchy */
-  --muted: #141b25;
-  --muted-foreground: #94a7bf;
-  --tertiary-foreground: #70839a;
+  --muted: #111214;
+  --muted-foreground: #9ca3af;
+  --tertiary-foreground: #6b7280;
 
   /* Semantic mapping for shadcn compatibility */
-  --card: #141c27;
-  --card-foreground: #eaf1fb;
-  --popover: #16202c;
-  --popover-foreground: #eaf1fb;
-  --primary: #58b6ff;
-  --primary-foreground: #071522;
-  --secondary: #1c2836;
-  --secondary-foreground: #eaf1fb;
-  --accent: #8b9bff;
-  --accent-foreground: #0c1230;
-  --destructive: #ff7b94;
+  --card: #111214;
+  --card-foreground: #f5f5f7;
+  --popover: #111317;
+  --popover-foreground: #f5f5f7;
+  --primary: #0a84ff;
+  --primary-foreground: #f5faff;
+  --secondary: #1b1e24;
+  --secondary-foreground: #f5f5f7;
+  --accent: #d6dde8;
+  --accent-foreground: #0a0a0b;
+  --destructive: #ff5f57;
 
   /* Status colors */
-  --status-critical: #ff7b94;
-  --status-warning: #ffbf69;
-  --status-nominal: #52c7b8;
-  --status-info: #7bb8ff;
+  --status-critical: #ff5f57;
+  --status-warning: #ffb340;
+  --status-nominal: #32d74b;
+  --status-info: #0a84ff;
 
   /* Sidebar */
-  --sidebar: #101720;
-  --sidebar-foreground: #eaf1fb;
-  --sidebar-primary: #58b6ff;
-  --sidebar-primary-foreground: #071522;
-  --sidebar-accent: #17212d;
-  --sidebar-accent-foreground: #eaf1fb;
-  --sidebar-border: #243243;
-  --sidebar-ring: #58b6ff;
+  --sidebar: #0d0e11;
+  --sidebar-foreground: #f5f5f7;
+  --sidebar-primary: #0a84ff;
+  --sidebar-primary-foreground: #f5faff;
+  --sidebar-accent: #15171b;
+  --sidebar-accent-foreground: #f5f5f7;
+  --sidebar-border: #262a31;
+  --sidebar-ring: #0a84ff;
 }
 
 html.light {
-  --background: #edf4ff;
-  --background-elevated: #f7fbff;
-  --background-interactive: #ddeafb;
-  --foreground: #162131;
-  --border: #c8d9f0;
-  --border-emphasis: #a9c0e1;
-  --input: #d6e4f8;
-  --ring: #4098ff;
-  --muted: #e5effd;
-  --muted-foreground: #70849e;
-  --tertiary-foreground: #97a8be;
-  --card: #fbfdff;
-  --card-foreground: #162131;
-  --popover: #f8fbff;
-  --popover-foreground: #162131;
-  --primary: #4098ff;
-  --primary-foreground: #f4f9ff;
-  --secondary: #deebfb;
-  --secondary-foreground: #162131;
-  --accent: #6d82ff;
-  --accent-foreground: #f7f8ff;
-  --destructive: #f06a86;
-  --status-critical: #f06a86;
-  --status-warning: #e7ad57;
-  --status-nominal: #39b7aa;
-  --status-info: #4098ff;
-  --sidebar: #dfeafb;
-  --sidebar-foreground: #162131;
-  --sidebar-primary: #4098ff;
-  --sidebar-primary-foreground: #f4f9ff;
-  --sidebar-accent: #edf4ff;
-  --sidebar-accent-foreground: #162131;
-  --sidebar-border: #c5d8f1;
-  --sidebar-ring: #4098ff;
+  --background: #f5f5f7;
+  --background-elevated: #ffffff;
+  --background-interactive: #eceef2;
+  --foreground: #111113;
+  --border: #d6dae2;
+  --border-emphasis: #b9c0cb;
+  --input: #ebeef3;
+  --ring: #0071e3;
+  --muted: #f0f2f5;
+  --muted-foreground: #6b7280;
+  --tertiary-foreground: #9ca3af;
+  --card: #ffffff;
+  --card-foreground: #111113;
+  --popover: #ffffff;
+  --popover-foreground: #111113;
+  --primary: #0071e3;
+  --primary-foreground: #f8fbff;
+  --secondary: #eceef2;
+  --secondary-foreground: #111113;
+  --accent: #d7dde6;
+  --accent-foreground: #111113;
+  --destructive: #ff3b30;
+  --status-critical: #ff3b30;
+  --status-warning: #ff9f0a;
+  --status-nominal: #30b958;
+  --status-info: #0071e3;
+  --sidebar: #f3f4f6;
+  --sidebar-foreground: #111113;
+  --sidebar-primary: #0071e3;
+  --sidebar-primary-foreground: #f8fbff;
+  --sidebar-accent: #fafafa;
+  --sidebar-accent-foreground: #111113;
+  --sidebar-border: #d9dde4;
+  --sidebar-ring: #0071e3;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
     background-image:
       radial-gradient(
-        960px 520px at -8% -10%,
-        color-mix(in srgb, var(--primary) 13%, transparent),
+        1100px 620px at -12% -14%,
+        color-mix(in srgb, var(--primary) 14%, transparent),
         transparent 62%
       ),
       radial-gradient(
-        780px 460px at 110% -4%,
-        color-mix(in srgb, var(--accent) 10%, transparent),
+        900px 520px at 108% -2%,
+        color-mix(in srgb, var(--foreground) 4%, transparent),
         transparent 66%
       ),
       radial-gradient(
-        700px 380px at 50% 112%,
-        color-mix(in srgb, var(--primary) 7%, transparent),
+        820px 440px at 52% 112%,
+        color-mix(in srgb, var(--primary) 6%, transparent),
         transparent 75%
       ),
       linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--foreground) 2.8%, transparent),
+        transparent 42%,
+        color-mix(in srgb, var(--primary) 4%, transparent) 100%
+      ),
+      linear-gradient(
         180deg,
-        color-mix(in srgb, var(--background-elevated) 76%, transparent),
+        color-mix(in srgb, var(--background-elevated) 84%, transparent),
         color-mix(in srgb, var(--background) 98%, transparent)
-      ),
-      linear-gradient(
-        0deg,
-        color-mix(in srgb, var(--foreground) 2%, transparent) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--foreground) 2%, transparent) 1px,
-        transparent 1px
       );
-    background-size: auto, auto, auto, auto, 40px 40px, 40px 40px;
+    background-size: auto, auto, auto, auto, auto;
     background-attachment: fixed;
     min-height: 100vh;
     letter-spacing: 0.01em;
@@ -236,6 +233,23 @@ html.light {
       box-shadow var(--duration-base) var(--ease-emphasized);
   }
 
+  button,
+  [role="button"],
+  a,
+  summary,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+
   ::selection {
     background: color-mix(in srgb, var(--primary) 30%, transparent);
     color: var(--foreground);
@@ -250,13 +264,18 @@ html.light {
   position: relative;
   background:
     radial-gradient(
-      540px 200px at 50% 0%,
-      color-mix(in srgb, var(--foreground) 4%, transparent),
+      620px 240px at 50% 0%,
+      color-mix(in srgb, var(--foreground) 3.2%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      720px 280px at 10% 12%,
+      color-mix(in srgb, var(--primary) 6%, transparent),
       transparent 72%
     ),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--background-elevated) 86%, transparent),
+      color-mix(in srgb, var(--background-elevated) 91%, transparent),
       color-mix(in srgb, var(--background) 98%, transparent)
     );
 }
@@ -273,31 +292,64 @@ html.light {
       transparent 34%,
       color-mix(in srgb, var(--primary) 3%, transparent) 100%
     );
-  opacity: 0.75;
+  opacity: 0.92;
+}
+
+.app-shell::after {
+  content: none;
+}
+
+.app-stage {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0;
+  border: 0;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background-elevated) 92%, transparent),
+      color-mix(in srgb, var(--background) 96%, transparent)
+    );
+  box-shadow: none;
+  backdrop-filter: blur(24px) saturate(116%);
+}
+
+.app-stage::before {
+  content: none;
+}
+
+.app-stage::after {
+  content: none;
 }
 
 .app-panel {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--card) 95%, transparent),
-    color-mix(in srgb, var(--background-elevated) 90%, transparent)
+    color-mix(in srgb, var(--card) 97%, transparent),
+    color-mix(in srgb, var(--background-elevated) 93%, transparent)
   );
-  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-emphasis) 32%, transparent);
   box-shadow:
-    0 18px 52px color-mix(in srgb, #000 10%, transparent),
+    0 8px 24px color-mix(in srgb, #000 6%, transparent),
     0 1px 0 color-mix(in srgb, #fff 8%, transparent) inset,
     0 -1px 0 color-mix(in srgb, #000 6%, transparent) inset;
-  backdrop-filter: blur(20px) saturate(112%);
+  backdrop-filter: blur(18px) saturate(108%);
 }
 
 .app-toolbar {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--background-elevated) 84%, transparent),
-    color-mix(in srgb, var(--background) 78%, transparent)
+    color-mix(in srgb, var(--background-elevated) 88%, transparent),
+    color-mix(in srgb, var(--background) 82%, transparent)
   );
-  backdrop-filter: blur(18px) saturate(108%);
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--border) 68%, transparent);
+  backdrop-filter: blur(16px) saturate(108%);
+  box-shadow:
+    inset 0 -1px 0 color-mix(in srgb, var(--border) 68%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
 }
 
 .app-hairline {
@@ -330,8 +382,9 @@ html.light {
 .app-elevated-hover:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 18px 34px color-mix(in srgb, #000 10%, transparent),
-    0 1px 0 color-mix(in srgb, #fff 10%, transparent) inset;
+    0 10px 24px color-mix(in srgb, #000 8%, transparent),
+    0 1px 0 color-mix(in srgb, #fff 10%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .app-flat-surface {
@@ -339,13 +392,69 @@ html.light {
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--card) 82%, transparent),
-      color-mix(in srgb, var(--background-elevated) 74%, transparent)
+      color-mix(in srgb, var(--card) 88%, transparent),
+      color-mix(in srgb, var(--background-elevated) 80%, transparent)
     );
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
-    0 12px 24px color-mix(in srgb, #000 3%, transparent);
-  backdrop-filter: blur(14px) saturate(108%);
+    0 8px 20px color-mix(in srgb, #000 4%, transparent);
+  backdrop-filter: blur(16px) saturate(112%);
+}
+
+.app-sidebar-chrome {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--sidebar) 96%, transparent),
+      color-mix(in srgb, var(--sidebar-accent) 92%, transparent)
+    );
+  box-shadow:
+    inset -1px 0 0 color-mix(in srgb, var(--sidebar-border) 78%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
+  backdrop-filter: blur(26px) saturate(118%);
+}
+
+.app-sidebar-brand {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid color-mix(in srgb, var(--sidebar-border) 82%, transparent);
+  background:
+    radial-gradient(
+      260px 110px at 20% 0%,
+      color-mix(in srgb, var(--primary) 14%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--sidebar-accent) 68%, transparent),
+      color-mix(in srgb, var(--sidebar) 94%, transparent)
+    );
+}
+
+.app-sidebar-brand::after {
+  content: "";
+  position: absolute;
+  inset: auto 16px 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--sidebar-ring) 48%, transparent),
+    transparent
+  );
+}
+
+.app-subtle-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-subtle-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--border-emphasis) 66%, transparent);
+  border-radius: 999px;
+}
+
+.app-subtle-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--primary) 40%, var(--border-emphasis));
 }
 
 .app-tabstrip {
@@ -370,8 +479,8 @@ html.light {
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--card) 72%, transparent),
-    color-mix(in srgb, var(--background-elevated) 62%, transparent)
+    color-mix(in srgb, var(--card) 90%, transparent),
+    color-mix(in srgb, var(--background-elevated) 82%, transparent)
   );
   font-size: 0.84rem;
   line-height: 1;
@@ -389,10 +498,10 @@ html.light {
   border-color: color-mix(in srgb, var(--primary) 44%, var(--border-emphasis));
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--background-interactive) 88%, transparent),
-    color-mix(in srgb, var(--card) 82%, transparent)
+    color-mix(in srgb, var(--background-interactive) 84%, transparent),
+    color-mix(in srgb, var(--card) 90%, transparent)
   );
-  box-shadow: 0 10px 18px color-mix(in srgb, #000 4%, transparent);
+  box-shadow: 0 6px 14px color-mix(in srgb, #000 4%, transparent);
 }
 
 .app-tab-active {
@@ -404,7 +513,7 @@ html.light {
     color-mix(in srgb, var(--background-elevated) 94%, transparent)
   );
   box-shadow:
-    0 14px 24px color-mix(in srgb, #000 6%, transparent),
+    0 8px 18px color-mix(in srgb, #000 4%, transparent),
     0 1px 0 color-mix(in srgb, #fff 12%, transparent) inset,
     0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
 }
@@ -427,8 +536,9 @@ html.light {
 }
 
 .app-display-title {
-  font-family: var(--font-display);
-  letter-spacing: -0.03em;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 /* Status color utilities */

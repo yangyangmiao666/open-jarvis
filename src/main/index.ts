@@ -21,11 +21,66 @@ const settingsStore = new Store({
   cwd: getOpenworkDir(),
 });
 
+interface WindowBoundsState {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+}
+
+const DEFAULT_WINDOW_BOUNDS: WindowBoundsState = {
+  width: 1440,
+  height: 900,
+};
+
+function getStoredWindowBounds(): WindowBoundsState | null {
+  const bounds = settingsStore.get("windowBounds");
+  if (!bounds || typeof bounds !== "object") {
+    return null;
+  }
+
+  const candidate = bounds as Partial<WindowBoundsState>;
+  if (
+    typeof candidate.width !== "number" ||
+    typeof candidate.height !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    width: Math.round(candidate.width),
+    height: Math.round(candidate.height),
+    ...(typeof candidate.x === "number" ? { x: Math.round(candidate.x) } : {}),
+    ...(typeof candidate.y === "number" ? { y: Math.round(candidate.y) } : {}),
+  };
+}
+
+function persistWindowState(window: BrowserWindow): void {
+  if (window.isDestroyed() || window.isMinimized()) {
+    return;
+  }
+
+  settingsStore.set("windowWasMaximized", window.isMaximized());
+
+  if (window.isMaximized()) {
+    return;
+  }
+
+  const bounds = window.getBounds();
+  settingsStore.set("windowBounds", bounds);
+}
+
 function createWindow(): void {
+  const storedBounds = getStoredWindowBounds();
+  const launchedBefore =
+    (settingsStore.get("windowLaunchedBefore", false) as boolean) ?? false;
+
   mainWindow = new BrowserWindow({
     title: "Open-Jarvis",
-    width: 1440,
-    height: 900,
+    width: storedBounds?.width ?? DEFAULT_WINDOW_BOUNDS.width,
+    height: storedBounds?.height ?? DEFAULT_WINDOW_BOUNDS.height,
+    ...(typeof storedBounds?.x === "number" ? { x: storedBounds.x } : {}),
+    ...(typeof storedBounds?.y === "number" ? { y: storedBounds.y } : {}),
     minWidth: 1200,
     minHeight: 700,
     show: false,
@@ -43,12 +98,25 @@ function createWindow(): void {
     },
   });
 
+  const syncWindowState = (): void => {
+    if (mainWindow) {
+      persistWindowState(mainWindow);
+    }
+  };
+
+  mainWindow.on("resize", syncWindowState);
+  mainWindow.on("move", syncWindowState);
+  mainWindow.on("maximize", syncWindowState);
+  mainWindow.on("unmaximize", syncWindowState);
+
   mainWindow.on("ready-to-show", () => {
-    const launchedBefore =
-      (settingsStore.get("windowLaunchedBefore", false) as boolean) ?? false;
     if (!launchedBefore) {
       mainWindow?.maximize();
       settingsStore.set("windowLaunchedBefore", true);
+    } else if (
+      (settingsStore.get("windowWasMaximized", false) as boolean) === true
+    ) {
+      mainWindow?.maximize();
     }
     mainWindow?.setTitle("Open-Jarvis");
     mainWindow?.show();
@@ -67,6 +135,9 @@ function createWindow(): void {
   }
 
   mainWindow.on("closed", () => {
+    if (mainWindow) {
+      persistWindowState(mainWindow);
+    }
     mainWindow = null;
   });
 }

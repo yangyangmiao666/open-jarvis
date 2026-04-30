@@ -212,12 +212,12 @@ function FileEditSummary({
     return (
       <div className="text-xs space-y-2">
         <div className="flex items-center gap-1.5 text-status-critical">
-          <span className="font-mono bg-status-critical/10 px-1.5 py-0.5 rounded">
+          <span className="rounded-full border border-status-critical/20 bg-status-critical/10 px-1.5 py-0.5 font-mono">
             − {oldStr.split("\n").length} 行
           </span>
         </div>
         <div className="flex items-center gap-1.5 text-status-nominal">
-          <span className="font-mono bg-status-nominal/10 px-1.5 py-0.5 rounded">
+          <span className="rounded-full border border-status-nominal/20 bg-status-nominal/10 px-1.5 py-0.5 font-mono">
             + {newStr.split("\n").length} 行
           </span>
         </div>
@@ -247,12 +247,12 @@ function CommandDisplay({
 }): React.JSX.Element {
   return (
     <div className="text-xs space-y-2 w-full overflow-hidden">
-      <div className="font-mono bg-background rounded-sm p-2 flex items-center gap-2 min-w-0">
+      <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border/70 bg-background-interactive/65 p-2 font-mono">
         <span className="text-status-info shrink-0">$</span>
         <span className="truncate">{command}</span>
       </div>
       {output && (
-        <pre className="font-mono bg-background rounded-sm p-2 overflow-auto max-h-32 text-muted-foreground w-full whitespace-pre-wrap break-all">
+        <pre className="max-h-32 w-full overflow-auto rounded-xl border border-border/60 bg-background-interactive/55 p-2 font-mono whitespace-pre-wrap break-all text-muted-foreground">
           {output.slice(0, 500)}
           {output.length > 500 && "..."}
         </pre>
@@ -588,16 +588,16 @@ export function ToolCallRenderer({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border",
+        "overflow-hidden rounded-[20px] border backdrop-blur-sm",
         needsApproval
-          ? "border-amber-500/50 bg-amber-500/5"
-          : "border-border bg-background-elevated",
+          ? "border-status-warning/35 bg-status-warning/8"
+          : "border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_92%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))] shadow-[0_8px_20px_color-mix(in_srgb,#000_4%,transparent)]",
       )}
     >
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center gap-2 px-3 py-2.5 transition-colors hover:bg-background-interactive"
+        className="flex w-full items-center gap-2 px-3 py-2.5 transition-colors hover:bg-background-interactive/72"
       >
         {isExpanded ? (
           <ChevronDown className="size-4 text-muted-foreground shrink-0" />
@@ -608,7 +608,7 @@ export function ToolCallRenderer({
         <Icon
           className={cn(
             "size-4 shrink-0",
-            needsApproval ? "text-amber-500" : "text-status-info",
+            needsApproval ? "text-status-warning" : "text-primary",
           )}
         />
 
@@ -650,14 +650,14 @@ export function ToolCallRenderer({
 
       {/* Approval UI */}
       {needsApproval ? (
-        <div className="border-t border-amber-500/20 px-3 py-3 space-y-3">
+        <div className="space-y-3 border-t border-status-warning/20 px-3 py-3">
           {/* Show formatted content (e.g., command preview) */}
           {formattedContent}
 
           {/* Arguments */}
           <div>
             <div className="text-section-header text-[10px] mb-1">参数</div>
-            <pre className="max-h-24 overflow-auto rounded-xl bg-background p-2 text-xs font-mono">
+            <pre className="max-h-24 overflow-auto rounded-xl border border-border/60 bg-background-interactive/55 p-2 text-xs font-mono">
               {JSON.stringify(args, null, 2)}
             </pre>
           </div>
@@ -665,13 +665,13 @@ export function ToolCallRenderer({
           {inlineApprovalButtons ? (
             <div className="flex items-center justify-end gap-2">
               <button
-                className="rounded-full border border-border px-3 py-1.5 text-xs transition-colors hover:bg-background-interactive"
+                className="rounded-full border border-border/75 bg-card/70 px-3 py-1.5 text-xs transition-colors hover:bg-background-interactive/82"
                 onClick={handleReject}
               >
                 拒绝
               </button>
               <button
-                className="rounded-full bg-status-nominal px-3 py-1.5 text-xs text-background transition-colors hover:bg-status-nominal/90"
+                className="rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/92"
                 onClick={handleApprove}
               >
                 批准并执行
@@ -687,7 +687,7 @@ export function ToolCallRenderer({
 
       {/* Expanded content - raw details */}
       {isExpanded && !needsApproval && (
-        <div className="border-t border-border px-3 py-2 space-y-2 overflow-hidden">
+        <div className="space-y-2 overflow-hidden border-t border-border/70 px-3 py-2">
           {/* Formatted display first */}
           {formattedContent}
           {formattedResult}
@@ -695,7 +695,7 @@ export function ToolCallRenderer({
           {/* Raw Arguments */}
           <div className="overflow-hidden w-full">
             <div className="text-section-header mb-1">原始参数</div>
-            <pre className="text-xs font-mono bg-background p-2 rounded-sm overflow-auto max-h-48 w-full whitespace-pre-wrap break-all">
+            <pre className="max-h-48 w-full overflow-auto rounded-xl border border-border/60 bg-background-interactive/55 p-2 text-xs font-mono whitespace-pre-wrap break-all">
               {JSON.stringify(args, null, 2)}
             </pre>
           </div>
@@ -706,10 +706,10 @@ export function ToolCallRenderer({
               <div className="text-section-header mb-1">原始结果</div>
               <pre
                 className={cn(
-                  "text-xs font-mono p-2 rounded-sm overflow-auto max-h-48 w-full whitespace-pre-wrap break-all",
+                  "max-h-48 w-full overflow-auto rounded-xl p-2 text-xs font-mono whitespace-pre-wrap break-all",
                   isError
-                    ? "bg-status-critical/10 text-status-critical"
-                    : "bg-background",
+                    ? "border border-status-critical/20 bg-status-critical/10 text-status-critical"
+                    : "border border-border/60 bg-background-interactive/55",
                 )}
               >
                 {typeof result === "string"

@@ -614,16 +614,16 @@ export function ChatContainer({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background/20">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
       {/* Messages */}
       <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
         <div className="px-4 py-5">
           <div className="mx-auto max-w-3xl space-y-4">
             {displayMessages.length === 0 && !isLoading && (
               <div className="app-flat-surface animate-scale-in relative mx-auto flex max-w-2xl flex-col items-center justify-center overflow-hidden rounded-[32px] px-8 py-14 text-center text-muted-foreground">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--primary)_16%,transparent),transparent_42%),linear-gradient(135deg,color-mix(in_srgb,var(--card)_92%,transparent),color-mix(in_srgb,var(--background-elevated)_84%,transparent))]" />
-                <div className="pointer-events-none absolute -right-16 top-8 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
-                <div className="pointer-events-none absolute -left-12 bottom-2 h-28 w-28 rounded-full bg-accent/10 blur-3xl" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--primary)_12%,transparent),transparent_40%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background-elevated)_88%,transparent))]" />
+                <div className="pointer-events-none absolute -right-16 top-8 h-40 w-40 rounded-full bg-primary/8 blur-3xl" />
+                <div className="pointer-events-none absolute -left-12 bottom-2 h-28 w-28 rounded-full bg-foreground/4 blur-3xl" />
                 <div className="relative flex flex-col items-center gap-4">
                   <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase backdrop-blur-sm">
                     <span className="size-1.5 rounded-full bg-primary" />
@@ -654,7 +654,7 @@ export function ChatContainer({
                 ) : (
                   <div className="space-y-4 text-center text-sm">
                     <div className="space-y-1">
-                      <span className="text-base font-medium text-amber-600 dark:text-amber-300">
+                      <span className="text-base font-medium text-status-warning">
                         请选择工作区文件夹
                       </span>
                       <span className="mt-1 block text-xs opacity-80">
@@ -663,7 +663,7 @@ export function ChatContainer({
                     </div>
                     <button
                       type="button"
-                      className="app-elevated-hover inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 text-xs font-medium text-amber-700 dark:text-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="app-elevated-hover inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-primary/22 bg-primary/10 px-4 text-xs font-medium text-primary disabled:cursor-not-allowed disabled:opacity-50"
                       onClick={handleSelectWorkspaceFromEmptyState}
                     >
                       <Folder className="size-3.5" />
@@ -696,7 +696,7 @@ export function ChatContainer({
 
             {/* Error state */}
             {threadError && !isLoading && (
-              <div className="animate-enter flex items-start gap-3 rounded-2xl border border-destructive/35 bg-destructive/10 px-4 py-4">
+              <div className="animate-enter flex items-start gap-3 rounded-2xl border border-destructive/28 bg-destructive/8 px-4 py-4 backdrop-blur-sm">
                 <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-destructive text-sm">
@@ -724,12 +724,12 @@ export function ChatContainer({
 
       {/* HITL：流结束后 isLoading 为 false，但子图可能仍在等待审批；避免「无按钮可点」 */}
       {pendingApproval && (
-        <div className="shrink-0 border-t border-amber-500/25 bg-amber-500/[0.06] px-4 py-4 backdrop-blur-sm">
-          <div className="app-flat-surface mx-auto flex max-w-3xl flex-col gap-3 rounded-[24px] border-amber-500/20 bg-amber-500/[0.08] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="shrink-0 border-t border-status-warning/20 bg-status-warning/6 px-4 py-4 backdrop-blur-sm">
+          <div className="app-flat-surface mx-auto flex max-w-3xl flex-col gap-3 rounded-[24px] border-status-warning/18 bg-status-warning/8 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2 min-w-0 text-sm">
-              <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <ShieldAlert className="mt-0.5 size-4 shrink-0 text-status-warning" />
               <div className="min-w-0">
-                <div className="font-medium text-amber-800 dark:text-amber-200">
+                <div className="font-medium text-foreground">
                   等待你确认：{pendingApproval.tool_call.name}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5 break-all">
@@ -771,11 +771,11 @@ export function ChatContainer({
       )}
 
       {/* Input */}
-      <div className="border-t border-border/60 px-4 py-4">
+      <div className="border-t border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background)_62%,transparent),color-mix(in_srgb,var(--background-elevated)_84%,transparent))] px-4 py-4">
         <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
           <div className="relative app-flat-surface flex flex-col gap-3 overflow-visible rounded-[26px] px-4 py-4">
             {copyNoticeOpen && (
-              <div className="animate-enter absolute -top-14 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/12 px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-[0_12px_32px_color-mix(in_srgb,#10b981_15%,transparent)] backdrop-blur-sm dark:text-emerald-300">
+              <div className="animate-enter absolute -top-14 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-status-nominal/25 bg-status-nominal/12 px-3 py-1.5 text-xs font-medium text-status-nominal shadow-[0_10px_28px_color-mix(in_srgb,var(--status-nominal)_12%,transparent)] backdrop-blur-sm">
                 <Check className="size-3.5" />
                 已复制到剪贴板
               </div>
@@ -790,7 +790,7 @@ export function ChatContainer({
                       setReferencedPaths((prev) => prev.filter((x) => x !== p))
                     }
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/55 px-2.5 py-1 text-[11px] font-mono text-muted-foreground hover:bg-muted",
+                      "inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/55 px-2.5 py-1 text-[11px] font-mono text-muted-foreground hover:bg-background-interactive/82",
                     )}
                     title="点击移除"
                   >
@@ -820,7 +820,7 @@ export function ChatContainer({
                 onKeyDown={handleKeyDown}
                 placeholder="输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"
                 disabled={isLoading}
-                className="chat-input-scrollbar min-w-0 flex-1 resize-none rounded-[22px] border border-border/75 bg-background/75 px-4 py-3.5 pr-3 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/70 disabled:opacity-50"
+                className="chat-input-scrollbar min-w-0 flex-1 resize-none rounded-[22px] border border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_96%,transparent),color-mix(in_srgb,var(--background)_82%,transparent))] px-4 py-3.5 pr-3 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/55 disabled:opacity-50"
                 rows={1}
                 style={{
                   minHeight: "48px",
@@ -831,7 +831,7 @@ export function ChatContainer({
               {mentionOpen && mentionCandidates.length > 0 && (
                 <div
                   ref={mentionListRef}
-                  className="absolute bottom-full left-0 right-14 z-50 mb-3 max-h-56 overflow-y-auto rounded-2xl border border-border bg-popover py-2 shadow-[0_18px_48px_color-mix(in_srgb,#020617_22%,transparent)]"
+                  className="absolute bottom-full left-0 right-14 z-50 mb-3 max-h-56 overflow-y-auto rounded-2xl border border-border bg-popover py-2 shadow-[0_14px_34px_color-mix(in_srgb,#020617_12%,transparent)]"
                 >
                   {mentionCandidates.map((f, idx) => (
                     <button
@@ -841,8 +841,8 @@ export function ChatContainer({
                       className={cn(
                         "mx-1 block w-[calc(100%-0.5rem)] truncate rounded-xl px-3 py-2 text-left text-xs font-mono transition-colors",
                         idx === mentionActiveIndex
-                          ? "bg-primary/18 text-foreground ring-1 ring-inset ring-primary/45"
-                          : "hover:bg-muted",
+                          ? "bg-primary/12 text-foreground ring-1 ring-inset ring-primary/28"
+                          : "hover:bg-background-interactive/78",
                       )}
                       onMouseEnter={() => setMentionActiveIndex(idx)}
                       onMouseDown={(e) => {
@@ -933,7 +933,7 @@ export function ChatContainer({
           <div className="mt-3 flex flex-wrap items-center justify-end gap-2 px-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
               {pendingApproval && (
-                <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/35 bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-300">
+                <span className="inline-flex items-center gap-2 rounded-full border border-status-warning/28 bg-status-warning/10 px-3 py-1 text-status-warning">
                   <ShieldAlert className="size-3.5" />
                   等待审批
                 </span>

@@ -107,61 +107,70 @@ function App(): React.JSX.Element {
   return (
     <ThreadProvider>
       <div className="app-shell flex h-screen flex-col overflow-hidden bg-background">
-        {isDarwin() ? <WindowTitleBar /> : null}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute left-[-10%] top-[-14%] h-[28rem] w-[28rem] rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute bottom-[-18%] right-[-8%] h-[26rem] w-[26rem] rounded-full bg-accent/10 blur-3xl" />
+        </div>
 
-        <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
-          {/* 左侧栏：与标题栏下缘对齐（红绿灯下方），不再被整行标签条垫高一格 */}
-          <div
-            style={{ width: leftWidth }}
-            className="flex shrink-0 flex-col overflow-hidden border-r border-border/70 bg-sidebar/85 backdrop-blur-xl"
-          >
-            <ThreadSidebar onOpenSettings={() => setSettingsOpen(true)} />
-          </div>
+        <div className="app-stage">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {isDarwin() ? <WindowTitleBar /> : null}
 
-          <ResizeHandle onDrag={handleLeftResize} />
+            <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+              {/* 左侧栏：与标题栏下缘对齐（红绿灯下方），不再被整行标签条垫高一格 */}
+              <div
+                style={{ width: leftWidth }}
+                className="app-sidebar-chrome flex shrink-0 flex-col overflow-hidden border-r border-border/70"
+              >
+                <ThreadSidebar onOpenSettings={() => setSettingsOpen(true)} />
+              </div>
 
-          <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="app-toolbar app-drag-region flex h-10 w-full shrink-0 border-b border-border/70">
-              <div className="flex min-w-0 flex-1 items-stretch overflow-hidden">
-                <div className="min-w-0 flex-1 overflow-hidden">
+              <ResizeHandle onDrag={handleLeftResize} />
+
+              <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="app-toolbar app-drag-region relative flex h-11 w-full shrink-0 border-b border-border/70">
+                  <div className="flex min-w-0 flex-1 items-stretch overflow-hidden">
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      {showKanbanView ? (
+                        <KanbanHeader className="h-full" />
+                      ) : (
+                        currentThreadId && <TabBar className="h-full border-b-0" />
+                      )}
+                    </div>
+                    <div className="app-no-drag flex shrink-0 items-center border-l border-border/50 px-2.5">
+                      <ThemeToggle />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden">
                   {showKanbanView ? (
-                    <KanbanHeader className="h-full" />
+                    <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                      <KanbanView />
+                    </main>
                   ) : (
-                    currentThreadId && <TabBar className="h-full border-b-0" />
+                    <>
+                      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                        {currentThreadId ? (
+                          <TabbedPanel
+                            threadId={currentThreadId}
+                            showTabBar={false}
+                            onOpenSettings={() => setSettingsOpen(true)}
+                          />
+                        ) : (
+                          <div className="flex flex-1 items-center justify-center text-muted-foreground">
+                            请选择或新建会话以开始
+                          </div>
+                        )}
+                      </main>
+                      <ResizeHandle onDrag={handleRightResize} />
+                      <div style={{ width: rightWidth }} className="app-panel shrink-0 border-l border-border/60">
+                        <RightPanel />
+                      </div>
+                    </>
                   )}
                 </div>
-                <div className="app-no-drag flex shrink-0 items-center border-l border-border/50 pr-2 pl-2">
-                  <ThemeToggle />
-                </div>
               </div>
-            </div>
-
-            <div className="flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden">
-              {showKanbanView ? (
-                <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                  <KanbanView />
-                </main>
-              ) : (
-                <>
-                  <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                    {currentThreadId ? (
-                      <TabbedPanel
-                        threadId={currentThreadId}
-                        showTabBar={false}
-                        onOpenSettings={() => setSettingsOpen(true)}
-                      />
-                    ) : (
-                      <div className="flex flex-1 items-center justify-center text-muted-foreground">
-                        请选择或新建会话以开始
-                      </div>
-                    )}
-                  </main>
-                  <ResizeHandle onDrag={handleRightResize} />
-                  <div style={{ width: rightWidth }} className="app-panel shrink-0 border-l border-border/60">
-                    <RightPanel />
-                  </div>
-                </>
-              )}
             </div>
           </div>
         </div>

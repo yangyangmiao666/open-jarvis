@@ -56,7 +56,7 @@ function SectionHeader({
   return (
     <button
       onClick={onToggle}
-      className="group flex w-full shrink-0 items-center gap-2 px-3 py-2.5 text-section-header transition-colors hover:bg-background-interactive/70"
+      className="group flex w-full shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-section-header transition-colors hover:bg-background-interactive/78 hover:text-foreground"
       style={{ height: HEADER_HEIGHT }}
     >
       <ChevronRight
@@ -526,7 +526,7 @@ function TaskItem({ todo }: { todo: Todo }): React.JSX.Element {
   return (
     <div
       className={cn(
-        "app-elevated-hover flex items-start gap-3 rounded-2xl border border-border/75 bg-card/70 p-3",
+        "app-elevated-hover flex items-start gap-3 rounded-[1.15rem] border border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_82%,transparent),color-mix(in_srgb,var(--background-elevated)_70%,transparent))] p-3",
         isDone && "opacity-50",
       )}
     >

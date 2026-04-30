@@ -265,11 +265,11 @@ export function ThreadSidebar({
   };
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-hidden bg-sidebar/82 backdrop-blur-xl">
+    <aside className="flex h-full w-full flex-col overflow-hidden bg-transparent">
       {/* 品牌区：紧贴标题栏下缘，在「红绿灯区域以下 ~ 本区分割线」之间垂直居中 */}
-      <div className="app-hairline flex min-h-[4.75rem] shrink-0 items-center gap-3 border-b border-sidebar-border/80 px-3 py-3.5">
+      <div className="app-sidebar-brand app-hairline flex min-h-[5.4rem] shrink-0 items-center gap-3 px-3 py-4">
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.35rem] border border-primary/22 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_20%,transparent),color-mix(in_srgb,var(--accent)_12%,transparent))] text-primary shadow-[0_18px_38px_color-mix(in_srgb,var(--primary)_15%,transparent)]"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.45rem] border border-primary/28 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_24%,transparent),color-mix(in_srgb,var(--accent)_16%,transparent))] text-primary shadow-[0_22px_44px_color-mix(in_srgb,var(--primary)_16%,transparent)]"
           aria-hidden
         >
           <JarvisMark className="size-[24px]" />
@@ -292,7 +292,7 @@ export function ThreadSidebar({
         </div>
       </div>
 
-      <div className="space-y-2 p-3">
+      <div className="space-y-2 border-b border-sidebar-border/65 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--sidebar-accent)_46%,transparent),transparent)] p-3">
         <div className="flex items-center gap-2">
           <Button
             variant="default"
@@ -359,7 +359,7 @@ export function ThreadSidebar({
       </div>
 
       {/* Thread List */}
-      <ScrollArea className="flex-1 min-h-0">
+      <ScrollArea className="app-subtle-scroll flex-1 min-h-0">
         <div className="space-y-1.5 overflow-hidden p-3 pt-1">
           {threads.map((thread) => (
             <ThreadListItem
@@ -393,7 +393,7 @@ export function ThreadSidebar({
       </ScrollArea>
 
       {/* Overview Toggle */}
-      <div className="border-t border-sidebar-border/80 p-3">
+      <div className="border-t border-sidebar-border/80 bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--sidebar-accent)_44%,transparent))] p-3">
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"
@@ -415,7 +415,7 @@ export function ThreadSidebar({
             <Settings className="size-4" />
           </Button>
         </div>
-        <div className="mt-3 rounded-2xl border border-sidebar-border/70 bg-sidebar-accent/55 px-3 py-3.5">
+        <div className="mt-3 rounded-[1.35rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--sidebar-accent)_82%,transparent),color-mix(in_srgb,var(--sidebar)_78%,transparent))] px-3 py-3.5 shadow-[0_18px_34px_color-mix(in_srgb,#000_10%,transparent)]">
           <div className="flex items-baseline gap-2 text-sidebar-foreground/90">
             <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
               Built by

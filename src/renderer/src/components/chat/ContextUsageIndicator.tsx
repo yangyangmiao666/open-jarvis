@@ -42,25 +42,25 @@ export function ContextUsageIndicator({
   const usagePercent = Math.min((usedTokens / contextLimit) * 100, 100);
 
   // Determine color based on usage
-  let colorClass = "text-blue-500";
-  let bgColorClass = "bg-blue-500/20";
-  let barColorClass = "bg-blue-500";
+  let colorClass = "text-status-info";
+  let bgColorClass = "bg-status-info/12";
+  let barColorClass = "bg-status-info";
   let statusText = "正常";
 
   if (usagePercent >= 90) {
-    colorClass = "text-red-500";
-    bgColorClass = "bg-red-500/20";
-    barColorClass = "bg-red-500";
+    colorClass = "text-status-critical";
+    bgColorClass = "bg-status-critical/12";
+    barColorClass = "bg-status-critical";
     statusText = "危急";
   } else if (usagePercent >= 75) {
-    colorClass = "text-orange-500";
-    bgColorClass = "bg-orange-500/20";
-    barColorClass = "bg-orange-500";
+    colorClass = "text-status-warning";
+    bgColorClass = "bg-status-warning/12";
+    barColorClass = "bg-status-warning";
     statusText = "警告";
   } else if (usagePercent >= 50) {
-    colorClass = "text-yellow-500";
-    bgColorClass = "bg-yellow-500/20";
-    barColorClass = "bg-yellow-500";
+    colorClass = "text-status-warning";
+    bgColorClass = "bg-status-warning/10";
+    barColorClass = "bg-status-warning";
     statusText = "中等";
   }
 
@@ -80,7 +80,7 @@ export function ContextUsageIndicator({
       <PopoverTrigger asChild>
         <button
           className={cn(
-            "flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-xs transition-colors hover:translate-y-0 hover:opacity-80",
+            "flex items-center gap-1.5 rounded-full border border-border/70 px-2.5 py-1 text-xs transition-colors hover:translate-y-0 hover:bg-background-interactive/75",
             bgColorClass,
             colorClass,
             className,
@@ -100,7 +100,7 @@ export function ContextUsageIndicator({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-72 p-0 bg-background border-border"
+        className="w-72 border-border bg-background p-0"
         align="end"
         sideOffset={8}
       >
@@ -196,11 +196,11 @@ export function ContextUsageIndicator({
                   {tokenUsage?.cacheReadTokens !== undefined &&
                     tokenUsage.cacheReadTokens > 0 && (
                       <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 text-green-500">
+                        <div className="flex items-center gap-1.5 text-status-nominal">
                           <Database className="size-3" />
                           <span>缓存命中</span>
                         </div>
-                        <span className="font-mono text-green-500">
+                        <span className="font-mono text-status-nominal">
                           {formatTokenCountFull(tokenUsage.cacheReadTokens)}
                         </span>
                       </div>
@@ -209,11 +209,11 @@ export function ContextUsageIndicator({
                   {tokenUsage?.cacheCreationTokens !== undefined &&
                     tokenUsage.cacheCreationTokens > 0 && (
                       <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 text-blue-500">
+                        <div className="flex items-center gap-1.5 text-status-info">
                           <Database className="size-3" />
                           <span>缓存创建</span>
                         </div>
-                        <span className="font-mono text-blue-500">
+                        <span className="font-mono text-status-info">
                           {formatTokenCountFull(tokenUsage.cacheCreationTokens)}
                         </span>
                       </div>
