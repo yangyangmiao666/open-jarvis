@@ -22,8 +22,89 @@ import { selectWorkspaceFolder } from "@/lib/workspace-utils";
 import { ChatTodos } from "./ChatTodos";
 import { ContextUsageIndicator } from "./ContextUsageIndicator";
 import type { ApprovalMode, Message } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, truncate } from "@/lib/utils";
 import { messagesToMarkdown } from "@/lib/chat-markdown";
+
+const STREAMING_BASE_TIPS = [
+  "正在交叉阅读上下文、消息、工具结果和线程状态，尽量减少无效来回。",
+  "会先压缩出最有价值的下一步，再决定是继续搜索、修改还是验证。",
+  "如果发现问题已经收敛到局部切片，会优先做小改动并立即验证。",
+  "处理过程中会持续整理线索、风险和已完成动作，而不是只输出中间碎片。",
+  "如果本轮涉及工具链、文件改动和上下文窗口，会同步约束它们之间的影响范围。",
+  "当前展示的是处理中状态提示，真实结果仍会按消息和工具调用继续流式输出。",
+];
+
+function buildStreamingTips(params: {
+  todos: Array<{ content: string; status: string }>;
+  workspacePath?: string | null;
+  referencedPaths: string[];
+  currentModelLabel?: string | null;
+  workspaceFileCount: number;
+  approvalMode: ApprovalMode;
+  messageCount: number;
+  recentToolNames: string[];
+  pendingApprovalName?: string | null;
+}): string[] {
+  const {
+    todos,
+    workspacePath,
+    referencedPaths,
+    currentModelLabel,
+    workspaceFileCount,
+    approvalMode,
+    messageCount,
+    recentToolNames,
+    pendingApprovalName,
+  } = params;
+  const activeTodo = todos.find((todo) => todo.status === "in_progress");
+  const completedCount = todos.filter(
+    (todo) => todo.status === "completed",
+  ).length;
+  const queuedCount = todos.filter(
+    (todo) => todo.status === "pending" || todo.status === "in_progress",
+  ).length;
+  const workspaceName = workspacePath?.split("/").filter(Boolean).pop();
+  const toolSummary = recentToolNames.slice(-3);
+
+  const tips = [
+    activeTodo
+      ? `正在推进：${truncate(activeTodo.content.replace(/\s+/g, " "), 46)}`
+      : null,
+    completedCount > 0
+      ? `已经完成 ${completedCount} 个处理步骤，接下来会优先收束剩余动作与验证闭环。`
+      : null,
+    queuedCount > 1
+      ? `后面还有 ${queuedCount - 1} 个待推进步骤，当前按依赖顺序继续，不会无序扩散。`
+      : null,
+    workspaceName
+      ? `正在结合工作区 ${workspaceName} 的文件关系与最近改动推进行为判断。`
+      : null,
+    workspaceName && workspaceFileCount > 0
+      ? `当前工作区可见 ${workspaceFileCount} 个文件节点，会优先利用可证伪的局部线索。`
+      : null,
+    referencedPaths.length > 0
+      ? `会优先使用你引用的 ${referencedPaths.length} 个文件路径，避免上下文偏移和重复搜索。`
+      : null,
+    toolSummary.length > 0
+      ? `最近正在串联 ${toolSummary.join("、")} 等工具，把搜索、修改和验证压进同一轮处理。`
+      : null,
+    currentModelLabel
+      ? `当前由 ${currentModelLabel} 负责本轮推理、工具调用和结果整理。`
+      : null,
+    messageCount > 3
+      ? `当前线程已累计 ${messageCount} 条消息，状态会沿着现有上下文继续推进，不会从头重算。`
+      : null,
+    approvalMode === "auto"
+      ? "当前是自动审批模式，低风险动作会直接继续，减少流程停顿。"
+      : "当前是人工审批模式，高影响工具会停在确认点，保证执行边界清晰。",
+    pendingApprovalName
+      ? `流程当前停在 ${pendingApprovalName} 的确认点，批准或拒绝后会继续汇总后续结果。`
+      : null,
+    ...STREAMING_BASE_TIPS,
+  ].filter((tip): tip is string => Boolean(tip));
+
+  return Array.from(new Set(tips)).slice(0, 10);
+}
 
 interface AgentStreamValues {
   todos?: Array<{ id?: string; content?: string; status?: string }>;
@@ -59,6 +140,7 @@ export function ChatContainer({
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
   const [copyNoticeOpen, setCopyNoticeOpen] = useState(false);
+  const [streamTipTick, setStreamTipTick] = useState(0);
 
   const { threads, models, loadThreads, generateTitleForFirstMessage } =
     useAppStore();
@@ -313,6 +395,60 @@ export function ChatContainer({
     return new Set(ids);
   }, [isLoading, threadMessages, streamData.messages]);
 
+  const recentToolNames = useMemo(() => {
+    const names = displayMessages.flatMap((message) => {
+      const toolCallNames =
+        message.tool_calls?.map((toolCall) => toolCall.name) || [];
+      const toolResultName =
+        message.role === "tool" && message.name ? [message.name] : [];
+      return [...toolCallNames, ...toolResultName];
+    });
+
+    return Array.from(new Set(names.filter(Boolean))).slice(-3);
+  }, [displayMessages]);
+
+  const streamingTips = useMemo(
+    () =>
+      buildStreamingTips({
+        todos,
+        workspacePath,
+        referencedPaths,
+        currentModelLabel:
+          currentModelConfig?.name || currentModelConfig?.model || currentModel,
+        workspaceFileCount: workspaceFiles.length,
+        approvalMode,
+        messageCount: displayMessages.length,
+        recentToolNames,
+        pendingApprovalName: pendingApproval?.tool_call?.name,
+      }),
+    [
+      approvalMode,
+      currentModel,
+      currentModelConfig?.model,
+      currentModelConfig?.name,
+      displayMessages.length,
+      pendingApproval?.tool_call?.name,
+      referencedPaths,
+      recentToolNames,
+      todos,
+      workspaceFiles.length,
+      workspacePath,
+    ],
+  );
+
+  const currentStreamingTip =
+    streamingTips[streamTipTick % Math.max(streamingTips.length, 1)] || "";
+
+  useEffect(() => {
+    if (!isLoading || streamingTips.length <= 1) return;
+
+    const timer = window.setInterval(() => {
+      setStreamTipTick((current) => current + 1);
+    }, 2400);
+
+    return () => window.clearInterval(timer);
+  }, [isLoading, streamingTips.length]);
+
   // Build tool results map from tool messages
   const toolResults = useMemo(() => {
     const results = new Map<
@@ -503,15 +639,18 @@ export function ChatContainer({
       const messageText = extractMessageText(message);
       if (!messageText) return;
 
-      const rewindIndex = threadMessages.findIndex((item) => item.id === message.id);
+      const rewindIndex = threadMessages.findIndex(
+        (item) => item.id === message.id,
+      );
       if (rewindIndex === -1) {
         setError("未找到要重发的消息。请切换会话后重试。");
         return;
       }
 
-      const userMessageOrdinal = threadMessages
-        .slice(0, rewindIndex + 1)
-        .filter((item) => item.role === "user").length - 1;
+      const userMessageOrdinal =
+        threadMessages
+          .slice(0, rewindIndex + 1)
+          .filter((item) => item.role === "user").length - 1;
 
       if (userMessageOrdinal < 0) {
         setError("未找到可回滚的用户消息。请稍后重试。");
@@ -629,48 +768,51 @@ export function ChatContainer({
                     <span className="size-1.5 rounded-full bg-primary" />
                     新会话
                   </div>
-                {workspacePath ? (
-                  <>
-                    <div className="space-y-3">
-                      <div className="text-2xl font-semibold tracking-[-0.04em] text-foreground sm:text-[2rem]">
-                        从这个工作区开始推进一个明确结果
+                  {workspacePath ? (
+                    <>
+                      <div className="space-y-3">
+                        <div className="text-2xl font-semibold tracking-[-0.04em] text-foreground sm:text-[2rem]">
+                          从这个工作区开始推进一个明确结果
+                        </div>
+                        <div className="mx-auto max-w-xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+                          你已经连接了工作区，Jarvis
+                          现在可以直接阅读代码、修改文件、执行命令，并把过程整理成可追踪的结果。
+                        </div>
                       </div>
-                      <div className="mx-auto max-w-xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-                        你已经连接了工作区，Jarvis 现在可以直接阅读代码、修改文件、执行命令，并把过程整理成可追踪的结果。
+                      <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+                        <span className="rounded-full border border-border/70 bg-background/65 px-3 py-1.5 backdrop-blur-sm">
+                          当前目录: {workspacePath.split("/").pop()}
+                        </span>
+                        <span className="rounded-full border border-border/70 bg-background/65 px-3 py-1.5 backdrop-blur-sm">
+                          试试: “梳理这个模块”
+                        </span>
+                        <span className="rounded-full border border-border/70 bg-background/65 px-3 py-1.5 backdrop-blur-sm">
+                          或者: “帮我改并验证”
+                        </span>
                       </div>
+                    </>
+                  ) : (
+                    <div className="space-y-4 text-center text-sm">
+                      <div className="space-y-1">
+                        <span className="text-base font-medium text-status-warning">
+                          请选择工作区文件夹
+                        </span>
+                        <span className="mt-1 block text-xs opacity-80">
+                          智能体需要工作区才能创建与修改文件
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="app-elevated-hover inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-primary/22 bg-primary/10 px-4 text-xs font-medium text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={handleSelectWorkspaceFromEmptyState}
+                      >
+                        <Folder className="size-3.5" />
+                        <span className="max-w-[120px] truncate">
+                          选择工作区
+                        </span>
+                      </button>
                     </div>
-                    <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-                      <span className="rounded-full border border-border/70 bg-background/65 px-3 py-1.5 backdrop-blur-sm">
-                        当前目录: {workspacePath.split("/").pop()}
-                      </span>
-                      <span className="rounded-full border border-border/70 bg-background/65 px-3 py-1.5 backdrop-blur-sm">
-                        试试: “梳理这个模块”
-                      </span>
-                      <span className="rounded-full border border-border/70 bg-background/65 px-3 py-1.5 backdrop-blur-sm">
-                        或者: “帮我改并验证”
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-4 text-center text-sm">
-                    <div className="space-y-1">
-                      <span className="text-base font-medium text-status-warning">
-                        请选择工作区文件夹
-                      </span>
-                      <span className="mt-1 block text-xs opacity-80">
-                        智能体需要工作区才能创建与修改文件
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="app-elevated-hover inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-primary/22 bg-primary/10 px-4 text-xs font-medium text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                      onClick={handleSelectWorkspaceFromEmptyState}
-                    >
-                      <Folder className="size-3.5" />
-                      <span className="max-w-[120px] truncate">选择工作区</span>
-                    </button>
-                  </div>
-                )}
+                  )}
                 </div>
               </div>
             )}
@@ -773,11 +915,39 @@ export function ChatContainer({
       {/* Input */}
       <div className="border-t border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background)_62%,transparent),color-mix(in_srgb,var(--background-elevated)_84%,transparent))] px-4 py-4">
         <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
-          <div className="relative app-flat-surface flex flex-col gap-3 overflow-visible rounded-[26px] px-4 py-4">
+          <div className="relative app-flat-surface flex flex-col gap-3 overflow-visible rounded-[26px] px-4 py-4 transition-[box-shadow,border-color,background-color] duration-300 focus-within:shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent),0_14px_36px_color-mix(in_srgb,var(--primary)_8%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)]">
             {copyNoticeOpen && (
               <div className="animate-enter absolute -top-14 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-status-nominal/25 bg-status-nominal/12 px-3 py-1.5 text-xs font-medium text-status-nominal shadow-[0_10px_28px_color-mix(in_srgb,var(--status-nominal)_12%,transparent)] backdrop-blur-sm">
                 <Check className="size-3.5" />
                 已复制到剪贴板
+              </div>
+            )}
+            {isLoading && streamingTips.length > 0 && (
+              <div className="animate-soft-fade flex items-center gap-3 overflow-hidden rounded-[18px] border border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_94%,transparent),color-mix(in_srgb,var(--background)_86%,transparent))] px-3 py-2 shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent),0_8px_18px_color-mix(in_srgb,#000_3%,transparent)]">
+                <div
+                  className="agent-activity-mark shrink-0"
+                  aria-hidden="true"
+                >
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
+                    Jarvis is working
+                  </div>
+                  <div className="streaming-tip-viewport mt-1">
+                    <div
+                      key={`${streamTipTick}-${currentStreamingTip}`}
+                      className="streaming-tip-line"
+                    >
+                      {currentStreamingTip}
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden shrink-0 rounded-full border border-border/65 bg-background/65 px-2 py-1 text-[10px] font-medium text-muted-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)] sm:block">
+                  {pendingApproval ? "已暂停" : "处理中"}
+                </div>
               </div>
             )}
             {referencedPaths.length > 0 && (
@@ -881,53 +1051,55 @@ export function ChatContainer({
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <ModelSwitcher
-                threadId={threadId}
-                onOpenSettings={onOpenSettings}
-              />
-              <div className="h-4 w-px shrink-0 bg-border" />
-              <WorkspacePicker threadId={threadId} />
-              <div className="h-4 w-px shrink-0 bg-border" />
-              <Button
-                type="button"
-                variant={approvalMode === "auto" ? "nominal" : "outline"}
-                size="sm"
-                className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs hover:translate-y-0"
-                onClick={() => void handleApprovalModeToggle()}
-                title={
-                  approvalMode === "auto"
-                    ? "当前为自动通过审批，点击切换为人工审批"
-                    : "当前为人工审批，点击切换为自动通过"
-                }
-              >
-                {approvalMode === "auto" ? (
-                  <ShieldCheck className="size-3.5" />
-                ) : (
-                  <Shield className="size-3.5" />
-                )}
-                {approvalMode === "auto" ? "自动审批" : "人工审批"}
-              </Button>
-              <div className="h-4 w-px shrink-0 bg-border" />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs text-muted-foreground hover:translate-y-0"
-                disabled={displayMessages.length === 0}
-                onClick={() => void copyConversationMarkdown()}
-                title="复制当前会话全部消息为 Markdown（含工具调用与结果）"
-              >
-                <Copy className="size-3.5" />
-                复制 Markdown
-              </Button>
-              <div className="h-4 w-px shrink-0 bg-border" />
-              <ContextUsageIndicator
-                tokenUsage={tokenUsage}
-                modelId={currentModel}
-                contextWindow={currentModelConfig?.contextWindow}
-                className="shrink-0 rounded-full border border-border/70 bg-card/70 px-3 py-1 backdrop-blur-sm"
-              />
+            <div className="-mx-1 -my-2 overflow-x-auto px-1 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-max items-center gap-2 whitespace-nowrap pb-1">
+                <ModelSwitcher
+                  threadId={threadId}
+                  onOpenSettings={onOpenSettings}
+                />
+                <div className="h-4 w-px shrink-0 bg-border" />
+                <WorkspacePicker threadId={threadId} />
+                <div className="h-4 w-px shrink-0 bg-border" />
+                <Button
+                  type="button"
+                  variant={approvalMode === "auto" ? "nominal" : "outline"}
+                  size="sm"
+                  className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs hover:translate-y-0"
+                  onClick={() => void handleApprovalModeToggle()}
+                  title={
+                    approvalMode === "auto"
+                      ? "当前为自动通过审批，点击切换为人工审批"
+                      : "当前为人工审批，点击切换为自动通过"
+                  }
+                >
+                  {approvalMode === "auto" ? (
+                    <ShieldCheck className="size-3.5" />
+                  ) : (
+                    <Shield className="size-3.5" />
+                  )}
+                  {approvalMode === "auto" ? "自动审批" : "人工审批"}
+                </Button>
+                <div className="h-4 w-px shrink-0 bg-border" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs text-muted-foreground hover:translate-y-0"
+                  disabled={displayMessages.length === 0}
+                  onClick={() => void copyConversationMarkdown()}
+                  title="复制当前会话全部消息为 Markdown（含工具调用与结果）"
+                >
+                  <Copy className="size-3.5" />
+                  复制 Markdown
+                </Button>
+                <div className="h-4 w-px shrink-0 bg-border" />
+                <ContextUsageIndicator
+                  tokenUsage={tokenUsage}
+                  modelId={currentModel}
+                  contextWindow={currentModelConfig?.contextWindow}
+                  className="shrink-0 rounded-full border border-border/70 bg-card/70 px-3 py-1 backdrop-blur-sm"
+                />
+              </div>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-end gap-2 px-1">

@@ -91,9 +91,9 @@ function ThreadListItem({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "group app-elevated-hover flex items-center gap-2 overflow-hidden rounded-2xl border px-3 py-2.5 cursor-pointer",
+            "group app-elevated-hover flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5",
             isSelected
-              ? "border-sidebar-ring/30 bg-sidebar-accent text-sidebar-accent-foreground shadow-[0_16px_30px_color-mix(in_srgb,var(--sidebar-ring)_10%,transparent)]"
+              ? "border-sidebar-ring/30 bg-sidebar-accent text-sidebar-accent-foreground shadow-[0_8px_18px_color-mix(in_srgb,var(--sidebar-ring)_8%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--sidebar-ring)_10%,transparent)]"
               : "border-transparent hover:border-sidebar-border/80 hover:bg-sidebar-accent/70",
           )}
           onClick={() => {
@@ -360,7 +360,7 @@ export function ThreadSidebar({
 
       {/* Thread List */}
       <ScrollArea className="app-subtle-scroll flex-1 min-h-0">
-        <div className="space-y-1.5 overflow-hidden p-3 pt-1">
+        <div className="space-y-2 overflow-visible p-3 pt-2">
           {threads.map((thread) => (
             <ThreadListItem
               key={thread.thread_id}

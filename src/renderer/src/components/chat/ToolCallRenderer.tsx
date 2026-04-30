@@ -588,138 +588,162 @@ export function ToolCallRenderer({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[20px] border backdrop-blur-sm",
-        needsApproval
-          ? "border-status-warning/35 bg-status-warning/8"
-          : "border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_92%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))] shadow-[0_8px_20px_color-mix(in_srgb,#000_4%,transparent)]",
+        "relative isolate rounded-[24px]",
       )}
     >
-      {/* Header */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center gap-2 px-3 py-2.5 transition-colors hover:bg-background-interactive/72"
-      >
-        {isExpanded ? (
-          <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 -z-10 rounded-[24px] blur-xl transition-opacity duration-200",
+          needsApproval
+            ? "bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--status-warning)_12%,transparent),transparent_66%)] opacity-80"
+            : "bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--primary)_8%,transparent),transparent_68%)] opacity-70",
         )}
+      />
 
-        <Icon
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-[20px] border backdrop-blur-sm",
+          needsApproval
+            ? "border-status-warning/35 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--status-warning)_10%,transparent),color-mix(in_srgb,var(--background-elevated)_88%,transparent))] shadow-[0_8px_18px_color-mix(in_srgb,var(--status-warning)_8%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-warning)_10%,transparent)]"
+            : "border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_94%,transparent),color-mix(in_srgb,var(--background-elevated)_84%,transparent))] shadow-[0_8px_18px_color-mix(in_srgb,#000_4%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_6%,transparent)]",
+        )}
+      >
+        <div
           className={cn(
-            "size-4 shrink-0",
-            needsApproval ? "text-status-warning" : "text-primary",
+            "pointer-events-none absolute inset-0 opacity-90",
+            needsApproval
+              ? "bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--status-warning)_12%,transparent),transparent_38%)]"
+              : "bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_9%,transparent),transparent_42%),linear-gradient(180deg,color-mix(in_srgb,#fff_5%,transparent),transparent_34%)]",
           )}
         />
 
-        <span className="text-xs font-medium shrink-0">{label}</span>
-
-        {displayArg && (
-          <span className="flex-1 truncate text-left text-xs text-muted-foreground font-mono">
-            {displayArg}
-          </span>
-        )}
-
-        {needsApproval && (
-          <Badge variant="warning" className="ml-auto shrink-0">
-            待审批
-          </Badge>
-        )}
-
-        {!needsApproval && result === undefined && (
-          <Badge variant="outline" className="ml-auto shrink-0 animate-pulse">
-            运行中
-          </Badge>
-        )}
-
-        {result !== undefined && !needsApproval && (
-          <Badge
-            variant={isError ? "critical" : "nominal"}
-            className="ml-auto shrink-0"
-          >
-            {isError ? "错误" : "成功"}
-          </Badge>
-        )}
-
-        {isPanelSynced && !needsApproval && (
-          <Badge variant="outline" className="shrink-0 text-[9px]">
-            已同步
-          </Badge>
-        )}
-      </button>
-
-      {/* Approval UI */}
-      {needsApproval ? (
-        <div className="space-y-3 border-t border-status-warning/20 px-3 py-3">
-          {/* Show formatted content (e.g., command preview) */}
-          {formattedContent}
-
-          {/* Arguments */}
-          <div>
-            <div className="text-section-header text-[10px] mb-1">参数</div>
-            <pre className="max-h-24 overflow-auto rounded-xl border border-border/60 bg-background-interactive/55 p-2 text-xs font-mono">
-              {JSON.stringify(args, null, 2)}
-            </pre>
-          </div>
-
-          {inlineApprovalButtons ? (
-            <div className="flex items-center justify-end gap-2">
-              <button
-                className="rounded-full border border-border/75 bg-card/70 px-3 py-1.5 text-xs transition-colors hover:bg-background-interactive/82"
-                onClick={handleReject}
-              >
-                拒绝
-              </button>
-              <button
-                className="rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/92"
-                onClick={handleApprove}
-              >
-                批准并执行
-              </button>
-            </div>
+        {/* Header */}
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="relative flex w-full items-center gap-2 px-3 py-2.5 transition-colors hover:bg-background-interactive/62"
+        >
+          {isExpanded ? (
+            <ChevronDown className="size-4 text-muted-foreground shrink-0" />
           ) : (
-            <p className="text-[11px] text-muted-foreground">
-              请在对话区底部固定栏批准或拒绝。
-            </p>
+            <ChevronRight className="size-4 text-muted-foreground shrink-0" />
           )}
-        </div>
-      ) : null}
 
-      {/* Expanded content - raw details */}
-      {isExpanded && !needsApproval && (
-        <div className="space-y-2 overflow-hidden border-t border-border/70 px-3 py-2">
-          {/* Formatted display first */}
-          {formattedContent}
-          {formattedResult}
+          <Icon
+            className={cn(
+              "size-4 shrink-0",
+              needsApproval ? "text-status-warning" : "text-primary",
+            )}
+          />
 
-          {/* Raw Arguments */}
-          <div className="overflow-hidden w-full">
-            <div className="text-section-header mb-1">原始参数</div>
-            <pre className="max-h-48 w-full overflow-auto rounded-xl border border-border/60 bg-background-interactive/55 p-2 text-xs font-mono whitespace-pre-wrap break-all">
-              {JSON.stringify(args, null, 2)}
-            </pre>
-          </div>
+          <span className="text-xs font-medium shrink-0">{label}</span>
 
-          {/* Raw Result */}
-          {result !== undefined && (
-            <div className="overflow-hidden w-full">
-              <div className="text-section-header mb-1">原始结果</div>
-              <pre
-                className={cn(
-                  "max-h-48 w-full overflow-auto rounded-xl p-2 text-xs font-mono whitespace-pre-wrap break-all",
-                  isError
-                    ? "border border-status-critical/20 bg-status-critical/10 text-status-critical"
-                    : "border border-border/60 bg-background-interactive/55",
-                )}
-              >
-                {typeof result === "string"
-                  ? result
-                  : JSON.stringify(result, null, 2)}
+          {displayArg && (
+            <span className="flex-1 truncate text-left text-xs text-muted-foreground font-mono">
+              {displayArg}
+            </span>
+          )}
+
+          {needsApproval && (
+            <Badge variant="warning" className="ml-auto shrink-0">
+              待审批
+            </Badge>
+          )}
+
+          {!needsApproval && result === undefined && (
+            <Badge variant="outline" className="ml-auto shrink-0 animate-pulse">
+              运行中
+            </Badge>
+          )}
+
+          {result !== undefined && !needsApproval && (
+            <Badge
+              variant={isError ? "critical" : "nominal"}
+              className="ml-auto shrink-0"
+            >
+              {isError ? "错误" : "成功"}
+            </Badge>
+          )}
+
+          {isPanelSynced && !needsApproval && (
+            <Badge variant="outline" className="shrink-0 text-[9px]">
+              已同步
+            </Badge>
+          )}
+        </button>
+
+        {/* Approval UI */}
+        {needsApproval ? (
+          <div className="space-y-3 border-t border-status-warning/20 px-3 py-3">
+            {/* Show formatted content (e.g., command preview) */}
+            {formattedContent}
+
+            {/* Arguments */}
+            <div>
+              <div className="text-section-header text-[10px] mb-1">参数</div>
+              <pre className="max-h-24 overflow-auto rounded-xl border border-border/60 bg-background-interactive/55 p-2 text-xs font-mono shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent)]">
+                {JSON.stringify(args, null, 2)}
               </pre>
             </div>
-          )}
-        </div>
-      )}
+
+            {inlineApprovalButtons ? (
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  className="rounded-full border border-border/75 bg-card/78 px-3 py-1.5 text-xs shadow-[0_6px_14px_color-mix(in_srgb,#000_3%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--foreground)_4%,transparent)] transition-all hover:-translate-y-0.5 hover:bg-background-interactive/82 hover:shadow-[0_8px_18px_color-mix(in_srgb,#000_4%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent),0_0_0_1px_color-mix(in_srgb,var(--foreground)_5%,transparent)]"
+                  onClick={handleReject}
+                >
+                  拒绝
+                </button>
+                <button
+                  className="rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_12%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_18%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)] transition-all hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_10px_22px_color-mix(in_srgb,var(--primary)_15%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_22%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent)]"
+                  onClick={handleApprove}
+                >
+                  批准并执行
+                </button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                请在对话区底部固定栏批准或拒绝。
+              </p>
+            )}
+          </div>
+        ) : null}
+
+        {/* Expanded content - raw details */}
+        {isExpanded && !needsApproval && (
+          <div className="space-y-2 overflow-hidden border-t border-border/70 px-3 py-2">
+            {/* Formatted display first */}
+            {formattedContent}
+            {formattedResult}
+
+            {/* Raw Arguments */}
+            <div className="overflow-hidden w-full">
+              <div className="text-section-header mb-1">原始参数</div>
+              <pre className="max-h-48 w-full overflow-auto rounded-xl border border-border/60 bg-background-interactive/55 p-2 text-xs font-mono whitespace-pre-wrap break-all shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent)]">
+                {JSON.stringify(args, null, 2)}
+              </pre>
+            </div>
+
+            {/* Raw Result */}
+            {result !== undefined && (
+              <div className="overflow-hidden w-full">
+                <div className="text-section-header mb-1">原始结果</div>
+                <pre
+                  className={cn(
+                    "max-h-48 w-full overflow-auto rounded-xl p-2 text-xs font-mono whitespace-pre-wrap break-all shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent)]",
+                    isError
+                      ? "border border-status-critical/20 bg-status-critical/10 text-status-critical"
+                      : "border border-border/60 bg-background-interactive/55",
+                  )}
+                >
+                  {typeof result === "string"
+                    ? result
+                    : JSON.stringify(result, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

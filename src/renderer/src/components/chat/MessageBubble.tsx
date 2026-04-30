@@ -144,7 +144,7 @@ export function MessageBubble({
           )}
         </div>
 
-        <div className="flex-1 min-w-0 space-y-2 overflow-hidden">
+        <div className="flex-1 min-w-0 space-y-2 overflow-visible">
           <div
             className={cn(
               "flex items-center gap-2",
@@ -226,7 +226,7 @@ export function MessageBubble({
 
           {/* Tool calls */}
           {hasToolCalls && (
-            <div className="space-y-2 overflow-hidden">
+            <div className="space-y-3 overflow-visible px-1 py-1">
               {message.tool_calls!.map((toolCall, index) => {
                 const result = toolResults?.get(toolCall.id);
                 const pendingId = pendingApproval?.tool_call?.id;

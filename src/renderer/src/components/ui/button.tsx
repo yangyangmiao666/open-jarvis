@@ -9,24 +9,24 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[0_8px_22px_color-mix(in_srgb,var(--primary)_22%,transparent)] hover:-translate-y-0.5 hover:bg-primary/96 hover:shadow-[0_12px_28px_color-mix(in_srgb,var(--primary)_28%,transparent)]",
+          "bg-primary text-primary-foreground shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_12%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_20%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)] hover:-translate-y-0.5 hover:bg-primary/96 hover:shadow-[0_10px_22px_color-mix(in_srgb,var(--primary)_15%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_24%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent)]",
         destructive:
-          "bg-destructive text-white shadow-[0_8px_22px_color-mix(in_srgb,var(--destructive)_16%,transparent)] hover:-translate-y-0.5 hover:bg-destructive/94",
+          "bg-destructive text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--destructive)_10%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_18%,transparent),0_0_0_1px_color-mix(in_srgb,var(--destructive)_12%,transparent)] hover:-translate-y-0.5 hover:bg-destructive/94 hover:shadow-[0_10px_22px_color-mix(in_srgb,var(--destructive)_12%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_22%,transparent),0_0_0_1px_color-mix(in_srgb,var(--destructive)_15%,transparent)]",
         outline:
-          "border-border/80 bg-card/72 text-foreground/92 backdrop-blur-md shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)] hover:-translate-y-0.5 hover:border-primary/24 hover:bg-background-interactive/84",
+          "border-border/80 bg-card/72 text-foreground/92 backdrop-blur-md shadow-[0_6px_14px_color-mix(in_srgb,#000_3%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--foreground)_3%,transparent)] hover:-translate-y-0.5 hover:border-primary/24 hover:bg-background-interactive/84 hover:shadow-[0_8px_18px_color-mix(in_srgb,#000_4%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_12%,transparent)]",
         secondary:
-          "border border-border/70 bg-secondary text-secondary-foreground shadow-[0_6px_16px_color-mix(in_srgb,#000_3%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)] hover:-translate-y-0.5 hover:border-border-emphasis hover:bg-secondary/92",
+          "border border-border/70 bg-secondary text-secondary-foreground shadow-[0_6px_14px_color-mix(in_srgb,#000_3%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--foreground)_3%,transparent)] hover:-translate-y-0.5 hover:border-border-emphasis hover:bg-secondary/92 hover:shadow-[0_8px_18px_color-mix(in_srgb,#000_4%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_10%,transparent)]",
         ghost:
           "text-muted-foreground hover:-translate-y-0.5 hover:bg-background-interactive/88 hover:text-foreground",
         link: "border-none px-0 text-primary underline-offset-4 hover:text-primary/80 hover:underline",
         // Status variants
         nominal:
-          "bg-status-nominal text-background shadow-[0_8px_20px_color-mix(in_srgb,var(--status-nominal)_16%,transparent)] hover:-translate-y-0.5 hover:bg-status-nominal/94",
+          "bg-status-nominal text-background shadow-[0_8px_18px_color-mix(in_srgb,var(--status-nominal)_11%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_18%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-nominal)_12%,transparent)] hover:-translate-y-0.5 hover:bg-status-nominal/94 hover:shadow-[0_10px_22px_color-mix(in_srgb,var(--status-nominal)_13%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_22%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-nominal)_15%,transparent)]",
         warning:
-          "bg-status-warning text-background shadow-[0_8px_20px_color-mix(in_srgb,var(--status-warning)_16%,transparent)] hover:-translate-y-0.5 hover:bg-status-warning/94",
+          "bg-status-warning text-background shadow-[0_8px_18px_color-mix(in_srgb,var(--status-warning)_11%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_18%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-warning)_12%,transparent)] hover:-translate-y-0.5 hover:bg-status-warning/94 hover:shadow-[0_10px_22px_color-mix(in_srgb,var(--status-warning)_13%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_22%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-warning)_15%,transparent)]",
         critical:
-          "bg-status-critical text-white shadow-[0_8px_20px_color-mix(in_srgb,var(--status-critical)_16%,transparent)] hover:-translate-y-0.5 hover:bg-status-critical/94",
-        info: "bg-status-info text-white shadow-[0_8px_20px_color-mix(in_srgb,var(--status-info)_16%,transparent)] hover:-translate-y-0.5 hover:bg-status-info/94",
+          "bg-status-critical text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--status-critical)_11%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_18%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-critical)_12%,transparent)] hover:-translate-y-0.5 hover:bg-status-critical/94 hover:shadow-[0_10px_22px_color-mix(in_srgb,var(--status-critical)_13%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_22%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-critical)_15%,transparent)]",
+        info: "bg-status-info text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--status-info)_11%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_18%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-info)_12%,transparent)] hover:-translate-y-0.5 hover:bg-status-info/94 hover:shadow-[0_10px_22px_color-mix(in_srgb,var(--status-info)_13%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_22%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-info)_15%,transparent)]",
       },
       size: {
         default: "h-10 px-4 py-2",

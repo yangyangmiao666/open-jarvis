@@ -382,7 +382,7 @@ html.light {
 .app-elevated-hover:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 10px 24px color-mix(in srgb, #000 8%, transparent),
+    0 8px 18px color-mix(in srgb, #000 6%, transparent),
     0 1px 0 color-mix(in srgb, #fff 10%, transparent) inset,
     0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent);
 }
@@ -661,6 +661,329 @@ html.light {
   animation: scale-in var(--duration-base) var(--ease-emphasized) both;
 }
 
+@keyframes agent-activity-core {
+  0%,
+  8%,
+  92%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.78) rotate(0deg);
+    clip-path: polygon(
+      50% 4%,
+      68% 8%,
+      84% 16%,
+      92% 32%,
+      96% 50%,
+      92% 68%,
+      84% 84%,
+      68% 92%,
+      50% 96%,
+      32% 92%,
+      16% 84%,
+      8% 68%,
+      4% 50%,
+      8% 32%,
+      16% 16%,
+      32% 8%
+    );
+    opacity: 0.94;
+    filter: saturate(1) brightness(1);
+  }
+  16% {
+    transform: translate3d(0, 0, 0) scale(0.98) rotate(45deg);
+    clip-path: polygon(
+      50% 2%,
+      62% 14%,
+      74% 26%,
+      86% 38%,
+      98% 50%,
+      86% 62%,
+      74% 74%,
+      62% 86%,
+      50% 98%,
+      38% 86%,
+      26% 74%,
+      14% 62%,
+      2% 50%,
+      14% 38%,
+      26% 26%,
+      38% 14%
+    );
+    opacity: 1;
+    filter: saturate(1.08) brightness(1.08);
+  }
+  24%,
+  74% {
+    transform: translate3d(0, 0, 0) scale(1.14) rotate(0deg);
+    clip-path: polygon(
+      50% 2%,
+      56% 34%,
+      88% 12%,
+      66% 44%,
+      98% 50%,
+      66% 56%,
+      88% 88%,
+      56% 66%,
+      50% 98%,
+      44% 66%,
+      12% 88%,
+      34% 56%,
+      2% 50%,
+      34% 44%,
+      12% 12%,
+      44% 34%
+    );
+    opacity: 1;
+    filter: saturate(1.14) brightness(1.14);
+  }
+  84% {
+    transform: translate3d(0, 0, 0) scale(1.02) rotate(45deg);
+    clip-path: polygon(
+      18% 2%,
+      40% 2%,
+      60% 2%,
+      82% 2%,
+      98% 18%,
+      98% 40%,
+      98% 60%,
+      98% 82%,
+      82% 98%,
+      60% 98%,
+      40% 98%,
+      18% 98%,
+      2% 82%,
+      2% 60%,
+      2% 40%,
+      2% 18%
+    );
+    opacity: 0.98;
+    filter: saturate(1.1) brightness(1.08);
+  }
+}
+
+@keyframes agent-activity-echo-a {
+  0%,
+  8%,
+  92%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.92) rotate(0deg);
+    clip-path: polygon(
+      50% 4%,
+      68% 8%,
+      84% 16%,
+      92% 32%,
+      96% 50%,
+      92% 68%,
+      84% 84%,
+      68% 92%,
+      50% 96%,
+      32% 92%,
+      16% 84%,
+      8% 68%,
+      4% 50%,
+      8% 32%,
+      16% 16%,
+      32% 8%
+    );
+    opacity: 0.18;
+  }
+  16% {
+    transform: translate3d(0, 0, 0) scale(1.16) rotate(22.5deg);
+    clip-path: polygon(
+      50% 2%,
+      56% 34%,
+      88% 12%,
+      66% 44%,
+      98% 50%,
+      66% 56%,
+      88% 88%,
+      56% 66%,
+      50% 98%,
+      44% 66%,
+      12% 88%,
+      34% 56%,
+      2% 50%,
+      34% 44%,
+      12% 12%,
+      44% 34%
+    );
+    opacity: 0.34;
+  }
+  24%,
+  74% {
+    transform: translate3d(0, 0, 0) scale(1.28) rotate(45deg);
+    clip-path: polygon(
+      50% 2%,
+      56% 34%,
+      88% 12%,
+      66% 44%,
+      98% 50%,
+      66% 56%,
+      88% 88%,
+      56% 66%,
+      50% 98%,
+      44% 66%,
+      12% 88%,
+      34% 56%,
+      2% 50%,
+      34% 44%,
+      12% 12%,
+      44% 34%
+    );
+    opacity: 0.32;
+  }
+  84% {
+    transform: translate3d(0, 0, 0) scale(1.1) rotate(0deg);
+    clip-path: polygon(
+      18% 2%,
+      40% 2%,
+      60% 2%,
+      82% 2%,
+      98% 18%,
+      98% 40%,
+      98% 60%,
+      98% 82%,
+      82% 98%,
+      60% 98%,
+      40% 98%,
+      18% 98%,
+      2% 82%,
+      2% 60%,
+      2% 40%,
+      2% 18%
+    );
+    opacity: 0.24;
+  }
+}
+
+@keyframes agent-activity-echo-b {
+  0%,
+  8%,
+  92%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.86) rotate(0deg);
+    clip-path: polygon(
+      50% 10%,
+      58% 30%,
+      78% 42%,
+      58% 54%,
+      50% 78%,
+      42% 54%,
+      22% 42%,
+      42% 30%
+    );
+    opacity: 0.28;
+  }
+  16% {
+    transform: translate3d(0, 0, 0) scale(0.96) rotate(45deg);
+    clip-path: polygon(
+      50% 8%,
+      64% 32%,
+      92% 50%,
+      64% 68%,
+      50% 92%,
+      36% 68%,
+      8% 50%,
+      36% 32%
+    );
+    opacity: 0.52;
+  }
+  24%,
+  74% {
+    transform: translate3d(0, 0, 0) scale(0.78) rotate(0deg);
+    clip-path: polygon(
+      20% 20%,
+      50% 10%,
+      80% 20%,
+      90% 50%,
+      80% 80%,
+      50% 90%,
+      20% 80%,
+      10% 50%
+    );
+    opacity: 0.5;
+  }
+  84% {
+    transform: translate3d(0, 0, 0) scale(0.9) rotate(-45deg);
+    clip-path: polygon(
+      14% 14%,
+      50% 8%,
+      86% 14%,
+      92% 50%,
+      86% 86%,
+      50% 92%,
+      14% 86%,
+      8% 50%
+    );
+    opacity: 0.34;
+  }
+}
+
+@keyframes agent-activity-halo {
+  0%,
+  8%,
+  92%,
+  100% {
+    transform: rotate(0deg) scale(0.92);
+    opacity: 0.42;
+  }
+  24%,
+  74% {
+    transform: rotate(45deg) scale(1.08);
+    opacity: 0.78;
+  }
+}
+
+@keyframes agent-activity-spectrum {
+  0%,
+  100% {
+    background-position: 0% 50%, 100% 50%, 0% 50%, 20% 30%;
+    filter: hue-rotate(0deg) saturate(1.08);
+  }
+  25% {
+    background-position: 24% 18%, 76% 20%, 22% 56%, 62% 22%;
+    filter: hue-rotate(18deg) saturate(1.16);
+  }
+  50% {
+    background-position: 100% 50%, 0% 50%, 100% 50%, 80% 70%;
+    filter: hue-rotate(34deg) saturate(1.22);
+  }
+  75% {
+    background-position: 78% 82%, 22% 80%, 82% 44%, 34% 78%;
+    filter: hue-rotate(14deg) saturate(1.14);
+  }
+}
+
+@keyframes agent-activity-core-glow {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 1px color-mix(in srgb, #fff 40%, transparent),
+      inset 0 -1px 2px color-mix(in srgb, #000 16%, transparent),
+      0 0 0 1px color-mix(in srgb, #6ee7ff 22%, transparent),
+      0 0 12px color-mix(in srgb, #7c3aed 10%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 1px color-mix(in srgb, #fff 48%, transparent),
+      inset 0 -1px 2px color-mix(in srgb, #000 18%, transparent),
+      0 0 0 1px color-mix(in srgb, #ff66c4 28%, transparent),
+      0 0 18px color-mix(in srgb, #22d3ee 18%, transparent);
+  }
+}
+
+@keyframes stream-tip-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.45rem);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
 .animate-shimmer {
   background: linear-gradient(
     90deg,
@@ -913,6 +1236,218 @@ html.light {
 .chat-input-scrollbar::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: color-mix(in srgb, var(--border-emphasis) 70%, transparent);
+}
+
+.agent-activity-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.28rem;
+  height: 1.28rem;
+  isolation: isolate;
+  filter: drop-shadow(
+      0 0 24px color-mix(in srgb, #22d3ee 18%, transparent)
+    )
+    drop-shadow(0 4px 14px color-mix(in srgb, #000 10%, transparent));
+}
+
+.agent-activity-mark::before {
+  content: "";
+  position: absolute;
+  inset: -0.34rem;
+  z-index: -2;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 18deg,
+    color-mix(in srgb, #22d3ee 44%, transparent) 18deg 40deg,
+    transparent 44deg 64deg,
+    color-mix(in srgb, #60a5fa 28%, transparent) 40deg 64deg,
+    color-mix(in srgb, #8b5cf6 36%, transparent) 64deg 90deg,
+    transparent 92deg 108deg,
+    color-mix(in srgb, #c084fc 26%, transparent) 90deg 108deg,
+    color-mix(in srgb, #ff4fd8 34%, transparent) 108deg 136deg,
+    transparent 136deg 154deg,
+    color-mix(in srgb, #fb7185 24%, transparent) 136deg 154deg,
+    color-mix(in srgb, #60a5fa 26%, transparent) 154deg 182deg,
+    transparent 182deg 198deg,
+    color-mix(in srgb, #34d399 22%, transparent) 182deg 198deg,
+    color-mix(in srgb, #22d3ee 34%, transparent) 198deg 226deg,
+    transparent 226deg 244deg,
+    color-mix(in srgb, #a78bfa 24%, transparent) 226deg 244deg,
+    color-mix(in srgb, #8b5cf6 36%, transparent) 244deg 272deg,
+    transparent 272deg 288deg,
+    color-mix(in srgb, #f472b6 24%, transparent) 272deg 288deg,
+    color-mix(in srgb, #ff4fd8 32%, transparent) 288deg 316deg,
+    transparent 316deg 334deg,
+    color-mix(in srgb, #2dd4bf 22%, transparent) 316deg 334deg,
+    color-mix(in srgb, #60a5fa 26%, transparent) 334deg 360deg
+  );
+  background-size: 210% 210%;
+  clip-path: polygon(
+    50% 0%,
+    56% 22%,
+    78% 6%,
+    66% 28%,
+    100% 50%,
+    66% 72%,
+    78% 94%,
+    56% 78%,
+    50% 100%,
+    44% 78%,
+    22% 94%,
+    34% 72%,
+    0% 50%,
+    34% 28%,
+    22% 6%,
+    44% 22%
+  );
+  filter: blur(0.5px);
+  animation:
+    agent-activity-halo 3.8s cubic-bezier(0.37, 0, 0.22, 1) infinite,
+    agent-activity-spectrum 6.2s linear infinite;
+}
+
+.agent-activity-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0.34rem;
+  z-index: 3;
+  border-radius: 999px;
+  background:
+    radial-gradient(
+      circle at 34% 30%,
+      color-mix(in srgb, #fff 86%, transparent),
+      color-mix(in srgb, #86f7ff 44%, transparent) 28%,
+      transparent 54%
+    ),
+    radial-gradient(
+      circle at 66% 68%,
+      color-mix(in srgb, #ff68d5 36%, transparent),
+      color-mix(in srgb, #8b5cf6 24%, transparent) 46%,
+      transparent 74%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      color-mix(in srgb, #22d3ee 24%, transparent),
+      transparent 72%
+    );
+  background-size: 180% 180%, 200% 200%, 160% 160%;
+  box-shadow: 0 0 18px color-mix(in srgb, #22d3ee 20%, transparent);
+  animation: agent-activity-spectrum 5.8s linear infinite reverse;
+}
+
+.agent-activity-mark span {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(
+      52% 52% at 28% 24%,
+      color-mix(in srgb, #fff 62%, #86f7ff 38%),
+      transparent 54%
+    ),
+    radial-gradient(
+      68% 72% at 18% 78%,
+      color-mix(in srgb, #34d399 32%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      74% 80% at 76% 78%,
+      color-mix(in srgb, #7c3aed 54%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      62% 64% at 82% 22%,
+      color-mix(in srgb, #fb7185 28%, transparent),
+      transparent 66%
+    ),
+    linear-gradient(
+      136deg,
+      #43e7ff 0%,
+      #5b8dff 18%,
+      #7c3aed 36%,
+      #9b5cff 52%,
+      #ff62c0 68%,
+      #ff8a5b 82%,
+      #34d399 92%,
+      #5cf0ff 100%
+    );
+  background-size: 200% 200%, 170% 170%, 190% 190%, 180% 180%, 260% 260%;
+  box-shadow:
+    inset 0 1px 1px color-mix(in srgb, #fff 34%, transparent),
+    inset 0 -1px 2px color-mix(in srgb, #000 14%, transparent),
+    0 0 0 1px color-mix(in srgb, #8b5cf6 18%, transparent);
+  transform-origin: center;
+}
+
+.agent-activity-mark span:nth-child(1) {
+  animation:
+    agent-activity-core 3.6s cubic-bezier(0.37, 0, 0.22, 1) infinite,
+    agent-activity-spectrum 6.8s linear infinite,
+    agent-activity-core-glow 4.6s ease-in-out infinite;
+}
+
+.agent-activity-mark span:nth-child(2) {
+  inset: -0.12rem;
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      color-mix(in srgb, #22d3ee 22%, transparent),
+      color-mix(in srgb, #8b5cf6 14%, transparent) 38%,
+      color-mix(in srgb, #ff62c0 12%, transparent) 54%,
+      transparent 66%
+    );
+  background-size: 220% 220%;
+  box-shadow: none;
+  filter: blur(0.75px);
+  animation:
+    agent-activity-echo-a 3.9s ease-in-out infinite,
+    agent-activity-spectrum 7.4s linear infinite;
+}
+
+.agent-activity-mark span:nth-child(3) {
+  inset: 0.16rem 0.18rem 0.28rem 0.18rem;
+  background: radial-gradient(
+    80% 100% at 30% 24%,
+    color-mix(in srgb, #fff 78%, transparent),
+    color-mix(in srgb, #9b5cff 18%, transparent) 38%,
+    color-mix(in srgb, #22d3ee 14%, transparent) 54%,
+    color-mix(in srgb, #34d399 10%, transparent) 66%,
+    transparent 72%
+  );
+  mix-blend-mode: screen;
+  box-shadow: none;
+  filter: blur(0.3px);
+  animation:
+    agent-activity-echo-b 3.6s ease-in-out infinite,
+    agent-activity-spectrum 6.1s linear infinite reverse;
+}
+
+.streaming-tip-viewport {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 1.35rem;
+  overflow: hidden;
+}
+
+.streaming-tip-line {
+  display: block;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--foreground) 82%, transparent);
+  font-size: 0.82rem;
+  line-height: 1.35rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: stream-tip-rise 420ms var(--ease-emphasized) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-activity-mark span,
+  .streaming-tip-line {
+    animation: none !important;
+  }
 }
 
 .streaming-markdown .katex-display {
