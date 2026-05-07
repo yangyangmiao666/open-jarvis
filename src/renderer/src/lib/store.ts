@@ -75,9 +75,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   colorMode:
     typeof window !== "undefined" &&
-    localStorage.getItem("openwork-theme") === "light"
-      ? "light"
-      : "dark",
+    localStorage.getItem("openwork-theme") === "dark"
+      ? "dark"
+      : "light",
 
   setColorMode: (mode) => {
     document.documentElement.classList.remove("light", "dark");
