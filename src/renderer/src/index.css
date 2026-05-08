@@ -1011,9 +1011,9 @@ html.light {
 
 .agent-glow-halo {
   position: absolute;
-  inset: 0 -14px;
+  inset: 0 -16px;
   z-index: 0;
-  border-radius: 40px;
+  border-radius: 42px;
   background: conic-gradient(
     from var(--agent-border-angle),
     transparent 0deg,
