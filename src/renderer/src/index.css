@@ -971,6 +971,91 @@ html.light {
   }
 }
 
+@keyframes agent-border-spin {
+  0% {
+    --agent-border-angle: 0deg;
+  }
+  100% {
+    --agent-border-angle: 360deg;
+  }
+}
+
+@property --agent-border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.agent-border-glow {
+  position: relative;
+  border-color: transparent !important;
+}
+
+.agent-border-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--agent-border-angle),
+    #3b82f6, #8b5cf6, #d946ef, #f472b6, #fb923c, #fbbf24, #84cc16, #22d3ee, #3b82f6
+  );
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  padding: 1.5px;
+  animation: agent-border-spin 2.5s linear infinite;
+}
+
+.agent-glow-halo {
+  position: absolute;
+  inset: 0 -14px;
+  z-index: 0;
+  border-radius: 40px;
+  background: conic-gradient(
+    from var(--agent-border-angle),
+    transparent 0deg,
+    #3b82f6 30deg,
+    #8b5cf6 60deg,
+    #d946ef 90deg,
+    #f472b6 120deg,
+    #fb923c 150deg,
+    #fbbf24 180deg,
+    #84cc16 210deg,
+    #22d3ee 240deg,
+    #3b82f6 270deg,
+    transparent 300deg,
+    transparent 360deg
+  );
+  filter: blur(14px);
+  opacity: 0.6;
+  animation: agent-border-spin 2.5s linear infinite;
+}
+
+.agent-glow-inner-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: var(--background-elevated);
+  pointer-events: none;
+}
+
+.agent-border-glow > *:first-child {
+  position: relative;
+  z-index: 1;
+}
+
+.agent-border-glow > .glow-inner-mask {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--background-elevated);
+}
+
 @keyframes stream-tip-rise {
   from {
     opacity: 0;

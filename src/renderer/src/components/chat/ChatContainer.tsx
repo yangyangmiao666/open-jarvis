@@ -913,9 +913,15 @@ export function ChatContainer({
       )}
 
       {/* Input */}
-      <div className="border-t border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background)_62%,transparent),color-mix(in_srgb,var(--background-elevated)_84%,transparent))] px-4 py-4">
-        <form onSubmit={handleSubmit} className="mx-auto max-w-4xl">
-          <div className="relative app-flat-surface flex flex-col gap-3 overflow-visible rounded-[26px] px-4 py-4 transition-[box-shadow,border-color,background-color] duration-300 focus-within:shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent),0_14px_36px_color-mix(in_srgb,var(--primary)_8%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)]">
+      <div className="overflow-visible border-t border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background)_62%,transparent),color-mix(in_srgb,var(--background-elevated)_84%,transparent))] px-4 py-4">
+        <form onSubmit={handleSubmit} className="relative mx-auto max-w-4xl">
+          {isLoading && (
+            <div className="agent-glow-halo" />
+          )}
+          <div className={cn("relative app-flat-surface z-0 flex flex-col gap-3 overflow-visible rounded-[26px] px-4 py-4 transition-[box-shadow,border-color,background-color] duration-300 focus-within:shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent),0_14px_36px_color-mix(in_srgb,var(--primary)_8%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)]", isLoading && "agent-border-glow")}>
+            {isLoading && (
+              <div className="agent-glow-inner-mask" />
+            )}
             {copyNoticeOpen && (
               <div className="animate-enter absolute -top-14 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-status-nominal/25 bg-status-nominal/12 px-3 py-1.5 text-xs font-medium text-status-nominal shadow-[0_10px_28px_color-mix(in_srgb,var(--status-nominal)_12%,transparent)] backdrop-blur-sm">
                 <Check className="size-3.5" />
