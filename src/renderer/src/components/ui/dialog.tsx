@@ -18,7 +18,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--primary)_12%,transparent),transparent_42%),color-mix(in_srgb,#020617_68%,transparent)] backdrop-blur-xl data-[state=open]:animate-soft-fade data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-200",
+      "fixed inset-0 z-50 bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--primary)_10%,transparent),transparent_38%),linear-gradient(180deg,color-mix(in_srgb,#020617_54%,transparent),color-mix(in_srgb,#020617_76%,transparent))] backdrop-blur-md data-[state=open]:animate-soft-fade data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-200",
       className,
     )}
     {...props}
@@ -35,13 +35,13 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "app-panel fixed left-[50%] top-[50%] z-50 grid w-[min(94vw,60rem)] max-w-5xl translate-x-[-50%] translate-y-[-50%] gap-6 overflow-hidden rounded-[32px] border border-border/75 p-7 text-foreground shadow-[0_28px_90px_color-mix(in_srgb,#000_24%,transparent)] data-[state=open]:animate-scale-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-200 sm:p-8",
+        "app-premium-popup fixed left-[50%] top-[50%] z-50 grid w-[min(94vw,60rem)] max-w-5xl translate-x-[-50%] translate-y-[-50%] gap-6 overflow-hidden rounded-[32px] p-7 text-foreground data-[state=open]:animate-scale-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-200 sm:p-8",
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full border border-border/70 bg-background/60 text-muted-foreground opacity-90 ring-offset-background backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-red-500/55 hover:bg-red-500/14 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/45 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-background-interactive">
+      <DialogPrimitive.Close className="app-premium-pill absolute right-4 top-4 flex size-10 items-center justify-center rounded-full text-muted-foreground opacity-90 ring-offset-background transition-all duration-200 hover:-translate-y-px hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/45 focus:ring-offset-2 disabled:pointer-events-none">
         <X className="size-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

@@ -129,14 +129,14 @@ export function MessageBubble({
         <div className="w-10 shrink-0 pt-0.5">
           {isUser ? (
             <div
-              className="flex size-9 items-center justify-center rounded-2xl border border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_94%,transparent),color-mix(in_srgb,var(--secondary)_84%,transparent))] text-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)]"
+              className="app-rainbow-pill flex size-9 items-center justify-center rounded-2xl text-foreground"
               title="你"
             >
               <User className="size-4" />
             </div>
           ) : (
             <div
-              className="flex size-9 items-center justify-center rounded-2xl border border-primary/18 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_96%,transparent),color-mix(in_srgb,var(--background-interactive)_88%,transparent))] text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_10%,transparent)]"
+              className="app-rainbow-pill flex size-9 items-center justify-center rounded-2xl text-primary"
               title="Jarvis"
             >
               <JarvisMark className="size-[16px]" />
@@ -208,8 +208,8 @@ export function MessageBubble({
               <div
                 className={cn(
                   isUser
-                    ? "ml-auto w-fit max-w-full overflow-hidden rounded-[22px] border border-primary/18 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_96%,transparent),color-mix(in_srgb,var(--background-interactive)_88%,transparent))] px-4 py-3.5 text-foreground shadow-[0_8px_20px_color-mix(in_srgb,#000_4%,transparent)]"
-                    : "pt-0.5",
+                    ? "app-rainbow-frame ml-auto w-fit max-w-full overflow-hidden rounded-[24px] px-4 py-3.5 text-foreground"
+                    : "app-rainbow-frame w-fit max-w-full overflow-hidden rounded-[24px] px-4 py-3.5",
                 )}
               >
                 {content}

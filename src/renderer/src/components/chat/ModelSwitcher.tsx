@@ -171,7 +171,7 @@ export function ModelSwitcher({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[520px] rounded-[28px] border-border bg-popover p-0 shadow-[0_18px_48px_color-mix(in_srgb,#000_12%,transparent)]"
+          className="w-[520px] rounded-[28px] p-0 shadow-none"
           align="start"
           sideOffset={8}
         >

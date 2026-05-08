@@ -42,7 +42,7 @@ export function ThreadKanbanCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer rounded-[22px] border border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_94%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))] shadow-[0_8px_20px_color-mix(in_srgb,#000_4%,transparent)] transition-all hover:-translate-y-0.5 hover:border-primary/24 hover:bg-background-interactive/72",
+        "cursor-pointer rounded-[24px] transition-all hover:-translate-y-1 hover:scale-[1.01]",
         status === "in_progress" && "border-status-info/45",
         status === "interrupted" && "!border-status-warning/45 !bg-status-warning/8",
       )}
@@ -88,7 +88,7 @@ export function SubagentKanbanCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer rounded-[22px] border border-dashed border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_90%,transparent),color-mix(in_srgb,var(--background-elevated)_80%,transparent))] shadow-[0_6px_18px_color-mix(in_srgb,#000_3%,transparent)] transition-all hover:-translate-y-0.5 hover:border-primary/24 hover:bg-background-interactive/70",
+        "cursor-pointer rounded-[24px] border-dashed transition-all hover:-translate-y-1 hover:scale-[1.01]",
         subagent.status === "running" && "border-status-info/50",
       )}
       onClick={onClick}

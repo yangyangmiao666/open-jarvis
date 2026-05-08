@@ -56,7 +56,7 @@ function SectionHeader({
   return (
     <button
       onClick={onToggle}
-      className="group flex w-full shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-section-header transition-colors hover:bg-background-interactive/78 hover:text-foreground"
+      className="group app-elevated-hover flex w-full shrink-0 items-center gap-2 rounded-[18px] border border-transparent px-3 py-2.5 text-section-header transition-colors hover:border-border/70 hover:bg-background-interactive/78 hover:text-foreground"
       style={{ height: HEADER_HEIGHT }}
     >
       <ChevronRight
@@ -340,7 +340,7 @@ export function RightPanel(): React.JSX.Element {
   return (
     <aside
       ref={containerRef}
-      className="flex h-full w-full flex-col overflow-hidden border-l border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_94%,transparent),color-mix(in_srgb,var(--background)_88%,transparent))] backdrop-blur-md"
+      className="flex h-full w-full flex-col overflow-hidden border-l border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))]"
     >
       {/* TASKS */}
       <div className="flex shrink-0 flex-col border-b border-border/65 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_76%,transparent),transparent)]">

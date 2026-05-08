@@ -73,7 +73,7 @@ export function WorkspacePicker({
           <ChevronDown className="size-3 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 rounded-[24px] p-4 shadow-[0_18px_48px_color-mix(in_srgb,#000_12%,transparent)]" align="start">
+      <PopoverContent className="w-80 rounded-[24px] p-4 shadow-none" align="start">
         <div className="space-y-3">
           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             工作区文件夹
@@ -81,7 +81,7 @@ export function WorkspacePicker({
 
           {workspacePath ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-3">
+              <div className="app-premium-surface flex items-center gap-2 rounded-2xl px-3 py-3">
                 <Check className="size-3.5 text-status-nominal shrink-0" />
                 <span className="text-sm truncate flex-1" title={workspacePath}>
                   {folderName}

@@ -120,8 +120,9 @@ export function KanbanView(): React.JSX.Element {
   ];
 
   return (
-    <div className="flex h-full flex-col bg-transparent">
-      <div className="app-hairline shrink-0 border-b border-border/50 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_76%,transparent),color-mix(in_srgb,var(--background)_36%,transparent))] px-4 py-4">
+    <div className="relative flex h-full flex-col bg-transparent">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_8%,transparent),transparent_28%),radial-gradient(circle_at_bottom_right,color-mix(in_srgb,var(--accent)_10%,transparent),transparent_34%)]" />
+      <div className="app-hairline shrink-0 border-b border-border/50 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_76%,transparent),color-mix(in_srgb,var(--background)_36%,transparent))] px-4 py-4 backdrop-blur-lg">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-section-header">Overview</div>
@@ -129,7 +130,7 @@ export function KanbanView(): React.JSX.Element {
               会话与子智能体总览
             </div>
           </div>
-          <div className="rounded-full border border-border/70 bg-background-elevated/80 px-3 py-1 text-xs text-muted-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)]">
+          <div className="rounded-full border border-primary/18 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_14%,transparent),color-mix(in_srgb,var(--background-elevated)_80%,transparent))] px-3 py-1 text-xs text-muted-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)]">
             {threads.length} 个会话
           </div>
         </div>
@@ -165,7 +166,7 @@ export function KanbanView(): React.JSX.Element {
                   />
                 ))}
                 {totalCount === 0 && (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground">
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground backdrop-blur-sm">
                     暂无条目
                   </div>
                 )}

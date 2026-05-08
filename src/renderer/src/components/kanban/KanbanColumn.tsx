@@ -32,10 +32,11 @@ export function KanbanColumn({
   return (
     <div
       className={cn(
-        "app-flat-surface flex min-w-[280px] w-[280px] flex-1 flex-col rounded-[26px] border border-border/70",
+        "app-flat-surface relative flex min-w-[280px] w-[280px] flex-1 flex-col overflow-hidden rounded-[28px] border border-border/70",
       )}
     >
-      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_7%,transparent),transparent)]" />
+      <div className="relative flex items-center justify-between border-b border-border/70 px-4 py-3">
         <span className="flex items-center gap-2 text-section-header">
           <span className={cn("size-2 rounded-full", config.tone)} />
           {title}

@@ -93,7 +93,7 @@ function ThreadListItem({
           className={cn(
             "group app-elevated-hover flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5",
             isSelected
-              ? "border-sidebar-ring/30 bg-sidebar-accent text-sidebar-accent-foreground shadow-[0_8px_18px_color-mix(in_srgb,var(--sidebar-ring)_8%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--sidebar-ring)_10%,transparent)]"
+              ? "app-premium-surface border-transparent text-sidebar-accent-foreground shadow-none"
               : "border-transparent hover:border-sidebar-border/80 hover:bg-sidebar-accent/70",
           )}
           onClick={() => {
@@ -269,7 +269,7 @@ export function ThreadSidebar({
       {/* 品牌区：紧贴标题栏下缘，在「红绿灯区域以下 ~ 本区分割线」之间垂直居中 */}
       <div className="app-sidebar-brand app-hairline flex min-h-[5.4rem] shrink-0 items-center gap-3 px-3 py-4">
         <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.45rem] border border-primary/28 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_24%,transparent),color-mix(in_srgb,var(--accent)_16%,transparent))] text-primary shadow-[0_22px_44px_color-mix(in_srgb,var(--primary)_16%,transparent)]"
+          className="app-premium-surface flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.45rem] text-primary shadow-none"
           aria-hidden
         >
           <JarvisMark className="size-[24px]" />
@@ -415,7 +415,7 @@ export function ThreadSidebar({
             <Settings className="size-4" />
           </Button>
         </div>
-        <div className="mt-3 rounded-[1.35rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--sidebar-accent)_82%,transparent),color-mix(in_srgb,var(--sidebar)_78%,transparent))] px-3 py-3.5 shadow-[0_18px_34px_color-mix(in_srgb,#000_10%,transparent)]">
+        <div className="app-premium-surface mt-3 rounded-[1.35rem] px-3 py-3.5 shadow-none">
           <div className="flex items-baseline gap-2 text-sidebar-foreground/90">
             <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
               Built by

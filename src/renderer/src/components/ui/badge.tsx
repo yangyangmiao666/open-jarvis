@@ -3,22 +3,26 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-sm border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
+  "app-premium-pill inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-[transform,border-color,background-color,color] duration-200",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground",
-        secondary: "border-transparent bg-secondary text-secondary-foreground",
-        destructive: "border-transparent bg-destructive text-white",
-        outline: "border-border text-foreground",
+        default:
+          "text-primary",
+        secondary:
+          "text-secondary-foreground",
+        destructive:
+          "text-destructive",
+        outline:
+          "text-foreground/92",
         // Status variants with 15% bg opacity
         nominal:
-          "border-status-nominal/30 bg-status-nominal/15 text-status-nominal",
+          "text-status-nominal",
         warning:
-          "border-status-warning/30 bg-status-warning/15 text-status-warning",
+          "text-status-warning",
         critical:
-          "border-status-critical/30 bg-status-critical/15 text-status-critical",
-        info: "border-status-info/30 bg-status-info/15 text-status-info",
+          "text-status-critical",
+        info: "text-status-info",
       },
     },
     defaultVariants: {

@@ -6,9 +6,9 @@ import "./index.css";
 
 function initThemeFromStorage(): void {
   const saved = localStorage.getItem("openwork-theme");
-  const resolved = saved === "light" || saved === "dark" ? saved : "light";
+  const resolved = saved === "light" || saved === "dark" ? saved : "dark";
   if (!saved) {
-    localStorage.setItem("openwork-theme", "light");
+    localStorage.setItem("openwork-theme", "dark");
   }
   document.documentElement.classList.remove("light", "dark");
   document.documentElement.classList.add(resolved);

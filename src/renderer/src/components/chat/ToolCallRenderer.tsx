@@ -602,10 +602,9 @@ export function ToolCallRenderer({
 
       <div
         className={cn(
-          "relative overflow-hidden rounded-[20px] border backdrop-blur-sm",
-          needsApproval
-            ? "border-status-warning/35 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--status-warning)_10%,transparent),color-mix(in_srgb,var(--background-elevated)_88%,transparent))] shadow-[0_8px_18px_color-mix(in_srgb,var(--status-warning)_8%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--status-warning)_10%,transparent)]"
-            : "border-border/75 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_94%,transparent),color-mix(in_srgb,var(--background-elevated)_84%,transparent))] shadow-[0_8px_18px_color-mix(in_srgb,#000_4%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_6%,transparent)]",
+          "app-rainbow-frame relative overflow-hidden rounded-[20px]",
+          needsApproval &&
+            "[--app-rainbow-fill:linear-gradient(180deg,color-mix(in_srgb,var(--status-warning)_10%,transparent),color-mix(in_srgb,var(--background-elevated)_92%,transparent))]",
         )}
       >
         <div
@@ -688,13 +687,13 @@ export function ToolCallRenderer({
             {inlineApprovalButtons ? (
               <div className="flex items-center justify-end gap-2">
                 <button
-                  className="rounded-full border border-border/75 bg-card/78 px-3 py-1.5 text-xs shadow-[0_6px_14px_color-mix(in_srgb,#000_3%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--foreground)_4%,transparent)] transition-all hover:-translate-y-0.5 hover:bg-background-interactive/82 hover:shadow-[0_8px_18px_color-mix(in_srgb,#000_4%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent),0_0_0_1px_color-mix(in_srgb,var(--foreground)_5%,transparent)]"
+                  className="app-rainbow-button rounded-full px-3 py-1.5 text-xs text-foreground transition-all hover:-translate-y-px"
                   onClick={handleReject}
                 >
                   拒绝
                 </button>
                 <button
-                  className="rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_12%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_18%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)] transition-all hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_10px_22px_color-mix(in_srgb,var(--primary)_15%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_22%,transparent),0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent)]"
+                  className="app-rainbow-button rounded-full px-3 py-1.5 text-xs text-primary transition-all hover:-translate-y-px"
                   onClick={handleApprove}
                 >
                   批准并执行

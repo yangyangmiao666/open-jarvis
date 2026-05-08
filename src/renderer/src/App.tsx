@@ -98,8 +98,16 @@ function App(): React.JSX.Element {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">正在初始化…</div>
+      <div className="relative flex h-screen items-center justify-center overflow-hidden bg-background">
+        <div className="app-ambient-grid" />
+        <div className="app-aurora-orb left-[-8rem] top-[-5rem] h-64 w-64 bg-primary/20" />
+        <div className="app-aurora-orb bottom-[-6rem] right-[-4rem] h-72 w-72 bg-accent/20 [animation-delay:-4s]" />
+        <div className="app-flat-surface animate-scale-in relative rounded-[30px] px-8 py-6 text-center shadow-none">
+          <div className="text-section-header">Booting Interface</div>
+          <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-foreground">
+            正在初始化…
+          </div>
+        </div>
       </div>
     );
   }
@@ -107,9 +115,11 @@ function App(): React.JSX.Element {
   return (
     <ThreadProvider>
       <div className="app-shell flex h-screen flex-col overflow-hidden bg-background">
+        <div className="app-ambient-grid" />
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-[-10%] top-[-14%] h-[28rem] w-[28rem] rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute bottom-[-18%] right-[-8%] h-[26rem] w-[26rem] rounded-full bg-accent/10 blur-3xl" />
+          <div className="app-aurora-orb left-[-8%] top-[-12%] h-[30rem] w-[30rem] bg-[radial-gradient(circle,color-mix(in_srgb,var(--accent)_46%,transparent),transparent_66%)]" />
+          <div className="app-aurora-orb right-[-8%] top-[6%] h-[26rem] w-[26rem] bg-[radial-gradient(circle,color-mix(in_srgb,var(--primary)_42%,transparent),transparent_64%)] [animation-delay:-4s]" />
+          <div className="app-aurora-orb bottom-[-16%] left-[34%] h-[24rem] w-[24rem] bg-[radial-gradient(circle,color-mix(in_srgb,#8b5cf6_38%,transparent),transparent_64%)] [animation-delay:-7s]" />
         </div>
 
         <div className="app-stage">

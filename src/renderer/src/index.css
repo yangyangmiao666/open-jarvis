@@ -80,6 +80,20 @@
   --font-display:
     "Iowan Old Style", "Palatino Linotype", "Times New Roman",
     "Songti SC", "STSong", serif;
+
+  /* Shared rainbow treatment */
+  --rainbow-gradient:
+    linear-gradient(
+      120deg,
+      #ff5f8f 0%,
+      #ff9843 14%,
+      #ffe066 28%,
+      #59e3a7 42%,
+      #4fd8ff 58%,
+      #6682ff 72%,
+      #b26bff 86%,
+      #ff5f8f 100%
+    );
 }
 
 /* 深色（默认，由 html.dark 与 initTheme 应用） */
@@ -87,87 +101,87 @@ html.dark,
 :root {
   /* Foundation */
   --radius: 14px;
-  --background: #0a0a0b;
-  --background-elevated: #101113;
-  --background-interactive: #17191d;
-  --foreground: #f5f5f7;
+  --background: #0b1017;
+  --background-elevated: #121924;
+  --background-interactive: #1a2230;
+  --foreground: #f3f7fd;
 
   /* Borders */
-  --border: #262a31;
-  --border-emphasis: #394150;
-  --input: #13151a;
-  --ring: #0a84ff;
+  --border: #2d3648;
+  --border-emphasis: #46546f;
+  --input: #151c28;
+  --ring: #8ab4f8;
 
   /* Text hierarchy */
-  --muted: #111214;
-  --muted-foreground: #9ca3af;
-  --tertiary-foreground: #6b7280;
+  --muted: #111824;
+  --muted-foreground: #a6b3ca;
+  --tertiary-foreground: #76839c;
 
   /* Semantic mapping for shadcn compatibility */
-  --card: #111214;
-  --card-foreground: #f5f5f7;
-  --popover: #111317;
-  --popover-foreground: #f5f5f7;
-  --primary: #0a84ff;
-  --primary-foreground: #f5faff;
-  --secondary: #1b1e24;
-  --secondary-foreground: #f5f5f7;
-  --accent: #d6dde8;
-  --accent-foreground: #0a0a0b;
-  --destructive: #ff5f57;
+  --card: #141c28;
+  --card-foreground: #f3f7fd;
+  --popover: #151d2a;
+  --popover-foreground: #f3f7fd;
+  --primary: #8ab4f8;
+  --primary-foreground: #07111d;
+  --secondary: #1c2432;
+  --secondary-foreground: #f3f7fd;
+  --accent: #b49cff;
+  --accent-foreground: #120b1f;
+  --destructive: #ff7b91;
 
   /* Status colors */
-  --status-critical: #ff5f57;
-  --status-warning: #ffb340;
-  --status-nominal: #32d74b;
-  --status-info: #0a84ff;
+  --status-critical: #ff7b91;
+  --status-warning: #f1c96a;
+  --status-nominal: #6dd8ae;
+  --status-info: #82bfff;
 
   /* Sidebar */
-  --sidebar: #0d0e11;
-  --sidebar-foreground: #f5f5f7;
-  --sidebar-primary: #0a84ff;
-  --sidebar-primary-foreground: #f5faff;
-  --sidebar-accent: #15171b;
-  --sidebar-accent-foreground: #f5f5f7;
-  --sidebar-border: #262a31;
-  --sidebar-ring: #0a84ff;
+  --sidebar: #0d131d;
+  --sidebar-foreground: #f3f7fd;
+  --sidebar-primary: #8ab4f8;
+  --sidebar-primary-foreground: #07111d;
+  --sidebar-accent: #151d29;
+  --sidebar-accent-foreground: #f3f7fd;
+  --sidebar-border: #293345;
+  --sidebar-ring: #8ab4f8;
 }
 
 html.light {
-  --background: #f5f5f7;
+  --background: #f5f7fc;
   --background-elevated: #ffffff;
-  --background-interactive: #eceef2;
-  --foreground: #111113;
-  --border: #d6dae2;
-  --border-emphasis: #b9c0cb;
-  --input: #ebeef3;
-  --ring: #0071e3;
-  --muted: #f0f2f5;
-  --muted-foreground: #6b7280;
-  --tertiary-foreground: #9ca3af;
+  --background-interactive: #edf2fb;
+  --foreground: #121826;
+  --border: #d4dceb;
+  --border-emphasis: #bcc8de;
+  --input: #eef3fb;
+  --ring: #5f89ff;
+  --muted: #eef2f8;
+  --muted-foreground: #66748d;
+  --tertiary-foreground: #8d99ae;
   --card: #ffffff;
-  --card-foreground: #111113;
+  --card-foreground: #121826;
   --popover: #ffffff;
-  --popover-foreground: #111113;
-  --primary: #0071e3;
+  --popover-foreground: #121826;
+  --primary: #5f89ff;
   --primary-foreground: #f8fbff;
-  --secondary: #eceef2;
-  --secondary-foreground: #111113;
-  --accent: #d7dde6;
-  --accent-foreground: #111113;
-  --destructive: #ff3b30;
-  --status-critical: #ff3b30;
-  --status-warning: #ff9f0a;
-  --status-nominal: #30b958;
-  --status-info: #0071e3;
-  --sidebar: #f3f4f6;
-  --sidebar-foreground: #111113;
-  --sidebar-primary: #0071e3;
+  --secondary: #eef3fb;
+  --secondary-foreground: #121826;
+  --accent: #9d82ff;
+  --accent-foreground: #171028;
+  --destructive: #e85b72;
+  --status-critical: #e85b72;
+  --status-warning: #d7a94d;
+  --status-nominal: #3eb889;
+  --status-info: #5f89ff;
+  --sidebar: #eef3fb;
+  --sidebar-foreground: #121826;
+  --sidebar-primary: #5f89ff;
   --sidebar-primary-foreground: #f8fbff;
-  --sidebar-accent: #fafafa;
-  --sidebar-accent-foreground: #111113;
-  --sidebar-border: #d9dde4;
-  --sidebar-ring: #0071e3;
+  --sidebar-accent: #fbfcff;
+  --sidebar-accent-foreground: #121826;
+  --sidebar-border: #d4dceb;
+  --sidebar-ring: #5f89ff;
 }
 
 @layer base {
@@ -180,31 +194,26 @@ html.light {
     font-family: var(--font-sans);
     background-image:
       radial-gradient(
-        1100px 620px at -12% -14%,
+        980px 620px at -14% -18%,
         color-mix(in srgb, var(--primary) 14%, transparent),
         transparent 62%
       ),
       radial-gradient(
-        900px 520px at 108% -2%,
-        color-mix(in srgb, var(--foreground) 4%, transparent),
+        820px 520px at 106% -8%,
+        color-mix(in srgb, var(--accent) 12%, transparent),
         transparent 66%
       ),
       radial-gradient(
-        820px 440px at 52% 112%,
-        color-mix(in srgb, var(--primary) 6%, transparent),
+        900px 420px at 50% 116%,
+        color-mix(in srgb, #7ee0c3 8%, transparent),
         transparent 75%
       ),
       linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--foreground) 2.8%, transparent),
-        transparent 42%,
-        color-mix(in srgb, var(--primary) 4%, transparent) 100%
-      ),
-      linear-gradient(
         180deg,
-        color-mix(in srgb, var(--background-elevated) 84%, transparent),
-        color-mix(in srgb, var(--background) 98%, transparent)
-      );
+        color-mix(in srgb, var(--background-elevated) 82%, transparent),
+        color-mix(in srgb, var(--background) 100%, transparent)
+      ),
+      linear-gradient(120deg, transparent, color-mix(in srgb, #fff 2%, transparent));
     background-size: auto, auto, auto, auto, auto;
     background-attachment: fixed;
     min-height: 100vh;
@@ -264,20 +273,31 @@ html.light {
   position: relative;
   background:
     radial-gradient(
-      620px 240px at 50% 0%,
-      color-mix(in srgb, var(--foreground) 3.2%, transparent),
+      760px 280px at 50% -4%,
+      color-mix(in srgb, #fff 6%, transparent),
       transparent 72%
     ),
     radial-gradient(
-      720px 280px at 10% 12%,
-      color-mix(in srgb, var(--primary) 6%, transparent),
+      760px 360px at 6% 10%,
+      color-mix(in srgb, var(--primary) 10%, transparent),
       transparent 72%
+    ),
+    radial-gradient(
+      820px 420px at 94% 4%,
+      color-mix(in srgb, var(--accent) 10%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      740px 420px at 52% 108%,
+      color-mix(in srgb, #7ee0c3 6%, transparent),
+      transparent 76%
     ),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--background-elevated) 91%, transparent),
-      color-mix(in srgb, var(--background) 98%, transparent)
+      color-mix(in srgb, #0f1622 96%, transparent),
+      color-mix(in srgb, #0a0f17 100%, transparent)
     );
+  isolation: isolate;
 }
 
 .app-shell::before {
@@ -286,17 +306,42 @@ html.light {
   inset: 0;
   pointer-events: none;
   background:
+    radial-gradient(
+      36rem 18rem at 16% 22%,
+      color-mix(in srgb, var(--primary) 10%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      30rem 18rem at 84% 18%,
+      color-mix(in srgb, var(--accent) 10%, transparent),
+      transparent 74%
+    ),
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--accent) 2%, transparent),
+      color-mix(in srgb, var(--primary) 2%, transparent),
       transparent 34%,
-      color-mix(in srgb, var(--primary) 3%, transparent) 100%
+      color-mix(in srgb, var(--accent) 4%, transparent) 100%
     );
-  opacity: 0.92;
+  opacity: 0.82;
+  animation: ambient-shift 18s linear infinite alternate;
 }
 
 .app-shell::after {
-  content: none;
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      120deg,
+      transparent 18%,
+      color-mix(in srgb, #fff 3%, transparent) 34%,
+      transparent 48%,
+      color-mix(in srgb, var(--primary) 3%, transparent) 68%,
+      transparent 82%
+    );
+  mix-blend-mode: screen;
+  opacity: 0.48;
 }
 
 .app-stage {
@@ -308,14 +353,13 @@ html.light {
   overflow: hidden;
   border-radius: 0;
   border: 0;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--background-elevated) 92%, transparent),
-      color-mix(in srgb, var(--background) 96%, transparent)
-    );
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background-elevated) 94%, transparent),
+    color-mix(in srgb, var(--background) 98%, transparent)
+  );
   box-shadow: none;
-  backdrop-filter: blur(24px) saturate(116%);
+  backdrop-filter: none;
 }
 
 .app-stage::before {
@@ -327,28 +371,53 @@ html.light {
 }
 
 .app-panel {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--card) 97%, transparent),
-    color-mix(in srgb, var(--background-elevated) 93%, transparent)
-  );
-  border: 1px solid color-mix(in srgb, var(--border-emphasis) 32%, transparent);
-  box-shadow:
-    0 8px 24px color-mix(in srgb, #000 6%, transparent),
-    0 1px 0 color-mix(in srgb, #fff 8%, transparent) inset,
-    0 -1px 0 color-mix(in srgb, #000 6%, transparent) inset;
-  backdrop-filter: blur(18px) saturate(108%);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--card) 97%, transparent),
+        color-mix(in srgb, var(--background-elevated) 95%, transparent)
+      )
+      padding-box,
+    linear-gradient(
+        135deg,
+        #ffffff14 0%,
+        #8ab4f840 18%,
+        #79d2ff2c 36%,
+        #7ee0c328 56%,
+        #b49cff30 78%,
+        #ffffff12 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+  backdrop-filter: none;
 }
 
 .app-toolbar {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--background-elevated) 88%, transparent),
-    color-mix(in srgb, var(--background) 82%, transparent)
-  );
-  backdrop-filter: blur(16px) saturate(108%);
+  border-bottom-color: transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--background-elevated) 97%, transparent),
+        color-mix(in srgb, var(--background) 96%, transparent)
+      )
+      padding-box,
+    linear-gradient(
+        90deg,
+        #ffffff12 0%,
+        #8ab4f82a 28%,
+        #b49cff24 56%,
+        #7ee0c31f 82%,
+        #ffffff10 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  backdrop-filter: none;
   box-shadow:
-    inset 0 -1px 0 color-mix(in srgb, var(--border) 68%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--foreground) 5%, transparent),
     inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
 }
 
@@ -382,36 +451,56 @@ html.light {
 .app-elevated-hover:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 8px 18px color-mix(in srgb, #000 6%, transparent),
-    0 1px 0 color-mix(in srgb, #fff 10%, transparent) inset,
-    0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--foreground) 8%, transparent),
+    0 12px 30px color-mix(in srgb, #000 10%, transparent);
 }
 
 .app-flat-surface {
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border: 1px solid transparent;
   background:
     linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 88%, transparent),
-      color-mix(in srgb, var(--background-elevated) 80%, transparent)
-    );
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
-    0 8px 20px color-mix(in srgb, #000 4%, transparent);
-  backdrop-filter: blur(16px) saturate(112%);
+        180deg,
+        color-mix(in srgb, var(--card) 97%, transparent),
+        color-mix(in srgb, var(--background-elevated) 94%, transparent)
+      )
+      padding-box,
+    linear-gradient(
+        135deg,
+        #ffffff14 0%,
+        #8ab4f83a 16%,
+        #79d2ff26 34%,
+        #7ee0c320 52%,
+        #b49cff2b 74%,
+        #ffffff0f 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+  backdrop-filter: none;
 }
 
 .app-sidebar-chrome {
   background:
+    radial-gradient(
+      120% 50% at 0% 0%,
+      color-mix(in srgb, var(--primary) 8%, transparent),
+      transparent 52%
+    ),
+    radial-gradient(
+      110% 46% at 100% 0%,
+      color-mix(in srgb, var(--accent) 8%, transparent),
+      transparent 52%
+    ),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--sidebar) 96%, transparent),
-      color-mix(in srgb, var(--sidebar-accent) 92%, transparent)
+      color-mix(in srgb, var(--sidebar) 97%, transparent),
+      color-mix(in srgb, var(--sidebar-accent) 94%, transparent)
     );
   box-shadow:
     inset -1px 0 0 color-mix(in srgb, var(--sidebar-border) 78%, transparent),
     inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
-  backdrop-filter: blur(26px) saturate(118%);
+  backdrop-filter: none;
 }
 
 .app-sidebar-brand {
@@ -420,14 +509,19 @@ html.light {
   border-bottom: 1px solid color-mix(in srgb, var(--sidebar-border) 82%, transparent);
   background:
     radial-gradient(
-      260px 110px at 20% 0%,
-      color-mix(in srgb, var(--primary) 14%, transparent),
+      260px 130px at 12% 0%,
+      color-mix(in srgb, var(--primary) 10%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      280px 130px at 100% 0%,
+      color-mix(in srgb, var(--accent) 10%, transparent),
       transparent 70%
     ),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--sidebar-accent) 68%, transparent),
-      color-mix(in srgb, var(--sidebar) 94%, transparent)
+      color-mix(in srgb, var(--sidebar-accent) 84%, transparent),
+      color-mix(in srgb, var(--sidebar) 98%, transparent)
     );
 }
 
@@ -476,11 +570,11 @@ html.light {
   flex-shrink: 0;
   padding: 0 0.85rem;
   border-radius: 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--card) 90%, transparent),
-    color-mix(in srgb, var(--background-elevated) 82%, transparent)
+    color-mix(in srgb, var(--card) 96%, transparent),
+    color-mix(in srgb, var(--background-elevated) 92%, transparent)
   );
   font-size: 0.84rem;
   line-height: 1;
@@ -495,27 +589,37 @@ html.light {
 
 .app-tab:hover {
   color: var(--foreground);
-  border-color: color-mix(in srgb, var(--primary) 44%, var(--border-emphasis));
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--background-interactive) 84%, transparent),
-    color-mix(in srgb, var(--card) 90%, transparent)
-  );
-  box-shadow: 0 6px 14px color-mix(in srgb, #000 4%, transparent);
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--border-emphasis) 90%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #fff 9%, transparent),
+    0 10px 28px color-mix(in srgb, #000 8%, transparent);
 }
 
 .app-tab-active {
   color: var(--foreground);
-  border: 1px solid color-mix(in srgb, var(--primary) 56%, var(--border-emphasis));
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--card) 98%, transparent),
-    color-mix(in srgb, var(--background-elevated) 94%, transparent)
-  );
+  border-color: transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--card) 98%, transparent),
+        color-mix(in srgb, var(--background-elevated) 94%, transparent)
+      )
+      padding-box,
+    linear-gradient(
+        110deg,
+        #8ab4f86a 0%,
+        #79d2ff52 30%,
+        #7ee0c342 60%,
+        #b49cff55 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
   box-shadow:
-    0 8px 18px color-mix(in srgb, #000 4%, transparent),
-    0 1px 0 color-mix(in srgb, #fff 12%, transparent) inset,
-    0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
+    inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, #fff 10%, transparent),
+    0 8px 24px color-mix(in srgb, #000 8%, transparent);
 }
 
 .app-tab-close:hover {
@@ -539,6 +643,223 @@ html.light {
   font-family: var(--font-sans);
   font-weight: 600;
   letter-spacing: -0.02em;
+}
+
+.app-rainbow-frame {
+  border: 1px solid transparent;
+  background:
+    var(
+        --app-rainbow-fill,
+        linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--card) 96%, transparent),
+          color-mix(in srgb, var(--background-elevated) 92%, transparent)
+        )
+      )
+      padding-box,
+    var(--rainbow-gradient) border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+}
+
+.app-premium-surface {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--card) 97%, transparent),
+        color-mix(in srgb, var(--background-elevated) 94%, transparent)
+      )
+      padding-box,
+    linear-gradient(
+        135deg,
+        #ffffff12 0%,
+        #8ab4f838 18%,
+        #79d2ff24 38%,
+        #7ee0c320 58%,
+        #b49cff26 80%,
+        #ffffff0f 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+}
+
+.app-premium-button {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--background-elevated) 96%, transparent),
+        color-mix(in srgb, var(--background-interactive) 94%, transparent)
+      )
+      padding-box,
+    linear-gradient(
+        135deg,
+        #ffffff10 0%,
+        #8ab4f82f 18%,
+        #79d2ff20 38%,
+        #7ee0c31b 58%,
+        #b49cff22 80%,
+        #ffffff0e 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+}
+
+.app-premium-button-primary {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        135deg,
+        #8ab4f8 0%,
+        #79d2ff 28%,
+        #7ee0c3 58%,
+        #b49cff 100%
+      )
+      padding-box,
+    linear-gradient(
+        135deg,
+        #ffffff1f 0%,
+        #8ab4f873 18%,
+        #79d2ff65 38%,
+        #7ee0c35f 58%,
+        #b49cff73 82%,
+        #ffffff14 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent),
+    0 12px 30px color-mix(in srgb, #08111d 18%, transparent);
+}
+
+.app-premium-pill {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--background-elevated) 95%, transparent),
+        color-mix(in srgb, var(--background) 92%, transparent)
+      )
+      padding-box,
+    linear-gradient(
+        120deg,
+        #ffffff10 0%,
+        #8ab4f82a 24%,
+        #79d2ff1d 44%,
+        #7ee0c31a 64%,
+        #b49cff20 84%,
+        #ffffff0c 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+}
+
+.app-premium-field {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--background-elevated) 98%, transparent),
+        color-mix(in srgb, var(--background) 95%, transparent)
+      )
+      padding-box,
+    linear-gradient(
+        135deg,
+        #ffffff10 0%,
+        #8ab4f82f 20%,
+        #79d2ff22 42%,
+        #7ee0c31d 64%,
+        #b49cff24 86%,
+        #ffffff0e 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+}
+
+.app-premium-popup {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--popover) 97%, transparent),
+        color-mix(in srgb, var(--background-elevated) 95%, transparent)
+      )
+      padding-box,
+    linear-gradient(
+        135deg,
+        #ffffff12 0%,
+        #8ab4f83a 18%,
+        #79d2ff24 38%,
+        #7ee0c320 58%,
+        #b49cff26 80%,
+        #ffffff10 100%
+      )
+      border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
+    0 18px 54px color-mix(in srgb, #000 18%, transparent);
+  backdrop-filter: blur(18px) saturate(128%);
+}
+
+.app-rainbow-button {
+  border: 1px solid transparent;
+  background:
+    var(
+        --app-button-fill,
+        linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--background-elevated) 96%, transparent),
+          color-mix(in srgb, var(--background) 92%, transparent)
+        )
+      )
+      padding-box,
+    var(--rainbow-gradient) border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+}
+
+.app-rainbow-pill {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--background-elevated) 94%, transparent),
+        color-mix(in srgb, var(--background) 88%, transparent)
+      )
+      padding-box,
+    var(--rainbow-gradient) border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+}
+
+.app-rainbow-field {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--background-elevated) 96%, transparent),
+        color-mix(in srgb, var(--background) 92%, transparent)
+      )
+      padding-box,
+    var(--rainbow-gradient) border-box;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
 }
 
 /* Status color utilities */
@@ -655,6 +976,60 @@ html.light {
 
 .animate-soft-fade {
   animation: soft-fade var(--duration-base) var(--ease-standard) both;
+}
+
+.app-aurora-orb {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(18px);
+  mix-blend-mode: screen;
+  opacity: 0.78;
+  animation: orb-float 12s var(--ease-emphasized) infinite alternate;
+}
+
+.app-ambient-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--foreground) 4%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--foreground) 4%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 88px 88px;
+  mask-image: linear-gradient(180deg, color-mix(in srgb, #000 88%, transparent), transparent 86%);
+  opacity: 0.16;
+}
+
+@keyframes ambient-shift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(1.2%, -1.4%, 0) scale(1.04);
+  }
+}
+
+@keyframes orb-float {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.96);
+  }
+
+  50% {
+    transform: translate3d(3%, -4%, 0) scale(1.05);
+  }
+
+  100% {
+    transform: translate3d(-2%, 3%, 0) scale(1);
+  }
 }
 
 .animate-scale-in {
