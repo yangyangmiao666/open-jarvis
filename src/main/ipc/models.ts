@@ -26,6 +26,7 @@ import {
   upsertOpenAICompatibleProfile,
   deleteOpenAICompatibleProfile,
 } from "../openai-compatible-profiles";
+import { getThread, updateThread } from "../db";
 import { getContextWindowForModel } from "../../model-context";
 
 // Store for non-sensitive settings only (no encryption needed)
@@ -340,7 +341,6 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
     }
 
     // Get from thread metadata via threads:get
-    const { getThread } = await import("../db");
     const thread = getThread(threadId);
     if (!thread?.metadata) {
       return store.get("workspacePath", null) as string | null;
@@ -367,7 +367,6 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
         return newPath;
       }
 
-      const { getThread, updateThread } = await import("../db");
       const thread = getThread(threadId);
       if (!thread) return null;
 
@@ -401,7 +400,6 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
     const selectedPath = result.filePaths[0];
 
     if (threadId) {
-      const { getThread, updateThread } = await import("../db");
       const thread = getThread(threadId);
       if (thread) {
         const metadata = thread.metadata ? JSON.parse(thread.metadata) : {};
@@ -449,8 +447,6 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     "workspace:loadFromDisk",
     async (_event, { threadId }: WorkspaceLoadParams) => {
-      const { getThread } = await import("../db");
-
       const thread = getThread(threadId);
       const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {};
       const workspacePath =
@@ -544,8 +540,6 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     "workspace:readFile",
     async (_event, { threadId, filePath }: WorkspaceFileParams) => {
-      const { getThread } = await import("../db");
-
       const thread = getThread(threadId);
       const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {};
       const workspacePath =
@@ -605,8 +599,6 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     "workspace:readBinaryFile",
     async (_event, { threadId, filePath }: WorkspaceFileParams) => {
-      const { getThread } = await import("../db");
-
       // Get workspace path from thread metadata
       const thread = getThread(threadId);
       const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {};
@@ -676,7 +668,6 @@ async function ipcRendererWorkspaceGet(
     return store.get("workspacePath", null) as string | null;
   }
 
-  const { getThread } = await import("../db");
   const thread = getThread(threadId);
   if (!thread?.metadata) {
     return store.get("workspacePath", null) as string | null;
