@@ -11,13 +11,13 @@ import { useAppStore } from "@/lib/store";
 import { ThreadProvider } from "@/lib/thread-context";
 
 // 左侧栏最小宽度（会话列表 + 品牌区）
-const BADGE_MIN_SCREEN_WIDTH = 235;
+const BADGE_MIN_SCREEN_WIDTH = 220;
 const LEFT_MAX = 350;
-const LEFT_DEFAULT = 240;
+const LEFT_DEFAULT = 220;
 
-const RIGHT_MIN = 250;
+const RIGHT_MIN = 230;
 const RIGHT_MAX = 450;
-const RIGHT_DEFAULT = 320;
+const RIGHT_DEFAULT = 280;
 
 function isDarwin(): boolean {
   return window.electron?.process?.platform === "darwin";

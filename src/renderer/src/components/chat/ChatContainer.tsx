@@ -131,6 +131,7 @@ export function ChatContainer({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mentionListRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const mentionStartRef = useRef(0);
   const composingRef = useRef(false);
@@ -141,6 +142,7 @@ export function ChatContainer({
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
   const [copyNoticeOpen, setCopyNoticeOpen] = useState(false);
   const [streamTipTick, setStreamTipTick] = useState(0);
+  const [overlayInset, setOverlayInset] = useState(176);
 
   const { threads, models, loadThreads, generateTitleForFirstMessage } =
     useAppStore();
@@ -534,6 +536,38 @@ export function ChatContainer({
     inputRef.current?.focus();
   }, [threadId]);
 
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+
+    const updateOverlayInset = (): void => {
+      const nextInset = Math.ceil(overlay.getBoundingClientRect().height + 16);
+      setOverlayInset((current) =>
+        Math.abs(current - nextInset) > 1 ? nextInset : current,
+      );
+    };
+
+    updateOverlayInset();
+
+    const observer = new ResizeObserver(() => {
+      updateOverlayInset();
+    });
+    observer.observe(overlay);
+
+    window.addEventListener("resize", updateOverlayInset);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateOverlayInset);
+    };
+  }, [pendingApproval, input, copyNoticeOpen, isLoading, streamTipTick]);
+
+  useEffect(() => {
+    const viewport = getViewport();
+    if (viewport && isAtBottomRef.current) {
+      viewport.scrollTop = viewport.scrollHeight;
+    }
+  }, [overlayInset, getViewport]);
+
   const extractMessageText = useCallback((message: Message): string => {
     if (typeof message.content === "string") {
       return message.content.trim();
@@ -759,18 +793,15 @@ export function ChatContainer({
     );
   };
 
-  const overlayOffsetClass = pendingApproval
-    ? "mb-[22rem] sm:mb-[19rem]"
-    : "mb-40 sm:mb-36";
-
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <ScrollArea
-        className={cn("app-subtle-scroll flex-1 min-h-0", overlayOffsetClass)}
+        className="app-subtle-scroll flex-1 min-h-0"
         ref={scrollRef}
+        style={{ marginBottom: `${overlayInset}px` }}
       >
         <div className="px-4 pt-5">
-          <div className="mx-auto max-w-3xl space-y-4 pb-6">
+          <div className="mx-auto max-w-4xl space-y-4 pb-6">
             {displayMessages.length === 0 && !isLoading && (
               <div className="animate-scale-in relative mx-auto flex max-w-2xl flex-col items-center justify-center overflow-hidden rounded-[32px] border border-border bg-background-elevated px-8 py-14 text-center text-muted-foreground">
                 <div className="relative flex flex-col items-center gap-4">
@@ -875,15 +906,16 @@ export function ChatContainer({
       </ScrollArea>
 
       <div
-        className={cn(
-          "pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-background",
-          pendingApproval ? "h-[22rem] sm:h-[19rem]" : "h-40 sm:h-36",
-        )}
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-background"
+        style={{ height: `${overlayInset}px` }}
       />
 
-      <div className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex flex-col items-center gap-3">
+      <div
+        ref={overlayRef}
+        className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex flex-col items-center gap-3"
+      >
         {pendingApproval && (
-          <div className="pointer-events-auto w-full max-w-3xl rounded-[24px] border border-border bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)]">
+          <div className="pointer-events-auto w-full max-w-4xl rounded-[24px] border border-border bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 text-sm">
                 <div className="flex items-start gap-2">
@@ -933,7 +965,7 @@ export function ChatContainer({
 
         <form
           onSubmit={handleSubmit}
-          className="pointer-events-auto relative w-full max-w-3xl"
+          className="pointer-events-auto relative w-full max-w-4xl"
         >
           {isLoading && <div className="agent-glow-halo" />}
           <div
@@ -995,34 +1027,36 @@ export function ChatContainer({
               </div>
             )}
             <div className="relative flex items-end gap-3">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={handleInputChange}
-                onCompositionStart={() => {
-                  composingRef.current = true;
-                }}
-                onCompositionEnd={() => {
-                  composingRef.current = false;
-                  const ta = inputRef.current;
-                  if (ta) {
-                    parseMentionAtCursor(
-                      ta.value,
-                      ta.selectionStart ?? ta.value.length,
-                    );
-                  }
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder="输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"
-                disabled={isLoading}
-                className="min-w-0 flex-1 resize-none rounded-[22px] border border-border bg-background-elevated px-4 py-3.5 pr-3 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/55 disabled:opacity-50"
-                rows={1}
-                style={{
-                  minHeight: "48px",
-                  maxHeight: "200px",
-                  overflowY: "auto",
-                }}
-              />
+              <div className="min-w-0 flex-1 overflow-hidden rounded-[22px] border border-border bg-background-elevated focus-within:ring-2 focus-within:ring-ring/55">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={handleInputChange}
+                  onCompositionStart={() => {
+                    composingRef.current = true;
+                  }}
+                  onCompositionEnd={() => {
+                    composingRef.current = false;
+                    const ta = inputRef.current;
+                    if (ta) {
+                      parseMentionAtCursor(
+                        ta.value,
+                        ta.selectionStart ?? ta.value.length,
+                      );
+                    }
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"
+                  disabled={isLoading}
+                  className="chat-input-scrollbar block min-w-0 w-full resize-none border-0 bg-transparent px-4 py-3.5 pr-2 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+                  rows={1}
+                  style={{
+                    minHeight: "48px",
+                    maxHeight: "200px",
+                    overflowY: "auto",
+                  }}
+                />
+              </div>
               {mentionOpen && mentionCandidates.length > 0 && (
                 <div
                   ref={mentionListRef}

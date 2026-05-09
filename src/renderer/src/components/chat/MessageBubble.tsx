@@ -120,7 +120,7 @@ export function MessageBubble({
     >
       <div
         className={cn(
-          "flex w-full max-w-[86%] gap-3",
+          "flex w-full max-w-[90%] gap-3",
           isUser
             ? "ml-auto mr-4 flex-row-reverse sm:mr-8"
             : "ml-4 mr-auto flex-row sm:ml-8",
@@ -208,7 +208,7 @@ export function MessageBubble({
               <div
                 className={cn(
                   isUser
-                    ? "ml-auto w-fit max-w-full rounded-2xl border border-border bg-background/20 px-4 py-3.5 text-foreground"
+                    ? "ml-auto w-fit max-w-full rounded-2xl border border-border/60 bg-slate-100 px-4 py-3.5 text-foreground dark:border-border/70 dark:bg-slate-800"
                     : "w-fit max-w-full",
                 )}
               >
