@@ -593,28 +593,12 @@ export function ToolCallRenderer({
     >
       <div
         className={cn(
-          "pointer-events-none absolute inset-0 -z-10 rounded-[24px] blur-xl transition-opacity duration-200",
+          "relative overflow-hidden rounded-[20px] border",
           needsApproval
-            ? "bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--status-warning)_12%,transparent),transparent_66%)] opacity-80"
-            : "bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--primary)_8%,transparent),transparent_68%)] opacity-70",
-        )}
-      />
-
-      <div
-        className={cn(
-          "app-rainbow-frame relative overflow-hidden rounded-[20px]",
-          needsApproval &&
-            "[--app-rainbow-fill:linear-gradient(180deg,color-mix(in_srgb,var(--status-warning)_10%,transparent),color-mix(in_srgb,var(--background-elevated)_92%,transparent))]",
+            ? "border-status-warning/50 bg-background-elevated"
+            : "border-border bg-background-elevated",
         )}
       >
-        <div
-          className={cn(
-            "pointer-events-none absolute inset-0 opacity-90",
-            needsApproval
-              ? "bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--status-warning)_12%,transparent),transparent_38%)]"
-              : "bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_9%,transparent),transparent_42%),linear-gradient(180deg,color-mix(in_srgb,#fff_5%,transparent),transparent_34%)]",
-          )}
-        />
 
         {/* Header */}
         <button
@@ -679,7 +663,7 @@ export function ToolCallRenderer({
             {/* Arguments */}
             <div>
               <div className="text-section-header text-[10px] mb-1">参数</div>
-              <pre className="max-h-24 overflow-auto rounded-xl border border-border/60 bg-background-interactive/55 p-2 text-xs font-mono shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent)]">
+              <pre className="max-h-24 overflow-auto rounded-xl border border-border bg-background-interactive p-2 text-xs font-mono">
                 {JSON.stringify(args, null, 2)}
               </pre>
             </div>
@@ -687,13 +671,13 @@ export function ToolCallRenderer({
             {inlineApprovalButtons ? (
               <div className="flex items-center justify-end gap-2">
                 <button
-                  className="app-rainbow-button rounded-full px-3 py-1.5 text-xs text-foreground transition-all hover:-translate-y-px"
+                  className="rounded-full border border-border bg-background-elevated px-3 py-1.5 text-xs text-foreground transition-all hover:bg-background-interactive"
                   onClick={handleReject}
                 >
                   拒绝
                 </button>
                 <button
-                  className="app-rainbow-button rounded-full px-3 py-1.5 text-xs text-primary transition-all hover:-translate-y-px"
+                  className="rounded-full border border-border bg-foreground px-3 py-1.5 text-xs text-background transition-all hover:bg-foreground/90"
                   onClick={handleApprove}
                 >
                   批准并执行
@@ -709,7 +693,7 @@ export function ToolCallRenderer({
 
         {/* Expanded content - raw details */}
         {isExpanded && !needsApproval && (
-          <div className="space-y-2 overflow-hidden border-t border-border/70 px-3 py-2">
+          <div className="space-y-2 overflow-hidden border-t border-border px-3 py-2">
             {/* Formatted display first */}
             {formattedContent}
             {formattedResult}
@@ -717,7 +701,7 @@ export function ToolCallRenderer({
             {/* Raw Arguments */}
             <div className="overflow-hidden w-full">
               <div className="text-section-header mb-1">原始参数</div>
-              <pre className="max-h-48 w-full overflow-auto rounded-xl border border-border/60 bg-background-interactive/55 p-2 text-xs font-mono whitespace-pre-wrap break-all shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent)]">
+              <pre className="max-h-48 w-full overflow-auto rounded-xl border border-border bg-background-interactive p-2 text-xs font-mono whitespace-pre-wrap break-all">
                 {JSON.stringify(args, null, 2)}
               </pre>
             </div>
@@ -728,10 +712,10 @@ export function ToolCallRenderer({
                 <div className="text-section-header mb-1">原始结果</div>
                 <pre
                   className={cn(
-                    "max-h-48 w-full overflow-auto rounded-xl p-2 text-xs font-mono whitespace-pre-wrap break-all shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_8%,transparent)]",
+                    "max-h-48 w-full overflow-auto rounded-xl p-2 text-xs font-mono whitespace-pre-wrap break-all",
                     isError
-                      ? "border border-status-critical/20 bg-status-critical/10 text-status-critical"
-                      : "border border-border/60 bg-background-interactive/55",
+                      ? "border border-status-critical/30 bg-status-critical/10 text-status-critical"
+                      : "border border-border bg-background-interactive",
                   )}
                 >
                   {typeof result === "string"

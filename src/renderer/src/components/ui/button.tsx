@@ -9,24 +9,24 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "app-premium-button-primary text-[#08121d] hover:-translate-y-px",
+          "bg-foreground text-background hover:bg-foreground/90 hover:-translate-y-px",
         destructive:
-          "app-premium-button text-destructive hover:-translate-y-px",
+          "border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10 hover:-translate-y-px",
         outline:
-          "app-premium-button text-foreground/92 hover:-translate-y-px",
+          "border border-border bg-transparent text-foreground hover:bg-background-interactive hover:-translate-y-px",
         secondary:
-          "app-premium-button text-secondary-foreground hover:-translate-y-px",
+          "border border-border bg-background-elevated text-foreground hover:bg-background-interactive hover:-translate-y-px",
         ghost:
           "border border-transparent bg-transparent text-muted-foreground shadow-none hover:-translate-y-px hover:bg-background-interactive/72 hover:text-foreground",
         link: "border-none px-0 text-primary underline-offset-4 hover:text-primary/80 hover:underline",
         // Status variants
         nominal:
-          "app-premium-button text-status-nominal hover:-translate-y-px",
+          "border border-status-nominal/50 bg-transparent text-status-nominal hover:bg-status-nominal/10 hover:-translate-y-px",
         warning:
-          "app-premium-button text-status-warning hover:-translate-y-px",
+          "border border-status-warning/50 bg-transparent text-status-warning hover:bg-status-warning/10 hover:-translate-y-px",
         critical:
-          "app-premium-button text-status-critical hover:-translate-y-px",
-        info: "app-premium-button text-status-info hover:-translate-y-px",
+          "border border-status-critical/50 bg-transparent text-status-critical hover:bg-status-critical/10 hover:-translate-y-px",
+        info: "border border-status-info/50 bg-transparent text-status-info hover:bg-status-info/10 hover:-translate-y-px",
       },
       size: {
         default: "h-10 px-4 py-2",

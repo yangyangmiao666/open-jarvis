@@ -74,9 +74,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   showSubagentsInKanban: true,
 
   colorMode:
-    typeof window !== "undefined" &&
-    localStorage.getItem("openwork-theme") === "dark"
-      ? "dark"
+    typeof window !== "undefined"
+      ? (localStorage.getItem("openwork-theme") as "light" | "dark") || "dark"
       : "dark",
 
   setColorMode: (mode) => {
