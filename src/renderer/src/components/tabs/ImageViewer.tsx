@@ -1,7 +1,6 @@
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { useObjectUrlFromBase64 } from "@/lib/media-blob";
 import { ZoomIn, ZoomOut, Maximize2, RotateCw, Hand } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 
 interface ImageViewerProps {
@@ -18,9 +17,9 @@ export function ImageViewer({
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const panStartRef = useRef({ x: 0, y: 0 });
 
   const fileName = filePath.split("/").pop() || filePath;
   const blobUrl = useObjectUrlFromBase64(base64Content, mimeType);
@@ -52,39 +51,43 @@ export function ImageViewer({
     setRotation((prev) => (prev + 90) % 360);
   };
 
-  const handleMouseDown = (e: React.MouseEvent): void => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (zoom > 100) {
       setIsPanning(true);
-      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+      panStartRef.current = {
+        x: e.clientX - panOffset.x,
+        y: e.clientY - panOffset.y,
+      };
+      e.currentTarget.setPointerCapture(e.pointerId);
       e.preventDefault();
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent): void => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (isPanning && zoom > 100) {
       setPanOffset({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y,
+        x: e.clientX - panStartRef.current.x,
+        y: e.clientY - panStartRef.current.y,
       });
     }
   };
 
-  const handleMouseUp = (): void => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
     setIsPanning(false);
   };
 
-  const handleMouseLeave = (): void => {
+  const handlePointerCancel = (): void => {
     setIsPanning(false);
   };
-
-  // Reset pan when zoom changes to 100 or less
 
   const canPan = zoom > 100;
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
-      {/* Header with controls */}
-      <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-border bg-background/50 shrink-0">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-4 py-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground overflow-hidden">
           <span className="truncate">{fileName}</span>
           <span className="text-muted-foreground/50">•</span>
@@ -145,32 +148,34 @@ export function ImageViewer({
         </div>
       </div>
 
-      {/* Image display */}
-      <ScrollArea className="flex-1 min-h-0">
-        <div
-          ref={containerRef}
-          className="flex items-center justify-center min-h-full p-8 overflow-hidden"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave}
-          style={{
-            cursor: canPan ? (isPanning ? "grabbing" : "grab") : "default",
-            userSelect: "none",
-          }}
-        >
+      <div
+        ref={containerRef}
+        className="relative min-h-0 flex-1 overflow-hidden bg-background"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        style={{
+          cursor: canPan ? (isPanning ? "grabbing" : "grab") : "default",
+          userSelect: "none",
+          touchAction: "none",
+        }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center p-6">
           <img
             src={imageUrl}
             alt={fileName}
-            className="max-w-full h-auto transition-transform duration-200"
+            className="max-h-full max-w-full object-contain transition-transform duration-150"
             style={{
-              transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom / 100}) rotate(${rotation}deg)`,
+              transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoom / 100}) rotate(${rotation}deg)`,
+              transformOrigin: "center center",
               imageRendering: zoom > 100 ? "pixelated" : "auto",
+              willChange: canPan ? "transform" : undefined,
             }}
             draggable={false}
           />
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

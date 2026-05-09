@@ -739,7 +739,14 @@ export function ChatContainer({
   }, [input]);
 
   const handleCancel = async (): Promise<void> => {
-    await stream?.stop();
+    try {
+      await Promise.all([
+        window.api.agent.cancel(threadId),
+        stream?.stop(),
+      ]);
+    } catch (error) {
+      console.error("[ChatContainer] Failed to cancel active run:", error);
+    }
   };
 
   const handleSelectWorkspaceFromEmptyState = async (): Promise<void> => {
@@ -753,11 +760,15 @@ export function ChatContainer({
   };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
-      {/* Messages */}
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <ScrollArea className="app-subtle-scroll flex-1 min-h-0" ref={scrollRef}>
-        <div className="px-4 py-5">
-          <div className="mx-auto max-w-3xl space-y-4">
+        <div className="px-4 pt-5">
+          <div
+            className={cn(
+              "mx-auto max-w-3xl space-y-4",
+              pendingApproval ? "pb-[23rem] sm:pb-[20rem]" : "pb-52 sm:pb-44",
+            )}
+          >
             {displayMessages.length === 0 && !isLoading && (
               <div className="animate-scale-in relative mx-auto flex max-w-2xl flex-col items-center justify-center overflow-hidden rounded-[32px] border border-border bg-background-elevated px-8 py-14 text-center text-muted-foreground">
                 <div className="relative flex flex-col items-center gap-4">
@@ -861,64 +872,68 @@ export function ChatContainer({
         </div>
       </ScrollArea>
 
-      {/* HITL：流结束后 isLoading 为 false，但子图可能仍在等待审批；避免「无按钮可点」 */}
-      {pendingApproval && (
-        <div className="shrink-0 border-t border-status-warning/20 bg-background-elevated px-4 py-4">
-          <div className="mx-auto flex max-w-3xl flex-col gap-3 rounded-[24px] border border-border bg-background-elevated px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-2 min-w-0 text-sm">
-              <ShieldAlert className="mt-0.5 size-4 shrink-0 text-status-warning" />
-              <div className="min-w-0">
-                <div className="font-medium text-foreground">
-                  等待你确认：{pendingApproval.tool_call.name}
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5 break-all">
-                  主进程或子智能体已暂停；批准或拒绝后才会继续并汇总结果。
+      <div className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex flex-col items-center gap-3">
+        {pendingApproval && (
+          <div className="pointer-events-auto w-full max-w-3xl rounded-[24px] border border-border bg-background-elevated/96 px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)] backdrop-blur-md">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 text-sm">
+                <div className="flex items-start gap-2">
+                  <ShieldAlert className="mt-0.5 size-4 shrink-0 text-status-warning" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-foreground">
+                      等待你确认：{pendingApproval.tool_call.name}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground break-all">
+                      主进程或子智能体已暂停；批准或拒绝后才会继续并汇总结果。
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex shrink-0 gap-2 justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void handleApprovalDecision("reject")}
-              >
-                拒绝
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  void handleApprovalDecision("approve", {
-                    rememberForWorkspace: true,
-                  })
-                }
-              >
-                允许此工作区后续类似命令
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => void handleApprovalDecision("approve")}
-              >
-                本次批准
-              </Button>
+              <div className="flex shrink-0 justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleApprovalDecision("reject")}
+                >
+                  拒绝
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    void handleApprovalDecision("approve", {
+                      rememberForWorkspace: true,
+                    })
+                  }
+                >
+                  允许此工作区后续类似命令
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void handleApprovalDecision("approve")}
+                >
+                  本次批准
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Input */}
-      <div className="overflow-visible border-t border-border bg-background px-4 py-4">
-        <form onSubmit={handleSubmit} className="relative mx-auto max-w-4xl">
-          {isLoading && (
-            <div className="agent-glow-halo" />
-          )}
-          <div className={cn("relative z-0 flex flex-col gap-3 overflow-visible rounded-[26px] border border-border bg-background-elevated px-4 py-4 transition-[border-color] duration-300", isLoading && "agent-border-glow")}>
-            {isLoading && (
-              <div className="agent-glow-inner-mask" />
+        <form
+          onSubmit={handleSubmit}
+          className="pointer-events-auto relative w-full max-w-3xl"
+        >
+          {isLoading && <div className="agent-glow-halo" />}
+          <div
+            className={cn(
+              "relative z-0 flex flex-col gap-3 overflow-visible rounded-[26px] border border-border bg-background-elevated/96 px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)] backdrop-blur-md transition-[border-color] duration-300",
+              isLoading && "agent-border-glow",
             )}
+          >
+            {isLoading && <div className="agent-glow-inner-mask" />}
             {copyNoticeOpen && (
               <div className="animate-enter absolute -top-14 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-border bg-background-elevated px-3 py-1.5 text-xs font-medium text-status-nominal shadow-none">
                 <Check className="size-3.5" />
@@ -927,10 +942,7 @@ export function ChatContainer({
             )}
             {isLoading && streamingTips.length > 0 && (
               <div className="animate-soft-fade flex items-center gap-3 overflow-hidden rounded-[18px] border border-border bg-background-elevated px-3 py-2 shadow-none">
-                <div
-                  className="agent-activity-mark shrink-0"
-                  aria-hidden="true"
-                >
+                <div className="agent-activity-mark shrink-0" aria-hidden="true">
                   <span />
                   <span />
                   <span />
@@ -984,11 +996,12 @@ export function ChatContainer({
                 onCompositionEnd={() => {
                   composingRef.current = false;
                   const ta = inputRef.current;
-                  if (ta)
+                  if (ta) {
                     parseMentionAtCursor(
                       ta.value,
                       ta.selectionStart ?? ta.value.length,
                     );
+                  }
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"

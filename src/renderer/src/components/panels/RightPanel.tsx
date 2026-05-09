@@ -340,10 +340,10 @@ export function RightPanel(): React.JSX.Element {
   return (
     <aside
       ref={containerRef}
-      className="flex h-full w-full flex-col overflow-hidden border-l border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_96%,transparent),color-mix(in_srgb,var(--background)_92%,transparent))]"
+      className="flex h-full w-full flex-col overflow-hidden border-l border-border/60 bg-background-elevated"
     >
       {/* TASKS */}
-      <div className="flex shrink-0 flex-col border-b border-border/65 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_76%,transparent),transparent)]">
+      <div className="flex shrink-0 flex-col border-b border-border/65 bg-background-elevated">
         <SectionHeader
           title="任务"
           icon={ListTodo}
@@ -364,7 +364,7 @@ export function RightPanel(): React.JSX.Element {
       )}
 
       {/* FILES */}
-      <div className="flex shrink-0 flex-col border-b border-border/65 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_68%,transparent),transparent)]">
+      <div className="flex shrink-0 flex-col border-b border-border/65 bg-background-elevated">
         <SectionHeader
           title="文件"
           icon={FolderTree}
@@ -383,7 +383,7 @@ export function RightPanel(): React.JSX.Element {
       {filesOpen && agentsOpen && <ResizeHandle onDrag={handleFilesResize} />}
 
       {/* AGENTS */}
-      <div className="flex shrink-0 flex-col bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_58%,transparent),transparent)]">
+      <div className="flex shrink-0 flex-col bg-background-elevated">
         <SectionHeader
           title="子智能体"
           icon={GitBranch}

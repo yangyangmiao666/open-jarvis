@@ -79,6 +79,12 @@ interface CompletedToolCall {
   args: Record<string, unknown>;
 }
 
+interface HitlActionRequest {
+  action?: string;
+  name?: string;
+  args?: Record<string, unknown>;
+}
+
 /**
  * Custom transport for useStream that uses Electron IPC instead of HTTP.
  * This allows useStream to work seamlessly in an Electron app where the
@@ -365,9 +371,10 @@ export class ElectronIPCTransport implements UseStreamTransport {
 
             if (actionRequests?.length) {
               const firstAction = actionRequests[0];
+              const actionName = this.getHitlActionName(firstAction);
               const reviewConfig = reviewConfigs?.find(
                 (rc: { actionName: string }) =>
-                  rc.actionName === firstAction.name,
+                  rc.actionName === actionName,
               );
               const toolCallId = this.resolveHitlToolCallId(firstAction);
               const stableId = toolCallId ?? crypto.randomUUID();
@@ -380,7 +387,7 @@ export class ElectronIPCTransport implements UseStreamTransport {
                     id: stableId,
                     tool_call: {
                       id: stableId,
-                      name: firstAction.name,
+                      name: actionName,
                       args: firstAction.args || {},
                     },
                     allowed_decisions: reviewConfig?.allowedDecisions || [
@@ -767,8 +774,9 @@ export class ElectronIPCTransport implements UseStreamTransport {
         if (actionRequests?.length) {
           // Get the first action request for now (can be extended for batch approvals)
           const firstAction = actionRequests[0];
+          const actionName = this.getHitlActionName(firstAction);
           const reviewConfig = reviewConfigs?.find(
-            (rc) => rc.actionName === firstAction.name,
+            (rc) => rc.actionName === actionName,
           );
 
           const toolCallId = this.resolveHitlToolCallId(firstAction);
@@ -782,7 +790,7 @@ export class ElectronIPCTransport implements UseStreamTransport {
                 id: stableId,
                 tool_call: {
                   id: stableId,
-                  name: firstAction.name,
+                  name: actionName,
                   args: firstAction.args || {},
                 },
                 allowed_decisions: reviewConfig?.allowedDecisions || [
@@ -798,6 +806,15 @@ export class ElectronIPCTransport implements UseStreamTransport {
     }
 
     return events;
+  }
+
+  private getHitlActionName(action: unknown): string {
+    if (!action || typeof action !== "object") {
+      return "execute";
+    }
+
+    const record = action as HitlActionRequest;
+    return record.action || record.name || "execute";
   }
 
   /**

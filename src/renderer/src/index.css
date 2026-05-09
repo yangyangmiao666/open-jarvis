@@ -886,6 +886,7 @@ html.light {
   position: absolute;
   inset: 0;
   z-index: 3;
+  pointer-events: none;
   border-radius: inherit;
   background: conic-gradient(
     from var(--agent-border-angle),
@@ -903,6 +904,7 @@ html.light {
   position: absolute;
   inset: 0 -16px;
   z-index: 0;
+  pointer-events: none;
   border-radius: 42px;
   background: conic-gradient(
     from var(--agent-border-angle),
