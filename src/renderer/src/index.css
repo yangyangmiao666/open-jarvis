@@ -885,18 +885,13 @@ html.light {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 0;
   pointer-events: none;
   border-radius: inherit;
   background: conic-gradient(
     from var(--agent-border-angle),
     #3b82f6, #8b5cf6, #d946ef, #f472b6, #fb923c, #fbbf24, #84cc16, #22d3ee, #3b82f6
   );
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  padding: 1.5px;
   animation: agent-border-spin 2.5s linear infinite;
 }
 
@@ -928,24 +923,16 @@ html.light {
 
 .agent-glow-inner-mask {
   position: absolute;
-  inset: 0;
-  z-index: 2;
-  border-radius: inherit;
+  inset: 1.5px;
+  z-index: 1;
+  border-radius: 24.5px;
   background: var(--background-elevated);
   pointer-events: none;
 }
 
-.agent-border-glow > *:first-child {
+.agent-border-glow > :not(.agent-glow-inner-mask) {
   position: relative;
-  z-index: 1;
-}
-
-.agent-border-glow > .glow-inner-mask {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: var(--background-elevated);
+  z-index: 2;
 }
 
 @keyframes stream-tip-rise {

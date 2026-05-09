@@ -18,6 +18,7 @@ interface MessageBubbleProps {
   isStreaming?: boolean;
   canResend?: boolean;
   toolResults?: Map<string, ToolResultInfo>;
+  pendingApprovals?: HITLRequest[];
   pendingApproval?: HITLRequest | null;
   onResend?: (message: Message) => void | Promise<void>;
   onApprovalDecision?: (
@@ -31,6 +32,7 @@ export function MessageBubble({
   isStreaming,
   canResend,
   toolResults,
+  pendingApprovals,
   pendingApproval,
   onResend,
   onApprovalDecision,
@@ -105,6 +107,15 @@ export function MessageBubble({
 
   const content = renderContent();
   const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
+  const pendingApprovalIds = new Set(
+    (pendingApprovals && pendingApprovals.length > 0
+      ? pendingApprovals
+      : pendingApproval
+        ? [pendingApproval]
+        : [])
+      .map((request) => request.tool_call.id)
+      .filter(Boolean),
+  );
 
   // Don't render if there's no content and no tool calls
   if (!content && !hasToolCalls) {
@@ -229,10 +240,7 @@ export function MessageBubble({
             <div className="space-y-3 overflow-visible px-1 py-1">
               {message.tool_calls!.map((toolCall, index) => {
                 const result = toolResults?.get(toolCall.id);
-                const pendingId = pendingApproval?.tool_call?.id;
-                const needsApproval = Boolean(
-                  pendingId && pendingId === toolCall.id,
-                );
+                const needsApproval = pendingApprovalIds.has(toolCall.id);
                 return (
                   <ToolCallRenderer
                     key={`${toolCall.id || `tc-${index}`}-${needsApproval ? "pending" : "done"}`}

@@ -116,7 +116,7 @@ export type StreamEvent =
   | { type: "message"; message: Message }
   | { type: "tool_call"; toolCall: ToolCall }
   | { type: "tool_result"; toolResult: ToolResult }
-  | { type: "interrupt"; request: HITLRequest }
+  | { type: "interrupt"; request: HITLRequest; requests?: HITLRequest[] }
   | { type: "token"; token: string }
   | { type: "todos"; todos: Todo[] }
   | { type: "workspace"; files: FileInfo[]; path: string }

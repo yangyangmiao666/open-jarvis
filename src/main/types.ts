@@ -21,6 +21,7 @@ export interface AgentResumeParams {
       decision?: string;
       rememberForWorkspace?: boolean;
       request?: HITLRequest;
+      requests?: HITLRequest[];
     };
   };
   modelId?: string;

@@ -6,7 +6,7 @@ import type {
   IPCEvent,
   IPCStreamEvent,
 } from "../../../types";
-import type { Subagent } from "@/types";
+import type { HITLRequest, Subagent } from "@/types";
 
 /**
  * Usage metadata from LangChain model responses.
@@ -80,6 +80,7 @@ interface CompletedToolCall {
 }
 
 interface HitlActionRequest {
+  id?: string;
   action?: string;
   name?: string;
   args?: Record<string, unknown>;
@@ -368,34 +369,18 @@ export class ElectronIPCTransport implements UseStreamTransport {
             const interruptValue = interrupt[0]?.value;
             const actionRequests = interruptValue?.actionRequests;
             const reviewConfigs = interruptValue?.reviewConfigs;
+            const requests = this.buildHitlRequests(
+              actionRequests,
+              reviewConfigs,
+            );
 
-            if (actionRequests?.length) {
-              const firstAction = actionRequests[0];
-              const actionName = this.getHitlActionName(firstAction);
-              const reviewConfig = reviewConfigs?.find(
-                (rc: { actionName: string }) =>
-                  rc.actionName === actionName,
-              );
-              const toolCallId = this.resolveHitlToolCallId(firstAction);
-              const stableId = toolCallId ?? crypto.randomUUID();
-
+            if (requests.length > 0) {
               events.push({
                 event: "custom",
                 data: {
                   type: "interrupt",
-                  request: {
-                    id: stableId,
-                    tool_call: {
-                      id: stableId,
-                      name: actionName,
-                      args: firstAction.args || {},
-                    },
-                    allowed_decisions: reviewConfig?.allowedDecisions || [
-                      "approve",
-                      "reject",
-                      "edit",
-                    ],
-                  },
+                  request: requests[0],
+                  requests,
                 },
               });
             }
@@ -625,13 +610,14 @@ export class ElectronIPCTransport implements UseStreamTransport {
         __interrupt__?: Array<{
           value?: {
             actionRequests?: Array<{
+              action?: string;
               name: string;
               id?: string;
               args?: Record<string, unknown>;
             }>;
             reviewConfigs?: Array<{
               actionName: string;
-              allowedDecisions: string[];
+              allowedDecisions: HITLRequest["allowed_decisions"];
             }>;
           };
         }>;
@@ -769,36 +755,16 @@ export class ElectronIPCTransport implements UseStreamTransport {
         const interruptValue = state.__interrupt__[0]?.value;
         const actionRequests = interruptValue?.actionRequests;
         const reviewConfigs = interruptValue?.reviewConfigs;
+        const requests = this.buildHitlRequests(actionRequests, reviewConfigs);
 
         // For each action request (tool call) that needs approval
-        if (actionRequests?.length) {
-          // Get the first action request for now (can be extended for batch approvals)
-          const firstAction = actionRequests[0];
-          const actionName = this.getHitlActionName(firstAction);
-          const reviewConfig = reviewConfigs?.find(
-            (rc) => rc.actionName === actionName,
-          );
-
-          const toolCallId = this.resolveHitlToolCallId(firstAction);
-          const stableId = toolCallId ?? crypto.randomUUID();
-
+        if (requests.length > 0) {
           events.push({
             event: "custom",
             data: {
               type: "interrupt",
-              request: {
-                id: stableId,
-                tool_call: {
-                  id: stableId,
-                  name: actionName,
-                  args: firstAction.args || {},
-                },
-                allowed_decisions: reviewConfig?.allowedDecisions || [
-                  "approve",
-                  "reject",
-                  "edit",
-                ],
-              },
+              request: requests[0],
+              requests,
             },
           });
         }
@@ -815,6 +781,48 @@ export class ElectronIPCTransport implements UseStreamTransport {
 
     const record = action as HitlActionRequest;
     return record.action || record.name || "execute";
+  }
+
+  private buildHitlRequests(
+    actionRequests: unknown[] | undefined,
+    reviewConfigs:
+      | Array<{
+          actionName?: string;
+          allowedDecisions?: HITLRequest["allowed_decisions"];
+        }>
+      | undefined,
+  ): HITLRequest[] {
+    if (!actionRequests?.length) {
+      return [];
+    }
+
+    return actionRequests.map((action) => {
+      const actionName = this.getHitlActionName(action);
+      const reviewConfig = reviewConfigs?.find(
+        (rc) => rc.actionName === actionName,
+      );
+      const toolCallId = this.resolveHitlToolCallId(
+        action as {
+          name: string;
+          id?: string;
+          args?: Record<string, unknown>;
+        },
+      );
+      const stableId = toolCallId ?? crypto.randomUUID();
+      const actionRecord = action as HitlActionRequest;
+      const allowedDecisions: HITLRequest["allowed_decisions"] =
+        reviewConfig?.allowedDecisions || ["approve", "reject", "edit"];
+
+      return {
+        id: stableId,
+        tool_call: {
+          id: stableId,
+          name: actionName,
+          args: actionRecord.args || {},
+        },
+        allowed_decisions: allowedDecisions,
+      };
+    });
   }
 
   /**

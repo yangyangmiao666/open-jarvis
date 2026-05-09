@@ -215,15 +215,27 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         // Resume from checkpoint by streaming with Command containing the decision
         // The HITL middleware expects { decisions: [{ type: 'approve' | 'reject' | 'edit' }] }
         const decisionType = command?.resume?.decision || "approve";
+        const requests =
+          command?.resume?.requests && command.resume.requests.length > 0
+            ? command.resume.requests
+            : command?.resume?.request
+              ? [command.resume.request]
+              : [];
         if (
           decisionType === "approve" &&
           command?.resume?.rememberForWorkspace &&
-          workspacePath &&
-          command.resume.request
+          workspacePath
         ) {
-          rememberWorkspaceApproval(workspacePath, command.resume.request);
+          for (const request of requests) {
+            rememberWorkspaceApproval(workspacePath, request);
+          }
         }
-        const resumeValue = { decisions: [{ type: decisionType }] };
+        const resumeValue = {
+          decisions:
+            requests.length > 0
+              ? requests.map(() => ({ type: decisionType }))
+              : [{ type: decisionType }],
+        };
         const stream = await agent.stream(
           new Command({ resume: resumeValue }),
           config,

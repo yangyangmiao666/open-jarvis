@@ -150,6 +150,7 @@ export function ChatContainer({
   // Get persisted thread state and actions from context
   const {
     messages: threadMessages,
+    pendingApprovals,
     pendingApproval,
     todos,
     error: threadError,
@@ -162,6 +163,7 @@ export function ChatContainer({
     setTodos,
     setWorkspaceFiles,
     setWorkspacePath,
+    setPendingApprovals,
     setPendingApproval,
     appendMessage,
     setError,
@@ -253,9 +255,15 @@ export function ChatContainer({
       decision: "approve" | "reject" | "edit",
       options?: { rememberForWorkspace?: boolean },
     ): Promise<void> => {
-      if (!pendingApproval || !stream) return;
+      const requests =
+        pendingApprovals.length > 0
+          ? pendingApprovals
+          : pendingApproval
+            ? [pendingApproval]
+            : [];
+      if (requests.length === 0 || !stream) return;
 
-      setPendingApproval(null);
+      setPendingApprovals([]);
 
       try {
         await stream.submit(null, {
@@ -263,7 +271,8 @@ export function ChatContainer({
             resume: {
               decision,
               rememberForWorkspace: options?.rememberForWorkspace,
-              request: pendingApproval,
+              request: requests[0],
+              requests,
             },
           },
           config: {
@@ -274,7 +283,14 @@ export function ChatContainer({
         console.error("[ChatContainer] Resume command failed:", err);
       }
     },
-    [pendingApproval, setPendingApproval, stream, threadId, currentModel],
+    [
+      currentModel,
+      pendingApproval,
+      pendingApprovals,
+      setPendingApprovals,
+      stream,
+      threadId,
+    ],
   );
 
   const handleApprovalModeToggle = useCallback(async (): Promise<void> => {
@@ -409,6 +425,17 @@ export function ChatContainer({
     return Array.from(new Set(names.filter(Boolean))).slice(-3);
   }, [displayMessages]);
 
+  const pendingApprovalCount =
+    pendingApprovals.length > 0
+      ? pendingApprovals.length
+      : pendingApproval
+        ? 1
+        : 0;
+  const pendingApprovalLabel =
+    pendingApprovalCount > 1 && pendingApproval
+      ? `${pendingApproval.tool_call.name} 等 ${pendingApprovalCount} 个工具调用`
+      : pendingApproval?.tool_call?.name;
+
   const streamingTips = useMemo(
     () =>
       buildStreamingTips({
@@ -421,7 +448,7 @@ export function ChatContainer({
         approvalMode,
         messageCount: displayMessages.length,
         recentToolNames,
-        pendingApprovalName: pendingApproval?.tool_call?.name,
+        pendingApprovalName: pendingApprovalLabel,
       }),
     [
       approvalMode,
@@ -429,7 +456,7 @@ export function ChatContainer({
       currentModelConfig?.model,
       currentModelConfig?.name,
       displayMessages.length,
-      pendingApproval?.tool_call?.name,
+      pendingApprovalLabel,
       referencedPaths,
       recentToolNames,
       todos,
@@ -865,6 +892,7 @@ export function ChatContainer({
                 isStreaming={streamingAssistantIds.has(message.id)}
                 canResend={!isLoading && message.role === "user"}
                 toolResults={toolResults}
+                pendingApprovals={pendingApprovals}
                 pendingApproval={pendingApproval}
                 onResend={handleResendMessage}
                 onApprovalDecision={handleApprovalDecision}
@@ -922,10 +950,13 @@ export function ChatContainer({
                   <ShieldAlert className="mt-0.5 size-4 shrink-0 text-status-warning" />
                   <div className="min-w-0">
                     <div className="font-medium text-foreground">
-                      等待你确认：{pendingApproval.tool_call.name}
+                      等待你确认：
+                      {pendingApprovalCount > 1
+                        ? `${pendingApproval.tool_call.name} 等 ${pendingApprovalCount} 个工具调用`
+                        : pendingApproval.tool_call.name}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground break-all">
-                      主进程或子智能体已暂停；批准或拒绝后才会继续并汇总结果。
+                      主进程或子智能体已暂停；批准或拒绝这些工具调用后才会继续并汇总结果。
                     </div>
                   </div>
                 </div>

@@ -47,6 +47,7 @@ export interface ThreadState {
   workspacePath: string | null;
   enabledMcpServerIds: string[];
   subagents: Subagent[];
+  pendingApprovals: HITLRequest[];
   pendingApproval: HITLRequest | null;
   error: string | null;
   currentModel: string;
@@ -79,6 +80,7 @@ export interface ThreadActions {
   setWorkspacePath: (path: string | null) => void;
   setEnabledMcpServerIds: (serverIds: string[]) => void;
   setSubagents: (subagents: Subagent[]) => void;
+  setPendingApprovals: (requests: HITLRequest[]) => void;
   setPendingApproval: (request: HITLRequest | null) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -118,6 +120,7 @@ const createDefaultThreadState = (): ThreadState => ({
   workspacePath: null,
   enabledMcpServerIds: [],
   subagents: [],
+  pendingApprovals: [],
   pendingApproval: null,
   error: null,
   currentModel: "claude-sonnet-4-5-20250929",
@@ -187,6 +190,7 @@ const ThreadContext = createContext<ThreadContextValue | null>(null);
 interface CustomEventData {
   type?: string;
   request?: HITLRequest;
+  requests?: HITLRequest[];
   files?: Array<{ path: string; is_dir?: boolean; size?: number }>;
   path?: string;
   subagents?: Array<{
@@ -449,18 +453,33 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       });
       switch (data.type) {
         case "interrupt":
-          if (data.request) {
-            void window.api.approval
-              .shouldAutoApprove(threadId, data.request)
-              .then(async (result) => {
-                if (!result.approved) {
+          {
+            const requests =
+              data.requests && data.requests.length > 0
+                ? data.requests
+                : data.request
+                  ? [data.request]
+                  : [];
+
+            if (requests.length === 0) {
+              break;
+            }
+
+            void Promise.all(
+              requests.map((request) =>
+                window.api.approval.shouldAutoApprove(threadId, request),
+              ),
+            )
+              .then(async (results) => {
+                if (!results.every((result) => result.approved)) {
                   console.log(
-                    "[ThreadContext] Setting pendingApproval for thread:",
+                    "[ThreadContext] Setting pendingApprovals for thread:",
                     threadId,
-                    data.request,
+                    requests,
                   );
                   updateThreadState(threadId, () => ({
-                    pendingApproval: data.request,
+                    pendingApprovals: requests,
+                    pendingApproval: requests[0] ?? null,
                   }));
                   return;
                 }
@@ -468,7 +487,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                 const stream = streamDataRef.current[threadId]?.stream;
                 if (!stream) {
                   updateThreadState(threadId, () => ({
-                    pendingApproval: data.request,
+                    pendingApprovals: requests,
+                    pendingApproval: requests[0] ?? null,
                   }));
                   return;
                 }
@@ -477,7 +497,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                   command: {
                     resume: {
                       decision: "approve",
-                      request: data.request,
+                      request: requests[0],
+                      requests,
                     },
                   },
                   config: { configurable: { thread_id: threadId } },
@@ -489,7 +510,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                   error,
                 );
                 updateThreadState(threadId, () => ({
-                  pendingApproval: data.request,
+                  pendingApprovals: requests,
+                  pendingApproval: requests[0] ?? null,
                 }));
               });
           }
@@ -625,8 +647,17 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         setSubagents: (subagents: Subagent[]) => {
           updateThreadState(threadId, () => ({ subagents }));
         },
+        setPendingApprovals: (requests: HITLRequest[]) => {
+          updateThreadState(threadId, () => ({
+            pendingApprovals: requests,
+            pendingApproval: requests[0] ?? null,
+          }));
+        },
         setPendingApproval: (request: HITLRequest | null) => {
-          updateThreadState(threadId, () => ({ pendingApproval: request }));
+          updateThreadState(threadId, () => ({
+            pendingApprovals: request ? [request] : [],
+            pendingApproval: request,
+          }));
         },
         setError: (error: string | null) => {
           updateThreadState(threadId, () => ({ error }));
@@ -772,12 +803,16 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                 __interrupt__?: Array<{
                   value?: {
                     actionRequests?: Array<{
-                      action: string;
-                      args: Record<string, unknown>;
+                      id?: string;
+                      action?: string;
+                      name?: string;
+                      args?: Record<string, unknown>;
                     }>;
                     reviewConfigs?: Array<{
-                      toolName: string;
-                      toolArgs: Record<string, unknown>;
+                      actionName?: string;
+                      allowedDecisions?: HITLRequest["allowed_decisions"];
+                      toolName?: string;
+                      toolArgs?: Record<string, unknown>;
                     }>;
                   };
                 }>;
@@ -851,17 +886,36 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
 
             if (actionRequests && actionRequests.length > 0) {
               // New langchain HITL format
-              const req = actionRequests[0];
-              const hitlRequest: HITLRequest = {
-                id: crypto.randomUUID(),
-                tool_call: {
-                  id: crypto.randomUUID(),
-                  name: req.action,
-                  args: req.args,
-                },
-                allowed_decisions: ["approve", "reject", "edit"],
-              };
-              actions.setPendingApproval(hitlRequest);
+              const hitlRequests: HITLRequest[] = actionRequests.map((req) => {
+                const actionName =
+                  typeof req.action === "string" && req.action.length > 0
+                    ? req.action
+                    : typeof req.name === "string" && req.name.length > 0
+                      ? req.name
+                      : "execute";
+                const reviewConfig = reviewConfigs?.find(
+                  (config) => config.actionName === actionName,
+                );
+                const toolCallId =
+                  typeof req.id === "string" && req.id.length > 0
+                    ? req.id
+                    : crypto.randomUUID();
+
+                return {
+                  id: toolCallId,
+                  tool_call: {
+                    id: toolCallId,
+                    name: actionName,
+                    args: req.args || {},
+                  },
+                  allowed_decisions: reviewConfig?.allowedDecisions || [
+                    "approve",
+                    "reject",
+                    "edit",
+                  ],
+                };
+              });
+              actions.setPendingApprovals(hitlRequests);
             } else if (reviewConfigs && reviewConfigs.length > 0) {
               // Alternative format
               const config = reviewConfigs[0];
@@ -869,12 +923,13 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                 id: crypto.randomUUID(),
                 tool_call: {
                   id: crypto.randomUUID(),
-                  name: config.toolName,
-                  args: config.toolArgs,
+                  name: config.toolName || "execute",
+                  args: config.toolArgs || {},
                 },
-                allowed_decisions: ["approve", "reject", "edit"],
+                allowed_decisions:
+                  config.allowedDecisions || ["approve", "reject", "edit"],
               };
-              actions.setPendingApproval(hitlRequest);
+              actions.setPendingApprovals([hitlRequest]);
             }
           }
         }
