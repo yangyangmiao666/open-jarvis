@@ -208,7 +208,7 @@ export function MessageBubble({
               <div
                 className={cn(
                   isUser
-                    ? "ml-auto w-fit max-w-full rounded-2xl bg-foreground px-4 py-3.5 text-background"
+                    ? "ml-auto w-fit max-w-full rounded-2xl border border-border bg-background/20 px-4 py-3.5 text-foreground"
                     : "w-fit max-w-full",
                 )}
               >

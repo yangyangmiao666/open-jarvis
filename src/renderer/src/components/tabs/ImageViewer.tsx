@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useObjectUrlFromBase64 } from "@/lib/media-blob";
 import { ZoomIn, ZoomOut, Maximize2, RotateCw, Hand } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,19 +17,46 @@ export function ImageViewer({
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const panStartRef = useRef({ x: 0, y: 0 });
+  const panOffsetRef = useRef({ x: 0, y: 0 });
+  const frameRef = useRef<number | null>(null);
 
   const fileName = filePath.split("/").pop() || filePath;
   const blobUrl = useObjectUrlFromBase64(base64Content, mimeType);
   const imageUrl = blobUrl ?? `data:${mimeType};base64,${base64Content}`;
 
+  const applyTransform = (): void => {
+    const image = imageRef.current;
+    if (!image) return;
+    const { x, y } = panOffsetRef.current;
+    image.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoom / 100}) rotate(${rotation}deg)`;
+  };
+
+  const scheduleTransform = (): void => {
+    if (frameRef.current !== null) return;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      applyTransform();
+    });
+  };
+
+  useEffect(() => {
+    applyTransform();
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, [zoom, rotation]);
+
   const handleZoomIn = (): void => {
     const newZoom = Math.min(zoom + 25, 400);
     setZoom(newZoom);
     if (newZoom <= 100) {
-      setPanOffset({ x: 0, y: 0 });
+      panOffsetRef.current = { x: 0, y: 0 };
     }
   };
 
@@ -37,14 +64,14 @@ export function ImageViewer({
     const newZoom = Math.max(zoom - 25, 25);
     setZoom(newZoom);
     if (newZoom <= 100) {
-      setPanOffset({ x: 0, y: 0 });
+      panOffsetRef.current = { x: 0, y: 0 };
     }
   };
 
   const handleResetZoom = (): void => {
     setZoom(100);
     setRotation(0);
-    setPanOffset({ x: 0, y: 0 });
+    panOffsetRef.current = { x: 0, y: 0 };
   };
 
   const handleRotate = (): void => {
@@ -55,8 +82,8 @@ export function ImageViewer({
     if (zoom > 100) {
       setIsPanning(true);
       panStartRef.current = {
-        x: e.clientX - panOffset.x,
-        y: e.clientY - panOffset.y,
+        x: e.clientX - panOffsetRef.current.x,
+        y: e.clientY - panOffsetRef.current.y,
       };
       e.currentTarget.setPointerCapture(e.pointerId);
       e.preventDefault();
@@ -65,10 +92,11 @@ export function ImageViewer({
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (isPanning && zoom > 100) {
-      setPanOffset({
+      panOffsetRef.current = {
         x: e.clientX - panStartRef.current.x,
         y: e.clientY - panStartRef.current.y,
-      });
+      };
+      scheduleTransform();
     }
   };
 
@@ -91,13 +119,13 @@ export function ImageViewer({
         <div className="flex items-center gap-2 text-xs text-muted-foreground overflow-hidden">
           <span className="truncate">{fileName}</span>
           <span className="text-muted-foreground/50">•</span>
-          <span>Image</span>
+          <span>图片</span>
           {canPan && (
             <>
               <span className="text-muted-foreground/50">•</span>
               <span className="flex items-center gap-1">
                 <Hand className="size-3" />
-                Drag to pan
+                拖动查看
               </span>
             </>
           )}
@@ -163,11 +191,11 @@ export function ImageViewer({
       >
         <div className="absolute inset-0 flex items-center justify-center p-6">
           <img
+            ref={imageRef}
             src={imageUrl}
             alt={fileName}
-            className="max-h-full max-w-full object-contain transition-transform duration-150"
+            className="max-h-full max-w-full object-contain"
             style={{
-              transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoom / 100}) rotate(${rotation}deg)`,
               transformOrigin: "center center",
               imageRendering: zoom > 100 ? "pixelated" : "auto",
               willChange: canPan ? "transform" : undefined,

@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,9 @@ export function OpenAICompatibleDialog({
 }: OpenAICompatibleDialogProps): React.JSX.Element {
   const [profiles, setProfiles] = useState<OpenAICompatibleProfile[]>([]);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<OpenAICompatibleProfile | null>(
+    null,
+  );
   const [editing, setEditing] = useState<
     (Omit<OpenAICompatibleProfile, "id"> & { id?: string }) | null
   >(null);
@@ -68,15 +72,18 @@ export function OpenAICompatibleDialog({
     setEditing(null);
   };
 
-  const handleDelete = async (id: string): Promise<void> => {
-    await window.api.models.openaiCompatibleDelete(id);
+  const handleDelete = async (): Promise<void> => {
+    if (!deleteTarget) return;
+    await window.api.models.openaiCompatibleDelete(deleteTarget.id);
     await load();
     onSaved();
+    setDeleteTarget(null);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-5xl flex flex-col overflow-hidden">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[92vh] max-w-5xl flex flex-col overflow-hidden">
         <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14 sm:px-7">
           <div className="flex items-center gap-3">
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -154,7 +161,7 @@ export function OpenAICompatibleDialog({
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0 rounded-xl text-destructive"
-                      onClick={() => void handleDelete(p.id)}
+                      onClick={() => setDeleteTarget(p)}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -307,7 +314,38 @@ export function OpenAICompatibleDialog({
           </section>
         </div>
 
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(nextOpen) => !nextOpen && setDeleteTarget(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>确认删除模型配置？</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            将删除模型配置“{deleteTarget?.name || deleteTarget?.model || "当前配置"}”，此操作不可恢复。
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setDeleteTarget(null)}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleDelete()}
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

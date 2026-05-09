@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { WindowTitleBar } from "@/components/WindowTitleBar";
 import { SettingsHubDialog } from "@/components/chat/SettingsHubDialog";
 import { useAppStore } from "@/lib/store";
-import { ThreadProvider, useThreadState } from "@/lib/thread-context";
+import { ThreadProvider } from "@/lib/thread-context";
 
 // 左侧栏最小宽度（会话列表 + 品牌区）
 const BADGE_MIN_SCREEN_WIDTH = 235;
@@ -38,10 +38,6 @@ function AppShell({
 }: AppShellProps): React.JSX.Element {
   const { currentThreadId, showKanbanView, settingsOpen, setSettingsOpen } =
     useAppStore();
-  const threadState = useThreadState(currentThreadId);
-  const isFilePreviewActive =
-    !showKanbanView &&
-    Boolean(currentThreadId && threadState && threadState.activeTab !== "agent");
 
   return (
     <div className="app-shell flex h-screen flex-col overflow-hidden bg-background">
@@ -95,17 +91,13 @@ function AppShell({
                         </div>
                       )}
                     </main>
-                    {!isFilePreviewActive && (
-                      <>
-                        <ResizeHandle onDrag={handleRightResize} />
-                        <div
-                          style={{ width: rightWidth }}
-                          className="app-panel shrink-0 border-l border-border/60"
-                        >
-                          <RightPanel />
-                        </div>
-                      </>
-                    )}
+                    <ResizeHandle onDrag={handleRightResize} />
+                    <div
+                      style={{ width: rightWidth }}
+                      className="app-panel shrink-0 border-l border-border/60"
+                    >
+                      <RightPanel />
+                    </div>
                   </>
                 )}
               </div>

@@ -22,17 +22,24 @@ function formatToolResultBody(content: unknown): string {
 export function singleMessageToMarkdown(
   message: Message,
   toolResults?: Map<string, { content: unknown; is_error?: boolean }>,
+  options?: { includeRoleHeading?: boolean },
 ): string {
+  const includeRoleHeading = options?.includeRoleHeading ?? false;
   if (message.role === "tool" || message.role === "system") return "";
   if (message.role === "user") {
     const t = stringifyContent(message).trim();
+    if (!includeRoleHeading) return t;
     return `## 你\n\n${t}`.trim();
   }
   if (message.role === "assistant") {
-    const parts: string[] = ["## Jarvis"];
+    const parts: string[] = includeRoleHeading ? ["## Jarvis"] : [];
     const t = stringifyContent(message).trim();
     if (t) {
-      parts.push("", t);
+      if (parts.length > 0) {
+        parts.push("", t);
+      } else {
+        parts.push(t);
+      }
     }
     if (message.tool_calls?.length) {
       for (const tc of message.tool_calls) {
@@ -69,7 +76,9 @@ export function messagesToMarkdown(
 ): string {
   const blocks: string[] = [];
   for (const m of messages) {
-    const piece = singleMessageToMarkdown(m, toolResults);
+    const piece = singleMessageToMarkdown(m, toolResults, {
+      includeRoleHeading: true,
+    });
     if (piece) blocks.push(piece);
   }
   return blocks.join("\n\n").trim();

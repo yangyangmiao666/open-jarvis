@@ -759,16 +759,18 @@ export function ChatContainer({
     );
   };
 
+  const overlayOffsetClass = pendingApproval
+    ? "mb-[22rem] sm:mb-[19rem]"
+    : "mb-40 sm:mb-36";
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <ScrollArea className="app-subtle-scroll flex-1 min-h-0" ref={scrollRef}>
+      <ScrollArea
+        className={cn("app-subtle-scroll flex-1 min-h-0", overlayOffsetClass)}
+        ref={scrollRef}
+      >
         <div className="px-4 pt-5">
-          <div
-            className={cn(
-              "mx-auto max-w-3xl space-y-4",
-              pendingApproval ? "pb-[23rem] sm:pb-[20rem]" : "pb-52 sm:pb-44",
-            )}
-          >
+          <div className="mx-auto max-w-3xl space-y-4 pb-6">
             {displayMessages.length === 0 && !isLoading && (
               <div className="animate-scale-in relative mx-auto flex max-w-2xl flex-col items-center justify-center overflow-hidden rounded-[32px] border border-border bg-background-elevated px-8 py-14 text-center text-muted-foreground">
                 <div className="relative flex flex-col items-center gap-4">
@@ -872,9 +874,16 @@ export function ChatContainer({
         </div>
       </ScrollArea>
 
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-background",
+          pendingApproval ? "h-[22rem] sm:h-[19rem]" : "h-40 sm:h-36",
+        )}
+      />
+
       <div className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex flex-col items-center gap-3">
         {pendingApproval && (
-          <div className="pointer-events-auto w-full max-w-3xl rounded-[24px] border border-border bg-background-elevated/96 px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)] backdrop-blur-md">
+          <div className="pointer-events-auto w-full max-w-3xl rounded-[24px] border border-border bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 text-sm">
                 <div className="flex items-start gap-2">
@@ -929,7 +938,7 @@ export function ChatContainer({
           {isLoading && <div className="agent-glow-halo" />}
           <div
             className={cn(
-              "relative z-0 flex flex-col gap-3 overflow-visible rounded-[26px] border border-border bg-background-elevated/96 px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)] backdrop-blur-md transition-[border-color] duration-300",
+              "relative z-0 flex flex-col gap-3 overflow-visible rounded-[26px] border border-border bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)] transition-[border-color] duration-300",
               isLoading && "agent-border-glow",
             )}
           >

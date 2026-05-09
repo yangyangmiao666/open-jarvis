@@ -28,6 +28,11 @@ interface SkillsDialogProps {
 
 type EditorMode = "create" | "edit";
 
+type SkillsDeleteConfirmState =
+  | { type: "folders" }
+  | { type: "source"; value: string }
+  | null;
+
 const PAGE_SIZE = 12;
 
 export function SkillsDialog({
@@ -45,7 +50,8 @@ export function SkillsDialog({
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
-  const [skillDeleteConfirmOpen, setSkillDeleteConfirmOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] =
+    useState<SkillsDeleteConfirmState>(null);
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>("create");
@@ -133,6 +139,18 @@ export function SkillsDialog({
     setSources(nextSources);
     setStatus("已移除技能来源路径");
     void window.api.skills.setSources(nextSources);
+  };
+
+  const handleConfirmDelete = async (): Promise<void> => {
+    if (!deleteConfirm) return;
+
+    if (deleteConfirm.type === "source") {
+      removeSource(deleteConfirm.value);
+      setDeleteConfirm(null);
+      return;
+    }
+
+    await handleDeleteFolders();
   };
 
   const handleImport = async (): Promise<void> => {
@@ -259,7 +277,7 @@ export function SkillsDialog({
       await window.api.skills.deleteSkillFolders(workspaceSkillTarget, [...selected]);
       await reload();
       setStatus("已删除选中的技能目录");
-      setSkillDeleteConfirmOpen(false);
+      setDeleteConfirm(null);
     } finally {
       setBusy(false);
     }
@@ -320,7 +338,9 @@ export function SkillsDialog({
                         variant="ghost"
                         size="sm"
                         className="h-7 rounded-xl px-2 text-[11px]"
-                        onClick={() => removeSource(source)}
+                        onClick={() =>
+                          setDeleteConfirm({ type: "source", value: source })
+                        }
                       >
                         移除
                       </Button>
@@ -422,7 +442,7 @@ export function SkillsDialog({
                     size="sm"
                     className="h-8 rounded-xl px-3 text-[11px]"
                     disabled={busy || selectedCount === 0 || !workspaceReady}
-                    onClick={() => setSkillDeleteConfirmOpen(true)}
+                    onClick={() => setDeleteConfirm({ type: "folders" })}
                   >
                     删除选中
                   </Button>
@@ -565,30 +585,38 @@ export function SkillsDialog({
       </Dialog>
 
       <Dialog
-        open={skillDeleteConfirmOpen}
-        onOpenChange={setSkillDeleteConfirmOpen}
+        open={deleteConfirm !== null}
+        onOpenChange={(nextOpen) => !nextOpen && setDeleteConfirm(null)}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>确认删除技能？</DialogTitle>
+            <DialogTitle>
+              {deleteConfirm?.type === "source"
+                ? "确认移除技能来源？"
+                : "确认删除技能？"}
+            </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            将永久删除所选的 {selectedCount} 个技能目录及其中的文件，此操作不可恢复。
+            {deleteConfirm?.type === "source"
+              ? `将移除技能来源路径“${deleteConfirm.value}”。移除后将不再从该路径加载技能。`
+              : `将永久删除所选的 ${selectedCount} 个技能目录及其中的文件，此操作不可恢复。`}
           </p>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setSkillDeleteConfirmOpen(false)}
+              onClick={() => setDeleteConfirm(null)}
             >
               取消
             </Button>
             <Button
               type="button"
-              variant="destructive"
-              onClick={() => void handleDeleteFolders()}
+              variant={
+                deleteConfirm?.type === "source" ? "secondary" : "destructive"
+              }
+              onClick={() => void handleConfirmDelete()}
             >
-              删除
+              {deleteConfirm?.type === "source" ? "移除" : "删除"}
             </Button>
           </DialogFooter>
         </DialogContent>

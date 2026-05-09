@@ -21,6 +21,10 @@ interface CachedConnection {
   promise: Promise<MCPConnection>;
 }
 
+interface MCPApprovalTaggedTool extends StructuredToolInterface {
+  __approvalAliases?: string[];
+}
+
 const connections = new Map<string, CachedConnection>();
 
 function serializeContentItem(item: unknown): string {
@@ -102,8 +106,9 @@ async function createConnection(server: MCPServerConfig): Promise<MCPConnection>
 
   await client.connect(transport);
   const listed = await client.listTools();
-  const tools = listed.tools.map((mcpTool) =>
-    tool(
+  const tools = listed.tools.map((mcpTool) => {
+    const normalizedName = normalizeToolName(server, mcpTool.name);
+    const wrappedTool = tool(
       async (input) => {
         const result = await client.callTool({
           name: mcpTool.name,
@@ -125,14 +130,17 @@ async function createConnection(server: MCPServerConfig): Promise<MCPConnection>
         return serialized || `${mcpTool.name} completed successfully.`;
       },
       {
-        name: normalizeToolName(server, mcpTool.name),
+        name: normalizedName,
         description:
           mcpTool.description ||
           `${mcpTool.name} from MCP server ${server.name}`,
         schema: mcpTool.inputSchema,
       },
-    ),
-  );
+    ) as MCPApprovalTaggedTool;
+
+    wrappedTool.__approvalAliases = [normalizedName, mcpTool.name];
+    return wrappedTool;
+  });
 
   return { client, transport, tools };
 }

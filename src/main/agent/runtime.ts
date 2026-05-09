@@ -20,6 +20,11 @@ import {
   getContextWindowForModel,
 } from "../../model-context";
 
+interface ApprovalAliasTool {
+  name?: string;
+  __approvalAliases?: string[];
+}
+
 /**
  * Generate the full system prompt for the agent.
  *
@@ -500,6 +505,20 @@ The workspace root is: ${workspacePath}`;
     .map((id) => getMCPServerById(id))
     .filter((server): server is NonNullable<typeof server> => Boolean(server));
   const mcpTools = await getMCPToolsForServers(enabledMcpServers);
+  const interruptOnEntries = new Set<string>(["execute"]);
+  for (const tool of mcpTools as ApprovalAliasTool[]) {
+    if (typeof tool.name === "string" && tool.name.length > 0) {
+      interruptOnEntries.add(tool.name);
+    }
+    for (const alias of tool.__approvalAliases ?? []) {
+      if (typeof alias === "string" && alias.length > 0) {
+        interruptOnEntries.add(alias);
+      }
+    }
+  }
+  const interruptOn = Object.fromEntries(
+    Array.from(interruptOnEntries, (toolName) => [toolName, true] as const),
+  );
 
   const agent = createDeepAgent({
     model,
@@ -508,8 +527,8 @@ The workspace root is: ${workspacePath}`;
     systemPrompt,
     // Custom filesystem prompt for absolute paths (requires deepagents update)
     filesystemSystemPrompt,
-    // Require human approval for all shell commands
-    interruptOn: { execute: true },
+    // Require human approval for shell commands and enabled MCP tools.
+    interruptOn,
     ...(mcpTools.length > 0 ? { tools: mcpTools } : {}),
     ...(skills.length > 0 ? { skills } : {}),
   } as Parameters<typeof createDeepAgent>[0]);

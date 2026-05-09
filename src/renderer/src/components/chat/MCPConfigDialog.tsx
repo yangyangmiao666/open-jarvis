@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ export function MCPConfigDialog({
 }: MCPConfigDialogProps): React.JSX.Element {
   const [enabledMcpServerIds, setEnabledMcpServerIds] = useState<string[]>([]);
   const [servers, setServers] = useState<MCPServerConfig[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<MCPServerConfig | null>(null);
   const [editing, setEditing] = useState<
     (Omit<MCPServerConfig, "id"> & { id?: string }) | null
   >(null);
@@ -136,7 +138,9 @@ export function MCPConfigDialog({
     setStatus("MCP 配置已保存");
   };
 
-  const handleDelete = async (id: string): Promise<void> => {
+  const handleDelete = async (): Promise<void> => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
     await window.api.mcp.deleteServer(id);
     await load();
     if (enabledIdSet.has(id)) {
@@ -147,6 +151,7 @@ export function MCPConfigDialog({
       await window.api.mcp.setEnabledForThread(undefined, nextIds);
     }
     setStatus("MCP 配置已删除");
+    setDeleteTarget(null);
   };
 
   const handleToggleEnabled = (serverId: string, checked: boolean): void => {
@@ -175,8 +180,9 @@ export function MCPConfigDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-5xl flex flex-col pb-2 sm:pb-2">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[90vh] max-w-5xl flex flex-col pb-2 sm:pb-2">
         <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14 sm:px-7">
           <div className="flex items-center gap-3">
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -481,7 +487,7 @@ export function MCPConfigDialog({
                       variant="ghost"
                       size="icon"
                       className="size-7 shrink-0 text-destructive"
-                      onClick={() => void handleDelete(server.id)}
+                      onClick={() => setDeleteTarget(server)}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -492,8 +498,39 @@ export function MCPConfigDialog({
           </div>
         </div>
 
-        <div className="text-xs text-muted-foreground min-h-4">{status ?? ""}</div>
-      </DialogContent>
-    </Dialog>
+          <div className="text-xs text-muted-foreground min-h-4">{status ?? ""}</div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(nextOpen) => !nextOpen && setDeleteTarget(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>确认删除 MCP 配置？</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            将删除 MCP server “{deleteTarget?.name || "当前配置"}”，此操作不可恢复。
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setDeleteTarget(null)}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleDelete()}
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
