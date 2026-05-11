@@ -7,6 +7,7 @@ import { createAgentRuntime } from "../agent/runtime";
 import { rememberWorkspaceApproval } from "../approval-settings";
 import { getThread } from "../db";
 import { getOpenworkDir } from "../storage";
+import { logError, logInfo, logWarn } from "../logger";
 import type {
   AgentInvokeParams,
   AgentResumeParams,
@@ -23,7 +24,7 @@ const store = new Store({
 });
 
 export function registerAgentHandlers(ipcMain: IpcMain): void {
-  console.log("[Agent] Registering agent handlers...");
+  logInfo("Agent", "Registering agent handlers");
 
   // Handle agent invocation with streaming
   ipcMain.on(
@@ -32,17 +33,19 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
       event,
       { threadId, message, modelId, referencedPaths }: AgentInvokeParams,
     ) => {
+      const requestStartedAt = Date.now();
       const channel = `agent:stream:${threadId}`;
       const window = BrowserWindow.fromWebContents(event.sender);
 
-      console.log("[Agent] Received invoke request:", {
+      logInfo("Agent", "Received invoke request", {
         threadId,
         message: message.substring(0, 50),
         modelId,
+        referencedPathsCount: referencedPaths?.length ?? 0,
       });
 
       if (!window) {
-        console.error("[Agent] No window found");
+        logError("Agent", "No window found for invoke", { threadId });
         return;
       }
 
@@ -50,7 +53,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
       // This prevents concurrent streams which can cause checkpoint corruption
       const existingController = activeRuns.get(threadId);
       if (existingController) {
-        console.log("[Agent] Aborting existing stream for thread:", threadId);
+        logWarn("Agent", "Aborting existing stream before invoke", { threadId });
         existingController.abort();
         activeRuns.delete(threadId);
       }
@@ -60,10 +63,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
 
       // Abort the stream if the window is closed/destroyed
       const onWindowClosed = (): void => {
-        console.log(
-          "[Agent] Window closed, aborting stream for thread:",
-          threadId,
-        );
+        logWarn("Agent", "Window closed, aborting stream", { threadId });
         abortController.abort();
       };
       window.once("closed", onWindowClosed);
@@ -72,7 +72,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         // Get workspace path from thread metadata - REQUIRED
         const thread = getThread(threadId);
         const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {};
-        console.log("[Agent] Thread metadata:", metadata);
+        logInfo("Agent", "Resolved thread metadata", { threadId, metadata });
 
         const workspacePath =
           (metadata.workspacePath as string | undefined) ||
@@ -94,6 +94,10 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           workspacePath,
           modelId,
         });
+        logInfo("Agent", "Runtime ready, creating stream", {
+          threadId,
+          elapsedMs: Date.now() - requestStartedAt,
+        });
         let text = message;
         if (referencedPaths && referencedPaths.length > 0) {
           const lines = referencedPaths.map((p) => `- ${p}`).join("\n");
@@ -113,12 +117,29 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
             recursionLimit: 1000,
           },
         );
+        logInfo("Agent", "Stream created", {
+          threadId,
+          elapsedMs: Date.now() - requestStartedAt,
+        });
+
+        let chunkCount = 0;
 
         for await (const chunk of stream) {
           if (abortController.signal.aborted) break;
 
+          chunkCount += 1;
+
           // With multiple stream modes, chunks are tuples: [mode, data]
           const [mode, data] = chunk as [string, unknown];
+
+          if (chunkCount <= 5 || chunkCount % 25 === 0) {
+            logInfo("Agent", "Forwarding stream chunk", {
+              threadId,
+              chunkCount,
+              mode,
+              elapsedMs: Date.now() - requestStartedAt,
+            });
+          }
 
           // Forward raw stream events - transport layer handles parsing
           // Serialize to plain objects for IPC (class instances don't transfer)
@@ -131,6 +152,11 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
 
         // Send done event (only if not aborted)
         if (!abortController.signal.aborted) {
+          logInfo("Agent", "Invoke stream completed", {
+            threadId,
+            chunkCount,
+            elapsedMs: Date.now() - requestStartedAt,
+          });
           window.webContents.send(channel, { type: "done" });
         }
       } catch (error) {
@@ -142,15 +168,25 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
             error.message.includes("Controller is already closed"));
 
         if (!isAbortError) {
-          console.error("[Agent] Error:", error);
+          logError("Agent", "Invoke error", {
+            threadId,
+            elapsedMs: Date.now() - requestStartedAt,
+            error,
+          });
           window.webContents.send(channel, {
             type: "error",
             error: error instanceof Error ? error.message : "Unknown error",
+          });
+        } else {
+          logWarn("Agent", "Invoke aborted", {
+            threadId,
+            elapsedMs: Date.now() - requestStartedAt,
           });
         }
       } finally {
         window.removeListener("closed", onWindowClosed);
         activeRuns.delete(threadId);
+        logInfo("Agent", "Invoke cleanup complete", { threadId });
       }
     },
   );
@@ -159,17 +195,18 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
   ipcMain.on(
     "agent:resume",
     async (event, { threadId, command, modelId }: AgentResumeParams) => {
+      const requestStartedAt = Date.now();
       const channel = `agent:stream:${threadId}`;
       const window = BrowserWindow.fromWebContents(event.sender);
 
-      console.log("[Agent] Received resume request:", {
+      logInfo("Agent", "Received resume request", {
         threadId,
         command,
         modelId,
       });
 
       if (!window) {
-        console.error("[Agent] No window found for resume");
+        logError("Agent", "No window found for resume", { threadId });
         return;
       }
 
@@ -204,6 +241,10 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           threadId,
           workspacePath,
           modelId,
+        });
+        logInfo("Agent", "Resume runtime ready", {
+          threadId,
+          elapsedMs: Date.now() - requestStartedAt,
         });
         const config = {
           configurable: { thread_id: threadId },
@@ -241,10 +282,21 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           config,
         );
 
+        let chunkCount = 0;
+
         for await (const chunk of stream) {
           if (abortController.signal.aborted) break;
 
           const [mode, data] = chunk as unknown as [string, unknown];
+          chunkCount += 1;
+          if (chunkCount <= 5 || chunkCount % 25 === 0) {
+            logInfo("Agent", "Forwarding resume chunk", {
+              threadId,
+              chunkCount,
+              mode,
+              elapsedMs: Date.now() - requestStartedAt,
+            });
+          }
           window.webContents.send(channel, {
             type: "stream",
             mode,
@@ -253,6 +305,11 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         }
 
         if (!abortController.signal.aborted) {
+          logInfo("Agent", "Resume stream completed", {
+            threadId,
+            chunkCount,
+            elapsedMs: Date.now() - requestStartedAt,
+          });
           window.webContents.send(channel, { type: "done" });
         }
       } catch (error) {
@@ -263,14 +320,24 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
             error.message.includes("Controller is already closed"));
 
         if (!isAbortError) {
-          console.error("[Agent] Resume error:", error);
+          logError("Agent", "Resume error", {
+            threadId,
+            elapsedMs: Date.now() - requestStartedAt,
+            error,
+          });
           window.webContents.send(channel, {
             type: "error",
             error: error instanceof Error ? error.message : "Unknown error",
           });
+        } else {
+          logWarn("Agent", "Resume aborted", {
+            threadId,
+            elapsedMs: Date.now() - requestStartedAt,
+          });
         }
       } finally {
         activeRuns.delete(threadId);
+        logInfo("Agent", "Resume cleanup complete", { threadId });
       }
     },
   );

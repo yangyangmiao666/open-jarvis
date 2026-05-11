@@ -21,6 +21,9 @@ import {
   getConfiguredContextWindow,
   getContextWindowForModel,
 } from "../../model-context";
+import { logInfo, logWarn } from "../logger";
+
+const MODEL_REQUEST_TIMEOUT_MS = 30_000;
 
 interface ApprovalAliasTool {
   name?: string;
@@ -49,10 +52,7 @@ const runtimeToolErrorMiddleware = createMiddleware({
       }
 
       const message = toToolErrorText(error);
-      console.warn(
-        `[Runtime] Tool call failed (${request.toolCall.name}):`,
-        message,
-      );
+      logWarn("Runtime", `Tool call failed (${request.toolCall.name})`, message);
       return new ToolMessage({
         content: message,
         tool_call_id: request.toolCall.id ?? "unknown_tool_call",
@@ -430,6 +430,8 @@ function getModelInstance(
     return new ChatOpenAI({
       model,
       apiKey,
+      timeout: MODEL_REQUEST_TIMEOUT_MS,
+      maxRetries: 1,
     });
   } else if (model.startsWith("gemini")) {
     const apiKey = getApiKey("google");
@@ -452,15 +454,31 @@ function getModelInstance(
       baseURL = `${baseURL}/v1`;
     }
     const key = profile.apiKey?.trim() ?? "";
+    logInfo("Runtime", "Configuring OpenAI-compatible model", {
+      modelId: model,
+      baseURL,
+      profileModel: profile.model,
+      timeoutMs: MODEL_REQUEST_TIMEOUT_MS,
+      proxyEnv: {
+        NODE_USE_ENV_PROXY: process.env["NODE_USE_ENV_PROXY"] ?? null,
+        HTTP_PROXY: process.env["HTTP_PROXY"] ? "<set>" : null,
+        HTTPS_PROXY: process.env["HTTPS_PROXY"] ? "<set>" : null,
+        ALL_PROXY: process.env["ALL_PROXY"] ? "<set>" : null,
+      },
+    });
     const chatModel = new ChatOpenAI({
       model: profile.model,
       apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
       configuration: { baseURL },
       useResponsesApi: false,
+      timeout: MODEL_REQUEST_TIMEOUT_MS,
+      maxRetries: 1,
       completions: new OpenAICompatibleChatCompletions({
         model: profile.model,
         apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
         configuration: { baseURL },
+        timeout: MODEL_REQUEST_TIMEOUT_MS,
+        maxRetries: 1,
       }),
     });
     return applyContextWindowProfile(
@@ -500,15 +518,18 @@ export async function createAgentRuntime(
     );
   }
 
-  console.log("[Runtime] Creating agent runtime...");
-  console.log("[Runtime] Thread ID:", threadId);
-  console.log("[Runtime] Workspace path:", workspacePath);
+  logInfo("Runtime", "Creating agent runtime", {
+    threadId,
+    workspacePath,
+    modelId,
+    packaged: !process.env["ELECTRON_RENDERER_URL"],
+  });
 
   const model = getModelInstance(modelId);
-  console.log("[Runtime] Model instance created:", typeof model);
+  logInfo("Runtime", "Model instance created", { modelType: typeof model });
 
   const checkpointer = await getCheckpointer(threadId);
-  console.log("[Runtime] Checkpointer ready for thread:", threadId);
+  logInfo("Runtime", "Checkpointer ready", { threadId });
 
   const backend = new LocalSandbox({
     rootDir: workspacePath,
@@ -543,6 +564,11 @@ The workspace root is: ${workspacePath}`;
     .map((id) => getMCPServerById(id))
     .filter((server): server is NonNullable<typeof server> => Boolean(server));
   const mcpTools = await getMCPToolsForServers(enabledMcpServers);
+  logInfo("Runtime", "Resolved runtime dependencies", {
+    skills: skills.length,
+    enabledMcpServers: enabledMcpServers.length,
+    mcpTools: mcpTools.length,
+  });
   const interruptOnEntries = new Set<string>(["execute"]);
   for (const tool of mcpTools as ApprovalAliasTool[]) {
     if (typeof tool.name === "string" && tool.name.length > 0) {
@@ -572,9 +598,6 @@ The workspace root is: ${workspacePath}`;
     ...(skills.length > 0 ? { skills } : {}),
   } as Parameters<typeof createDeepAgent>[0]);
 
-  console.log(
-    "[Runtime] Deep agent created with LocalSandbox at:",
-    workspacePath,
-  );
+  logInfo("Runtime", "Deep agent created", { workspacePath, threadId });
   return agent;
 }

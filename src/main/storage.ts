@@ -91,6 +91,14 @@ function parseEnvFile(): Record<string, string> {
   return result;
 }
 
+export function loadEnvFileToProcessEnv(): Record<string, string> {
+  const env = parseEnvFile();
+  for (const [key, value] of Object.entries(env)) {
+    process.env[key] = value;
+  }
+  return env;
+}
+
 // Write object back to .env file
 function writeEnvFile(env: Record<string, string>): void {
   getOpenworkDir(); // ensure dir exists

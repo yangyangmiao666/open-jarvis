@@ -25,6 +25,7 @@ import {
 } from "deepagents";
 import { decodeTextBuffer } from "../text-encoding";
 import { getEmbeddedToolingRuntime } from "../tooling";
+import { logError, logInfo } from "../logger";
 
 /** Match deepagents FilesystemBackend formatting (read tool UX). */
 const EMPTY_CONTENT_WARNING =
@@ -300,6 +301,14 @@ export class LocalSandbox
     this.maxOutputBytes = options.maxOutputBytes ?? 100_000; // ~100KB default
     this.env = options.env ?? ({ ...process.env } as Record<string, string>);
     this.workingDir = options.rootDir ?? process.cwd();
+
+    logInfo("LocalSandbox", "Created sandbox", {
+      id: this.id,
+      workingDir: this.workingDir,
+      hasEmbeddedTooling: !!this.embeddedTooling,
+      embeddedToolingRoot: this.embeddedTooling?.rootDir ?? null,
+      platform: process.platform,
+    });
   }
 
   /**
@@ -688,6 +697,13 @@ export class LocalSandbox
     }
 
     const preparedCommand = this.buildWorkspaceRuntimeCommand(command);
+    logInfo("LocalSandbox", "Execute requested", {
+      sandboxId: this.id,
+      command,
+      preparedCommand,
+      workingDir: this.workingDir,
+      platform: process.platform,
+    });
 
     return new Promise<ExecuteResponse>((resolve) => {
       const outputParts: string[] = [];
@@ -792,6 +808,14 @@ export class LocalSandbox
           output = "<no output>";
         }
 
+        logInfo("LocalSandbox", "Execute completed", {
+          sandboxId: this.id,
+          exitCode: signal ? null : code,
+          signal,
+          truncated,
+          outputPreview: output.slice(0, 500),
+        });
+
         resolve({
           output,
           exitCode: signal ? null : code,
@@ -804,6 +828,13 @@ export class LocalSandbox
         if (resolved) return;
         resolved = true;
         clearTimeout(timeoutId);
+
+        logError("LocalSandbox", "Execute spawn error", {
+          sandboxId: this.id,
+          command,
+          preparedCommand,
+          error: err.message,
+        });
 
         resolve({
           output: `Error: Failed to execute command: ${err.message}`,
