@@ -288,6 +288,11 @@ interface WindowsRuntimeCommandPlan {
   env: Record<string, string>;
 }
 
+interface WindowsRuntimeShims {
+  generalShimDir: string;
+  pythonShimDir: string | null;
+}
+
 function getWindowsEnvKey(
   env: Record<string, string>,
   key: string,
@@ -379,46 +384,69 @@ export class LocalSandbox
   private ensureWindowsRuntimeShims(
     requiresPython: boolean,
     _requiresJavaScript: boolean,
-  ): string {
-    const shimDir = path.join(this.workingDir, ".open-jarvis", "runtime-bin");
-    fsSync.mkdirSync(shimDir, { recursive: true });
+  ): WindowsRuntimeShims {
+    const generalShimDir = path.join(
+      this.workingDir,
+      ".open-jarvis",
+      "runtime-bin",
+    );
+    const pythonShimDir = requiresPython
+      ? path.join(this.workingDir, ".open-jarvis", "python-runtime-bin")
+      : null;
 
-    const shims: Array<{ fileName: string; content: string }> = [
+    fsSync.mkdirSync(generalShimDir, { recursive: true });
+    if (pythonShimDir) {
+      fsSync.mkdirSync(pythonShimDir, { recursive: true });
+    }
+
+    const generalShims: Array<{ fileName: string; content: string }> = [
       {
         fileName: "which.cmd",
         content: "@echo off\r\nwhere %*\r\n",
       },
     ];
 
+    const pythonShims: Array<{ fileName: string; content: string }> = [];
+
     const embeddedPythonPath = this.embeddedTooling?.pythonPath;
     const hasEmbeddedPython =
       !!embeddedPythonPath && fsSync.existsSync(embeddedPythonPath);
 
     if (hasEmbeddedPython && embeddedPythonPath) {
-      shims.push(
-        {
-          fileName: "uv.cmd",
-          content: '@echo off\r\n"%OPEN_JARVIS_UV%" %*\r\n',
-        },
+      pythonShims.push(
         {
           fileName: "python.cmd",
-          content: '@echo off\r\n"%OPEN_JARVIS_PYTHON%" %*\r\n',
+          content:
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" python %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" %*\r\n)\r\n",
         },
         {
           fileName: "python3.cmd",
-          content: '@echo off\r\n"%OPEN_JARVIS_PYTHON%" %*\r\n',
+          content:
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" python %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" %*\r\n)\r\n",
         },
         {
           fileName: "pip.cmd",
-          content: '@echo off\r\n"%OPEN_JARVIS_PYTHON%" -m pip %*\r\n',
+          content:
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" -m pip %*\r\n)\r\n",
         },
         {
           fileName: "pip3.cmd",
-          content: '@echo off\r\n"%OPEN_JARVIS_PYTHON%" -m pip %*\r\n',
+          content:
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" -m pip %*\r\n)\r\n",
+        },
+        {
+          fileName: "pytest.cmd",
+          content:
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" pytest %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" -m pytest %*\r\n)\r\n",
+        },
+        {
+          fileName: "py.test.cmd",
+          content:
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" pytest %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" -m pytest %*\r\n)\r\n",
         },
       );
     } else if (requiresPython) {
-      shims.push(
+      pythonShims.push(
         {
           fileName: "python3.cmd",
           content: "@echo off\r\npython %*\r\n",
@@ -438,7 +466,7 @@ export class LocalSandbox
       !!this.embeddedTooling?.bunPath && fsSync.existsSync(this.embeddedTooling.bunPath);
 
     if (hasEmbeddedBun) {
-      shims.push(
+      generalShims.push(
         {
           fileName: "bun.cmd",
           content: '@echo off\r\n"%OPEN_JARVIS_BUN%" %*\r\n',
@@ -477,47 +505,64 @@ export class LocalSandbox
       );
     }
 
-    for (const shim of shims) {
-      const targetPath = path.join(shimDir, shim.fileName);
-      const current = fsSync.existsSync(targetPath)
-        ? fsSync.readFileSync(targetPath, "utf8")
-        : null;
-      if (current !== shim.content) {
-        fsSync.writeFileSync(targetPath, shim.content, "utf8");
-      }
-    }
-
-    // Keep a stable superset of runtime shims in the shared directory.
-    // Multiple sandboxes can execute concurrently for the same workspace, so
-    // per-request cleanup can delete a shim that another in-flight command still needs.
-    const expectedShimNames = new Set(shims.map((shim) => shim.fileName.toLowerCase()));
-    for (const entry of fsSync.readdirSync(shimDir, { withFileTypes: true })) {
-      if (!entry.isFile()) {
-        continue;
+    const syncWindowsShims = (
+      targetDir: string,
+      shims: Array<{ fileName: string; content: string }>,
+    ) => {
+      for (const shim of shims) {
+        const targetPath = path.join(targetDir, shim.fileName);
+        const current = fsSync.existsSync(targetPath)
+          ? fsSync.readFileSync(targetPath, "utf8")
+          : null;
+        if (current !== shim.content) {
+          fsSync.writeFileSync(targetPath, shim.content, "utf8");
+        }
       }
 
-      const entryName = entry.name.toLowerCase();
-      if (!entryName.endsWith(".cmd")) {
-        continue;
+      // Keep a stable superset of runtime shims in the shared directory.
+      // Multiple sandboxes can execute concurrently for the same workspace, so
+      // per-request cleanup can delete a shim that another in-flight command still needs.
+      const expectedShimNames = new Set(
+        shims.map((shim) => shim.fileName.toLowerCase()),
+      );
+      for (const entry of fsSync.readdirSync(targetDir, { withFileTypes: true })) {
+        if (!entry.isFile()) {
+          continue;
+        }
+
+        const entryName = entry.name.toLowerCase();
+        if (!entryName.endsWith(".cmd")) {
+          continue;
+        }
+
+        if (!expectedShimNames.has(entryName)) {
+          fsSync.rmSync(path.join(targetDir, entry.name), { force: true });
+        }
       }
 
-      if (!expectedShimNames.has(entryName)) {
-        fsSync.rmSync(path.join(shimDir, entry.name), { force: true });
-      }
-    }
+      return fsSync
+        .readdirSync(targetDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".cmd"))
+        .map((entry) => entry.name)
+        .sort((a, b) => a.localeCompare(b));
+    };
 
-    const shimFiles = fsSync
-      .readdirSync(shimDir, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".cmd"))
-      .map((entry) => entry.name)
-      .sort((a, b) => a.localeCompare(b));
+    const generalShimFiles = syncWindowsShims(generalShimDir, generalShims);
+    const pythonShimFiles = pythonShimDir
+      ? syncWindowsShims(pythonShimDir, pythonShims)
+      : [];
 
     logInfo("LocalSandbox", "Windows runtime shims prepared", {
-      shimDir,
-      shimFiles,
+      generalShimDir,
+      generalShimFiles,
+      pythonShimDir,
+      pythonShimFiles,
     });
 
-    return shimDir;
+    return {
+      generalShimDir,
+      pythonShimDir,
+    };
   }
 
   private buildWorkspaceRuntimeCommandForWindows(
@@ -531,12 +576,16 @@ export class LocalSandbox
 
     const requiresPython = needsPythonWorkspaceRuntime(rewrittenCommand);
     const requiresJavaScript = needsJavaScriptWorkspaceRuntime(rewrittenCommand);
-    const shimDir = this.ensureWindowsRuntimeShims(
+    const windowsRuntimeShims = this.ensureWindowsRuntimeShims(
       requiresPython,
       requiresJavaScript,
     );
 
-    commandEnv.OPEN_JARVIS_RUNTIME_BIN = shimDir;
+    commandEnv.OPEN_JARVIS_RUNTIME_BIN = windowsRuntimeShims.generalShimDir;
+    if (windowsRuntimeShims.pythonShimDir) {
+      commandEnv.OPEN_JARVIS_PYTHON_RUNTIME_BIN =
+        windowsRuntimeShims.pythonShimDir;
+    }
     const currentPathExt = commandEnv[pathExtKey] ?? "";
     commandEnv[pathExtKey] = currentPathExt.toUpperCase().includes(".CMD")
       ? currentPathExt
@@ -546,7 +595,8 @@ export class LocalSandbox
       requiresPython,
       requiresJavaScript,
       hasEmbeddedTooling: !!this.embeddedTooling,
-      shimDir,
+      generalShimDir: windowsRuntimeShims.generalShimDir,
+      pythonShimDir: windowsRuntimeShims.pythonShimDir,
       pathExt: commandEnv[pathExtKey] ?? null,
     });
 
@@ -571,6 +621,10 @@ export class LocalSandbox
     const pathSegments: string[] = [];
 
     if (requiresPython) {
+      if (windowsRuntimeShims.pythonShimDir) {
+        pathSegments.push(windowsRuntimeShims.pythonShimDir);
+      }
+
       pathSegments.push(
         path.join(this.workingDir, ".venv", "Scripts"),
       );
@@ -588,7 +642,7 @@ export class LocalSandbox
     // Put the shim directory after the real embedded executables so bare
     // uv/python/bun commands resolve to the bundled .exe files instead of the
     // .cmd wrappers that can distort quoted arguments on Windows.
-    pathSegments.push(shimDir);
+    pathSegments.push(windowsRuntimeShims.generalShimDir);
 
     pathSegments.push(path.join(this.workingDir, "node_modules", ".bin"));
     commandEnv[pathKey] = `${pathSegments.join(";")};${commandEnv[pathKey] ?? ""}`;
@@ -677,6 +731,37 @@ export class LocalSandbox
         "fi",
         'export VIRTUAL_ENV="$PWD/.venv"',
         'export PATH="$VIRTUAL_ENV/bin:$OPEN_JARVIS_TOOLING_BIN:$PATH"',
+        "uv() {",
+        '  case "${1-}" in',
+        '    pip) shift; "$OPEN_JARVIS_UV" pip --python "$VIRTUAL_ENV/bin/python" "$@" ;;',
+        '    run) shift; "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" "$@" ;;',
+        '    python) shift; "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" python "$@" ;;',
+        '    *) "$OPEN_JARVIS_UV" "$@" ;;',
+        "  esac",
+        "}",
+        "python() {",
+        '  if [ -x "$VIRTUAL_ENV/bin/python" ]; then',
+        '    "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" python "$@"',
+        "  else",
+        '    "$OPEN_JARVIS_PYTHON" "$@"',
+        "  fi",
+        "}",
+        'python3() { python "$@"; }',
+        "pip() {",
+        '  if [ -x "$VIRTUAL_ENV/bin/python" ]; then',
+        '    "$OPEN_JARVIS_UV" pip --python "$VIRTUAL_ENV/bin/python" "$@"',
+        "  else",
+        '    "$OPEN_JARVIS_PYTHON" -m pip "$@"',
+        "  fi",
+        "}",
+        'pip3() { pip "$@"; }',
+        "pytest() {",
+        '  if [ -x "$VIRTUAL_ENV/bin/python" ]; then',
+        '    "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" pytest "$@"',
+        "  else",
+        '    "$OPEN_JARVIS_PYTHON" -m pytest "$@"',
+        "  fi",
+        "}",
       );
       }
     }
@@ -694,6 +779,7 @@ export class LocalSandbox
         "  exit 127",
         "fi",
         'export PATH="$OPEN_JARVIS_TOOLING_BIN:$PATH"',
+        'bun() { "$OPEN_JARVIS_BUN" "$@"; }',
         "npm() {",
         '  case "${1-}" in',
         '    install|i) shift; bun install "$@" ;;',
