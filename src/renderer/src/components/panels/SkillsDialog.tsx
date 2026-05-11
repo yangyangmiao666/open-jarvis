@@ -290,8 +290,8 @@ export function SkillsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="h-[88vh] max-h-[92vh] w-[min(96vw,88rem)] max-w-[88rem] flex flex-col overflow-hidden pb-2 sm:pb-2">
-          <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14">
+        <DialogContent className="flex max-h-[min(92vh,56rem)] w-[min(96vw,88rem)] max-w-[88rem] flex-col overflow-hidden p-0">
+          <DialogHeader className="rounded-t-[32px] border-b border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14">
             <div className="flex items-center gap-3">
               <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
                 <WandSparkles className="size-3.5" />
@@ -303,7 +303,8 @@ export function SkillsDialog({
             </div>
           </DialogHeader>
 
-          <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,0.74fr)_minmax(0,1.46fr)]">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,0.74fr)_minmax(0,1.46fr)]">
             <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
               <div className="flex items-start gap-3">
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background-elevated/80 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
@@ -534,19 +535,21 @@ export function SkillsDialog({
               </div>
             </section>
           </div>
+          </div>
 
           <div className="min-h-5 text-xs text-muted-foreground">{status ?? ""}</div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
-        <DialogContent className="max-h-[88vh] max-w-3xl flex flex-col">
-          <DialogHeader className="rounded-[24px] border border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-5 py-4">
+        <DialogContent className="flex max-h-[min(88vh,48rem)] w-[min(96vw,56rem)] max-w-3xl flex-col overflow-hidden p-0">
+          <DialogHeader className="rounded-t-[32px] border-b border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-5 py-4 pr-14">
             <DialogTitle>
               {editorMode === "create" ? "新增技能" : "编辑技能"}
             </DialogTitle>
           </DialogHeader>
 
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <div className="space-y-3 min-h-0 flex flex-col">
             <Input
               value={editorName}
@@ -563,8 +566,9 @@ export function SkillsDialog({
               className={cn(textAreaClassName, "min-h-[360px] flex-1")}
             />
           </div>
+          </div>
 
-          <DialogFooter className="gap-2 sm:gap-2">
+          <DialogFooter className="shrink-0 border-t border-border/60 px-5 py-4 sm:gap-2">
             <Button
               type="button"
               variant="ghost"

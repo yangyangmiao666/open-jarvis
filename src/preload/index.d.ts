@@ -9,6 +9,7 @@ import type {
   MCPImportResult,
   MCPServerConfig,
   OpenAICompatibleProfile,
+  ProxyConfig,
 } from "../main/types";
 
 interface ElectronAPI {
@@ -102,6 +103,10 @@ interface CustomAPI {
       threadId: string | undefined,
       serverIds: string[],
     ) => Promise<string[]>;
+  };
+  settings: {
+    getProxyConfig: () => Promise<ProxyConfig>;
+    setProxyConfig: (config: ProxyConfig) => Promise<ProxyConfig>;
   };
   workspace: {
     get: (threadId?: string) => Promise<string | null>;

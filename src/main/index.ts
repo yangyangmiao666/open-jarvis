@@ -5,12 +5,14 @@ import { closeAllRuntimeResources } from "./agent/runtime";
 import { registerApprovalHandlers } from "./ipc/approval";
 import { registerAgentHandlers } from "./ipc/agent";
 import { registerMCPHandlers } from "./ipc/mcp";
+import { registerSettingsHandlers } from "./ipc/settings";
 import { registerThreadHandlers } from "./ipc/threads";
 import { registerModelHandlers } from "./ipc/models";
 import { registerSkillHandlers } from "./ipc/skills";
 import { initializeDatabase } from "./db";
 import { getOpenworkDir, loadEnvFileToProcessEnv } from "./storage";
-import { getMainLogPath, logError, logInfo, logWarn } from "./logger";
+import { getMainLogPath, logError, logInfo } from "./logger";
+import { applyGlobalProxyDispatcher, getProxyConfigFromEnv } from "./proxy-config";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -145,32 +147,7 @@ function createWindow(): void {
 
 app.whenReady().then(async () => {
   const loadedEnv = loadEnvFileToProcessEnv();
-
-  // Configure global proxy dispatcher using undici ProxyAgent.
-  // NODE_USE_ENV_PROXY only works if set before undici initialises (which is at
-  // Node startup, before our code runs in a packaged app). Setting it in
-  // process.env afterwards has no effect. Using setGlobalDispatcher is the
-  // correct runtime approach and covers all fetch() calls in the main process.
-  const proxyUrl =
-    process.env["HTTPS_PROXY"] ||
-    process.env["HTTP_PROXY"] ||
-    process.env["ALL_PROXY"];
-  if (proxyUrl) {
-    try {
-      // undici is bundled with Node 18+ (Electron main process).
-      const undici = await import("undici") as {
-        ProxyAgent: new (opts: { uri: string }) => object;
-        setGlobalDispatcher: (dispatcher: object) => void;
-      };
-      const dispatcher = new undici.ProxyAgent({ uri: proxyUrl });
-      undici.setGlobalDispatcher(dispatcher);
-      logInfo("Main", "Global undici proxy dispatcher configured", {
-        proxy: "<set>",
-      });
-    } catch (e) {
-      logWarn("Main", "Failed to configure global proxy dispatcher", String(e));
-    }
-  }
+  await applyGlobalProxyDispatcher(getProxyConfigFromEnv());
 
   logInfo("Main", "App starting", {
     packaged: app.isPackaged,
@@ -234,6 +211,7 @@ app.whenReady().then(async () => {
   registerThreadHandlers(ipcMain);
   registerModelHandlers(ipcMain);
   registerMCPHandlers(ipcMain);
+  registerSettingsHandlers(ipcMain);
   registerSkillHandlers(ipcMain);
 
   createWindow();

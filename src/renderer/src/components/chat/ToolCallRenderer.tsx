@@ -69,6 +69,17 @@ function getFileName(path: string): string {
   return path.split("/").pop() || path;
 }
 
+function toDisplayText(value: unknown): string {
+  if (typeof value === "string") {
+    return value.replace(/\r\n/g, "\n");
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 // Render todos nicely
 function TodosDisplay({ todos }: { todos: Todo[] }): React.JSX.Element {
   const statusConfig: Record<string, { icon: typeof Circle; color: string }> = {
@@ -388,7 +399,7 @@ export function ToolCallRenderer({
         <div className="text-xs text-status-critical flex items-start gap-1.5">
           <XCircle className="size-3 mt-0.5 shrink-0" />
           <span className="break-words">
-            {typeof result === "string" ? result : JSON.stringify(result)}
+            {toDisplayText(result)}
           </span>
         </div>
       );
@@ -396,8 +407,7 @@ export function ToolCallRenderer({
 
     switch (toolCall.name) {
       case "read_file": {
-        const content =
-          typeof result === "string" ? result : JSON.stringify(result);
+        const content = toDisplayText(result);
         const lines = content.split("\n").length;
         const previewPath =
           ((args.path || args.file_path) as string | undefined) || "file.txt";
@@ -476,8 +486,7 @@ export function ToolCallRenderer({
       case "execute": {
         // When expanded, output is shown in CommandDisplay - just show status
         // When collapsed, show the output preview
-        const output =
-          typeof result === "string" ? result : JSON.stringify(result);
+        const output = toDisplayText(result);
         if (isExpanded) {
           return (
             <div className="text-xs text-status-nominal flex items-center gap-1.5">
@@ -558,13 +567,14 @@ export function ToolCallRenderer({
 
       default: {
         // Generic success for unknown tools
-        if (typeof result === "string" && result.trim()) {
+        const text = toDisplayText(result).trim();
+        if (text) {
           return (
             <div className="text-xs text-status-nominal flex items-center gap-1.5">
               <CheckCircle2 className="size-3" />
               <span className="truncate">
-                {result.slice(0, 100)}
-                {result.length > 100 ? "..." : ""}
+                {text.slice(0, 100)}
+                {text.length > 100 ? "..." : ""}
               </span>
             </div>
           );

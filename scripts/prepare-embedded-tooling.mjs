@@ -492,6 +492,24 @@ async function main() {
   }
 
   const embeddedPythonPath = resolvePythonExecutable(pythonDir);
+  const embeddedPythonRelativeToPythonRoot = relative(pythonDir, embeddedPythonPath);
+  const embeddedPythonRootDir = embeddedPythonRelativeToPythonRoot.split(/[\\/]/)[0];
+
+  if (embeddedPythonRootDir && embeddedPythonRootDir.startsWith("cpython-")) {
+    for (const entry of readdirSync(pythonDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      if (!entry.name.startsWith("cpython-")) {
+        continue;
+      }
+
+      if (entry.name !== embeddedPythonRootDir) {
+        rmSync(join(pythonDir, entry.name), { recursive: true, force: true });
+      }
+    }
+  }
   const embeddedPythonRelativePath = relative(toolingRoot, embeddedPythonPath);
 
   const manifest = {

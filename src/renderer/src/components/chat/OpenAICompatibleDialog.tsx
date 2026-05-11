@@ -83,8 +83,8 @@ export function OpenAICompatibleDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[92vh] max-w-5xl flex flex-col overflow-hidden">
-        <DialogHeader className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14 sm:px-7">
+        <DialogContent className="flex max-h-[min(92vh,54rem)] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0">
+        <DialogHeader className="rounded-t-[32px] border-b border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14 sm:px-7">
           <div className="flex items-center gap-3">
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               <Boxes className="size-3.5" />
@@ -96,7 +96,8 @@ export function OpenAICompatibleDialog({
           </div>
         </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[1.05fr_1.2fr]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 sm:px-7">
+        <div className="grid min-h-0 gap-4 lg:grid-cols-[1.05fr_1.2fr]">
           <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -187,6 +188,7 @@ export function OpenAICompatibleDialog({
               </div>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             <div className="space-y-4">
               <div className="space-y-1">
                 <label htmlFor="oac-name" className="text-sm font-medium">
@@ -292,7 +294,7 @@ export function OpenAICompatibleDialog({
                   建议填写模型真实的最大输入 tokens。DeepSeek、Qwen、GLM、MiniMax 这类自定义模型会优先使用这里的值；不填时才退回自动推断。
                 </p>
               </div>
-              <div className="flex gap-2 justify-end">
+              <div className="flex flex-wrap gap-2 justify-end">
                 <Button
                   type="button"
                   variant="ghost"
@@ -311,7 +313,9 @@ export function OpenAICompatibleDialog({
                 </Button>
               </div>
             </div>
+            </div>
           </section>
+        </div>
         </div>
 
         </DialogContent>

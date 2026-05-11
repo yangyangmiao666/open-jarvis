@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { logInfo, logWarn } from "./logger";
 
@@ -34,6 +34,30 @@ function getPlatformArch(): string {
 export function getEmbeddedToolingRootDir(): string | null {
   const platformArch = getPlatformArch();
   const packagedPath = resolve(process.resourcesPath, "tooling", platformArch);
+  
+  // Log directory structure for diagnostics
+  const toolingParent = resolve(process.resourcesPath, "tooling");
+  let toolingParentContents: string[] = [];
+  try {
+    if (existsSync(toolingParent)) {
+      toolingParentContents = readdirSync(toolingParent);
+    }
+  } catch (error) {
+    logWarn("Tooling", "Failed to read tooling parent directory", {
+      toolingParent,
+      error: String(error),
+    });
+  }
+  
+  logInfo("Tooling", "Looking for embedded tooling", {
+    platformArch,
+    resourcesPath: process.resourcesPath,
+    packagedPath,
+    packagedExists: existsSync(packagedPath),
+    toolingParentExists: existsSync(toolingParent),
+    toolingParentContents,
+  });
+  
   if (existsSync(packagedPath)) {
     logInfo("Tooling", "Using packaged embedded tooling", {
       platformArch,
@@ -43,6 +67,26 @@ export function getEmbeddedToolingRootDir(): string | null {
   }
 
   const devPath = resolve(__dirname, "../../resources/tooling", platformArch);
+  const devToolingParent = resolve(__dirname, "../../resources/tooling");
+  let devToolingParentContents: string[] = [];
+  try {
+    if (existsSync(devToolingParent)) {
+      devToolingParentContents = readdirSync(devToolingParent);
+    }
+  } catch (error) {
+    logWarn("Tooling", "Failed to read dev tooling parent directory", {
+      devToolingParent,
+      error: String(error),
+    });
+  }
+  
+  logInfo("Tooling", "Packaged tooling not found, trying dev path", {
+    devPath,
+    devExists: existsSync(devPath),
+    devToolingParentExists: existsSync(devToolingParent),
+    devToolingParentContents,
+  });
+  
   if (existsSync(devPath)) {
     logInfo("Tooling", "Using development embedded tooling", {
       platformArch,
@@ -72,20 +116,39 @@ export function getEmbeddedToolingRuntime(): EmbeddedToolingRuntime | null {
     return null;
   }
 
-  const manifest = JSON.parse(
-    readFileSync(manifestPath, "utf8"),
-  ) as EmbeddedToolingManifest;
+  try {
+    const manifest = JSON.parse(
+      readFileSync(manifestPath, "utf8"),
+    ) as EmbeddedToolingManifest;
 
-  const runtime = {
-    rootDir,
-    manifest,
-    uvPath: join(rootDir, manifest.uv.path),
-    bunPath: join(rootDir, manifest.bun.path),
-    pythonPath: join(rootDir, manifest.python.path),
-    binDir: join(rootDir, "bin"),
-    pythonInstallDir: join(rootDir, "python"),
-  };
+    const runtime = {
+      rootDir,
+      manifest,
+      uvPath: join(rootDir, manifest.uv.path),
+      bunPath: join(rootDir, manifest.bun.path),
+      pythonPath: join(rootDir, manifest.python.path),
+      binDir: join(rootDir, "bin"),
+      pythonInstallDir: join(rootDir, "python"),
+    };
 
-  logInfo("Tooling", "Resolved embedded tooling runtime", runtime);
-  return runtime;
+    // Verify all critical paths exist
+    const uvExists = existsSync(runtime.uvPath);
+    const bunExists = existsSync(runtime.bunPath);
+    const pythonExists = existsSync(runtime.pythonPath);
+
+    logInfo("Tooling", "Resolved embedded tooling runtime", {
+      ...runtime,
+      uvExists,
+      bunExists,
+      pythonExists,
+    });
+
+    return runtime;
+  } catch (error) {
+    logWarn("Tooling", "Failed to parse embedded tooling manifest", {
+      manifestPath,
+      error: String(error),
+    });
+    return null;
+  }
 }

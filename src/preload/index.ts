@@ -10,6 +10,7 @@ import type {
   MCPImportResult,
   MCPServerConfig,
   OpenAICompatibleProfile,
+  ProxyConfig,
 } from "../main/types";
 
 // Simple electron API - replaces @electron-toolkit/preload
@@ -245,6 +246,14 @@ const api = {
         threadId,
         serverIds,
       });
+    },
+  },
+  settings: {
+    getProxyConfig: (): Promise<ProxyConfig> => {
+      return ipcRenderer.invoke("settings:getProxyConfig");
+    },
+    setProxyConfig: (config: ProxyConfig): Promise<ProxyConfig> => {
+      return ipcRenderer.invoke("settings:setProxyConfig", config);
     },
   },
   workspace: {

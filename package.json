@@ -61,7 +61,7 @@
     "dist:mac": "bun run prepare:tooling && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
     "dist:mac:x64": "bun run prepare:tooling:darwin:x64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --x64",
     "dist:mac:arm64": "bun run prepare:tooling:darwin:arm64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64",
-    "dist:win": "bun run prepare:tooling && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_LINK= WIN_CSC_LINK= CSC_KEY_PASSWORD= WIN_CSC_KEY_PASSWORD= electron-builder --win nsis",
+    "dist:win": "bun run prepare:tooling:win:x64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_LINK= WIN_CSC_LINK= CSC_KEY_PASSWORD= WIN_CSC_KEY_PASSWORD= electron-builder --win nsis --x64",
     "dist:win:x64": "bun run prepare:tooling:win:x64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_LINK= WIN_CSC_LINK= CSC_KEY_PASSWORD= WIN_CSC_KEY_PASSWORD= electron-builder --win nsis --x64",
     "dist:win:arm64": "bun run prepare:tooling:win:arm64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_LINK= WIN_CSC_LINK= CSC_KEY_PASSWORD= WIN_CSC_KEY_PASSWORD= electron-builder --win nsis --arm64",
     "dist:linux": "bun run prepare:tooling && bun run build && electron-builder --linux AppImage tar.gz"

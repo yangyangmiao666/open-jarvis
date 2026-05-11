@@ -231,12 +231,69 @@ function needsPythonWorkspaceRuntime(command: string): boolean {
   return PYTHON_COMMAND_PATTERN.test(command);
 }
 
+function needsWindowsPythonBootstrap(command: string): boolean {
+  if (!needsPythonWorkspaceRuntime(command)) {
+    return false;
+  }
+
+  const segments = command
+    .split(/(?:&&|\|\||[;&])(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+
+  const pythonSegments = segments.filter((segment) =>
+    PYTHON_COMMAND_PATTERN.test(segment),
+  );
+
+  if (pythonSegments.length === 0) {
+    return false;
+  }
+
+  return pythonSegments.some((segment) => {
+    if (/^(where|which)\b/i.test(segment)) {
+      return false;
+    }
+
+    if (/^(uv|python|python3|pip|pip3)\s+(--version|-V)\b/i.test(segment)) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
 function needsJavaScriptWorkspaceRuntime(command: string): boolean {
   return JS_COMMAND_PATTERN.test(command);
 }
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+function rewriteWindowsCommand(command: string): string {
+  // Convert POSIX-style command separators to cmd separators outside quoted text.
+  const normalizedSeparators = command.replace(
+    /;(?=(?:[^"]*"[^"]*")*[^"]*$)/g,
+    " &",
+  );
+
+  return normalizedSeparators
+    .replace(/\bwhich(?=\s)/g, "where")
+    .replace(/\bpython3\b/g, "python")
+    .replace(/\bpip3\b/g, "pip");
+}
+
+interface WindowsRuntimeCommandPlan {
+  command: string;
+  env: Record<string, string>;
+}
+
+function getWindowsEnvKey(
+  env: Record<string, string>,
+  key: string,
+): string {
+  const upperKey = key.toUpperCase();
+  return Object.keys(env).find((candidate) => candidate.toUpperCase() === upperKey) ?? key;
 }
 
 /**
@@ -319,66 +376,273 @@ export class LocalSandbox
     return self.resolvePath(filePath);
   }
 
-  private buildWorkspaceRuntimeCommandForWindows(command: string): string {
-    const prelude: string[] = [
-      'set "PATH=%CD%\\node_modules\\.bin;%PATH%"',
+  private ensureWindowsRuntimeShims(
+    requiresPython: boolean,
+    _requiresJavaScript: boolean,
+  ): string {
+    const shimDir = path.join(this.workingDir, ".open-jarvis", "runtime-bin");
+    fsSync.mkdirSync(shimDir, { recursive: true });
+
+    const shims: Array<{ fileName: string; content: string }> = [
+      {
+        fileName: "which.cmd",
+        content: "@echo off\r\nwhere %*\r\n",
+      },
     ];
 
-    const requiresPython = needsPythonWorkspaceRuntime(command);
-    const requiresJavaScript = needsJavaScriptWorkspaceRuntime(command);
+    const embeddedPythonPath = this.embeddedTooling?.pythonPath;
+    const hasEmbeddedPython =
+      !!embeddedPythonPath && fsSync.existsSync(embeddedPythonPath);
 
-    if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
-      prelude.push(
-        `set "OPEN_JARVIS_TOOLING_ROOT=${this.embeddedTooling.rootDir}"`,
-        `set "OPEN_JARVIS_TOOLING_BIN=${this.embeddedTooling.binDir}"`,
-        `set "OPEN_JARVIS_UV=${this.embeddedTooling.uvPath}"`,
-        `set "OPEN_JARVIS_BUN=${this.embeddedTooling.bunPath}"`,
-        `set "OPEN_JARVIS_PYTHON=${this.embeddedTooling.pythonPath}"`,
-        `set "UV_PYTHON_INSTALL_DIR=${this.embeddedTooling.pythonInstallDir}"`,
-        'set "UV_NO_PROGRESS=true"',
+    if (hasEmbeddedPython && embeddedPythonPath) {
+      shims.push(
+        {
+          fileName: "uv.cmd",
+          content: '@echo off\r\n"%OPEN_JARVIS_UV%" %*\r\n',
+        },
+        {
+          fileName: "python.cmd",
+          content: '@echo off\r\n"%OPEN_JARVIS_PYTHON%" %*\r\n',
+        },
+        {
+          fileName: "python3.cmd",
+          content: '@echo off\r\n"%OPEN_JARVIS_PYTHON%" %*\r\n',
+        },
+        {
+          fileName: "pip.cmd",
+          content: '@echo off\r\n"%OPEN_JARVIS_PYTHON%" -m pip %*\r\n',
+        },
+        {
+          fileName: "pip3.cmd",
+          content: '@echo off\r\n"%OPEN_JARVIS_PYTHON%" -m pip %*\r\n',
+        },
+      );
+    } else if (requiresPython) {
+      shims.push(
+        {
+          fileName: "python3.cmd",
+          content: "@echo off\r\npython %*\r\n",
+        },
+        {
+          fileName: "pip.cmd",
+          content: "@echo off\r\npython -m pip %*\r\n",
+        },
+        {
+          fileName: "pip3.cmd",
+          content: "@echo off\r\npython -m pip %*\r\n",
+        },
       );
     }
 
+    const hasEmbeddedBun =
+      !!this.embeddedTooling?.bunPath && fsSync.existsSync(this.embeddedTooling.bunPath);
+
+    if (hasEmbeddedBun) {
+      shims.push(
+        {
+          fileName: "bun.cmd",
+          content: '@echo off\r\n"%OPEN_JARVIS_BUN%" %*\r\n',
+        },
+        {
+          fileName: "node.cmd",
+          content: "@echo off\r\n\"%OPEN_JARVIS_BUN%\" %*\r\n",
+        },
+        {
+          fileName: "tsx.cmd",
+          content: "@echo off\r\n\"%OPEN_JARVIS_BUN%\" %*\r\n",
+        },
+        {
+          fileName: "ts-node.cmd",
+          content: "@echo off\r\n\"%OPEN_JARVIS_BUN%\" %*\r\n",
+        },
+        {
+          fileName: "npx.cmd",
+          content: "@echo off\r\n\"%OPEN_JARVIS_BUN%\" x %*\r\n",
+        },
+        {
+          fileName: "npm.cmd",
+          content:
+            "@echo off\r\nsetlocal\r\nif /I \"%~1\"==\"install\" shift & \"%OPEN_JARVIS_BUN%\" install %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"i\" shift & \"%OPEN_JARVIS_BUN%\" install %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"ci\" shift & \"%OPEN_JARVIS_BUN%\" install --frozen-lockfile %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"run\" shift & \"%OPEN_JARVIS_BUN%\" run %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"exec\" shift & \"%OPEN_JARVIS_BUN%\" x %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"test\" shift & \"%OPEN_JARVIS_BUN%\" run test %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"start\" shift & \"%OPEN_JARVIS_BUN%\" run start %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"dev\" shift & \"%OPEN_JARVIS_BUN%\" run dev %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"build\" shift & \"%OPEN_JARVIS_BUN%\" run build %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"lint\" shift & \"%OPEN_JARVIS_BUN%\" run lint %* & exit /b %errorlevel%\r\necho Error: npm is redirected to bun in this workspace. Use a bun-compatible command. 1>&2\r\nexit /b 127\r\n",
+        },
+        {
+          fileName: "pnpm.cmd",
+          content:
+            "@echo off\r\nsetlocal\r\nif /I \"%~1\"==\"install\" shift & \"%OPEN_JARVIS_BUN%\" install %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"i\" shift & \"%OPEN_JARVIS_BUN%\" install %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"run\" shift & \"%OPEN_JARVIS_BUN%\" run %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"exec\" shift & \"%OPEN_JARVIS_BUN%\" x %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"dlx\" shift & \"%OPEN_JARVIS_BUN%\" x %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"test\" shift & \"%OPEN_JARVIS_BUN%\" run test %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"start\" shift & \"%OPEN_JARVIS_BUN%\" run start %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"dev\" shift & \"%OPEN_JARVIS_BUN%\" run dev %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"build\" shift & \"%OPEN_JARVIS_BUN%\" run build %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"lint\" shift & \"%OPEN_JARVIS_BUN%\" run lint %* & exit /b %errorlevel%\r\necho Error: pnpm is redirected to bun in this workspace. Use a bun-compatible command. 1>&2\r\nexit /b 127\r\n",
+        },
+        {
+          fileName: "yarn.cmd",
+          content:
+            "@echo off\r\nsetlocal\r\nif /I \"%~1\"==\"install\" shift & \"%OPEN_JARVIS_BUN%\" install %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"run\" shift & \"%OPEN_JARVIS_BUN%\" run %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"dlx\" shift & \"%OPEN_JARVIS_BUN%\" x %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"test\" shift & \"%OPEN_JARVIS_BUN%\" run test %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"start\" shift & \"%OPEN_JARVIS_BUN%\" run start %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"dev\" shift & \"%OPEN_JARVIS_BUN%\" run dev %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"build\" shift & \"%OPEN_JARVIS_BUN%\" run build %* & exit /b %errorlevel%\r\nif /I \"%~1\"==\"lint\" shift & \"%OPEN_JARVIS_BUN%\" run lint %* & exit /b %errorlevel%\r\necho Error: yarn is redirected to bun in this workspace. Use a bun-compatible command. 1>&2\r\nexit /b 127\r\n",
+        },
+      );
+    }
+
+    for (const shim of shims) {
+      const targetPath = path.join(shimDir, shim.fileName);
+      const current = fsSync.existsSync(targetPath)
+        ? fsSync.readFileSync(targetPath, "utf8")
+        : null;
+      if (current !== shim.content) {
+        fsSync.writeFileSync(targetPath, shim.content, "utf8");
+      }
+    }
+
+    // Keep a stable superset of runtime shims in the shared directory.
+    // Multiple sandboxes can execute concurrently for the same workspace, so
+    // per-request cleanup can delete a shim that another in-flight command still needs.
+    const expectedShimNames = new Set(shims.map((shim) => shim.fileName.toLowerCase()));
+    for (const entry of fsSync.readdirSync(shimDir, { withFileTypes: true })) {
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      const entryName = entry.name.toLowerCase();
+      if (!entryName.endsWith(".cmd")) {
+        continue;
+      }
+
+      if (!expectedShimNames.has(entryName)) {
+        fsSync.rmSync(path.join(shimDir, entry.name), { force: true });
+      }
+    }
+
+    const shimFiles = fsSync
+      .readdirSync(shimDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".cmd"))
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b));
+
+    logInfo("LocalSandbox", "Windows runtime shims prepared", {
+      shimDir,
+      shimFiles,
+    });
+
+    return shimDir;
+  }
+
+  private buildWorkspaceRuntimeCommandForWindows(
+    command: string,
+  ): WindowsRuntimeCommandPlan {
+    const rewrittenCommand = rewriteWindowsCommand(command);
+    const prelude: string[] = [];
+    const commandEnv = { ...this.env };
+    const pathKey = getWindowsEnvKey(commandEnv, "PATH");
+    const pathExtKey = getWindowsEnvKey(commandEnv, "PATHEXT");
+
+    const requiresPython = needsPythonWorkspaceRuntime(rewrittenCommand);
+    const requiresJavaScript = needsJavaScriptWorkspaceRuntime(rewrittenCommand);
+    const shimDir = this.ensureWindowsRuntimeShims(
+      requiresPython,
+      requiresJavaScript,
+    );
+
+    commandEnv.OPEN_JARVIS_RUNTIME_BIN = shimDir;
+    const currentPathExt = commandEnv[pathExtKey] ?? "";
+    commandEnv[pathExtKey] = currentPathExt.toUpperCase().includes(".CMD")
+      ? currentPathExt
+      : `.COM;.EXE;.BAT;.CMD;${currentPathExt}`;
+
+    logInfo("LocalSandbox", "Building Windows runtime command", {
+      requiresPython,
+      requiresJavaScript,
+      hasEmbeddedTooling: !!this.embeddedTooling,
+      shimDir,
+      pathExt: commandEnv[pathExtKey] ?? null,
+    });
+
+    if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
+      const embeddedPythonDir = path.dirname(this.embeddedTooling.pythonPath);
+      commandEnv.OPEN_JARVIS_TOOLING_ROOT = this.embeddedTooling.rootDir;
+      commandEnv.OPEN_JARVIS_TOOLING_BIN = this.embeddedTooling.binDir;
+      commandEnv.OPEN_JARVIS_UV = this.embeddedTooling.uvPath;
+      commandEnv.OPEN_JARVIS_BUN = this.embeddedTooling.bunPath;
+      commandEnv.OPEN_JARVIS_PYTHON = this.embeddedTooling.pythonPath;
+      commandEnv.OPEN_JARVIS_PYTHON_DIR = embeddedPythonDir;
+      commandEnv.UV_PYTHON_INSTALL_DIR = this.embeddedTooling.pythonInstallDir;
+      commandEnv.UV_NO_PROGRESS = "true";
+
+      logInfo("LocalSandbox", "Embedded tooling environment variables set", {
+        OPEN_JARVIS_UV: this.embeddedTooling.uvPath,
+        OPEN_JARVIS_BUN: this.embeddedTooling.bunPath,
+        OPEN_JARVIS_PYTHON: this.embeddedTooling.pythonPath,
+      });
+    }
+
+    const pathSegments: string[] = [];
+
     if (requiresPython) {
-      if (!this.embeddedTooling) {
+      pathSegments.push(
+        path.join(this.workingDir, ".venv", "Scripts"),
+      );
+    }
+
+    if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
+      if (requiresPython) {
+        const embeddedPythonDir = path.dirname(this.embeddedTooling.pythonPath);
+        pathSegments.push(embeddedPythonDir);
+      }
+
+      pathSegments.push(this.embeddedTooling.binDir);
+    }
+
+    // Put the shim directory after the real embedded executables so bare
+    // uv/python/bun commands resolve to the bundled .exe files instead of the
+    // .cmd wrappers that can distort quoted arguments on Windows.
+    pathSegments.push(shimDir);
+
+    pathSegments.push(path.join(this.workingDir, "node_modules", ".bin"));
+    commandEnv[pathKey] = `${pathSegments.join(";")};${commandEnv[pathKey] ?? ""}`;
+
+    if (requiresPython) {
+      commandEnv.VIRTUAL_ENV = path.join(this.workingDir, ".venv");
+    }
+
+    if (requiresPython) {
+      const hasUv =
+        this.embeddedTooling && fsSync.existsSync(this.embeddedTooling.uvPath);
+      const hasPython =
+        this.embeddedTooling &&
+        fsSync.existsSync(this.embeddedTooling.pythonPath);
+
+      logInfo("LocalSandbox", "Python runtime check", {
+        embeddedToolingExists: !!this.embeddedTooling,
+        uvExists: hasUv,
+        pythonExists: hasPython,
+      });
+
+      if (!this.embeddedTooling || !hasUv || !hasPython) {
         prelude.push(
-          "echo Error: embedded Python tooling is not available. Run the packaging flow that prepares bundled tooling first. 1>&2",
+          "echo Error: embedded uv/python runtime is incomplete in this app package. 1>&2",
           "exit /b 127",
-        );
-      } else {
-        prelude.push(
-          'if not exist "%OPEN_JARVIS_UV%" (echo Error: embedded uv/python runtime is incomplete in this app package. 1>&2 & exit /b 127)',
-          'if not exist "%OPEN_JARVIS_PYTHON%" (echo Error: embedded uv/python runtime is incomplete in this app package. 1>&2 & exit /b 127)',
-          'if not exist "%CD%\\.venv\\Scripts\\python.exe" "%OPEN_JARVIS_UV%" venv "%CD%\\.venv" --python "%OPEN_JARVIS_PYTHON%" >nul',
-          'set "VIRTUAL_ENV=%CD%\\.venv"',
-          'set "PATH=%VIRTUAL_ENV%\\Scripts;%OPEN_JARVIS_TOOLING_BIN%;%PATH%"',
         );
       }
     }
 
     if (requiresJavaScript) {
-      if (!this.embeddedTooling) {
+      const hasBun =
+        this.embeddedTooling && fsSync.existsSync(this.embeddedTooling.bunPath);
+
+      logInfo("LocalSandbox", "JavaScript runtime check", {
+        embeddedToolingExists: !!this.embeddedTooling,
+        bunExists: hasBun,
+      });
+
+      if (!this.embeddedTooling || !hasBun) {
         prelude.push(
-          "echo Error: embedded JavaScript tooling is not available. Run the packaging flow that prepares bundled tooling first. 1>&2",
+          "echo Error: embedded bun runtime is incomplete in this app package. 1>&2",
           "exit /b 127",
-        );
-      } else {
-        prelude.push(
-          'if not exist "%OPEN_JARVIS_BUN%" (echo Error: embedded bun runtime is incomplete in this app package. 1>&2 & exit /b 127)',
-          'set "PATH=%OPEN_JARVIS_TOOLING_BIN%;%PATH%"',
         );
       }
     }
 
-    prelude.push(command);
-    return prelude.join(" && ");
+    prelude.push(rewrittenCommand);
+    return {
+      command: prelude.join(" && "),
+      env: commandEnv,
+    };
   }
 
   private buildWorkspaceRuntimeCommand(command: string): string {
-    if (process.platform === "win32") {
-      return this.buildWorkspaceRuntimeCommandForWindows(command);
-    }
-
     const prelude: string[] = ['export PATH="$PWD/node_modules/.bin:$PATH"'];
 
     const requiresPython = needsPythonWorkspaceRuntime(command);
@@ -475,6 +739,143 @@ export class LocalSandbox
 
     prelude.push(command);
     return prelude.join("\n");
+  }
+
+  private async ensureWindowsWorkspacePythonRuntime(
+    commandEnv: Record<string, string>,
+  ): Promise<ExecuteResponse | null> {
+    const venvPythonPath = path.join(
+      this.workingDir,
+      ".venv",
+      "Scripts",
+      "python.exe",
+    );
+
+    if (fsSync.existsSync(venvPythonPath)) {
+      return null;
+    }
+
+    const hasUv =
+      !!this.embeddedTooling?.uvPath && fsSync.existsSync(this.embeddedTooling.uvPath);
+    const hasPython =
+      !!this.embeddedTooling?.pythonPath &&
+      fsSync.existsSync(this.embeddedTooling.pythonPath);
+
+    logInfo("LocalSandbox", "Ensuring Windows Python runtime", {
+      sandboxId: this.id,
+      workingDir: this.workingDir,
+      venvPythonPath,
+      hasEmbeddedTooling: !!this.embeddedTooling,
+      uvPath: this.embeddedTooling?.uvPath ?? null,
+      pythonPath: this.embeddedTooling?.pythonPath ?? null,
+      hasUv,
+      hasPython,
+    });
+
+    if (!this.embeddedTooling || !hasUv || !hasPython) {
+      return {
+        output: "[stderr] Error: embedded uv/python runtime is incomplete in this app package.\n",
+        exitCode: 127,
+        truncated: false,
+      };
+    }
+
+    return new Promise<ExecuteResponse | null>((resolve) => {
+      const stdout: Buffer[] = [];
+      const stderr: Buffer[] = [];
+      let settled = false;
+
+      const proc = spawn(
+        this.embeddedTooling!.uvPath,
+        [
+          "venv",
+          path.join(this.workingDir, ".venv"),
+          "--python",
+          this.embeddedTooling!.pythonPath,
+        ],
+        {
+          cwd: this.workingDir,
+          env: commandEnv,
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
+
+      const timeoutId = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        proc.kill("SIGTERM");
+        setTimeout(() => proc.kill("SIGKILL"), 1000);
+        resolve({
+          output: `Error: Command timed out after ${(this.timeout / 1000).toFixed(1)} seconds.`,
+          exitCode: null,
+          truncated: false,
+        });
+      }, this.timeout);
+
+      proc.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+      proc.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
+
+      proc.on("error", (error) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeoutId);
+        resolve({
+          output: `[stderr] ${String(error)}\n`,
+          exitCode: 1,
+          truncated: false,
+        });
+      });
+
+      proc.on("close", (code, signal) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeoutId);
+
+        const decodedStdout = decodeTextBuffer(Buffer.concat(stdout));
+        const decodedStderr = decodeTextBuffer(Buffer.concat(stderr));
+
+        if (code === 0) {
+          logInfo("LocalSandbox", "Windows Python runtime ready", {
+            sandboxId: this.id,
+            workingDir: this.workingDir,
+            venvPythonPath,
+          });
+          resolve(null);
+          return;
+        }
+
+        const outputParts: string[] = [];
+        if (decodedStdout) {
+          outputParts.push(decodedStdout);
+        }
+        if (decodedStderr) {
+          outputParts.push(
+            decodedStderr
+              .split("\n")
+              .filter((line) => line.length > 0)
+              .map((line) => `[stderr] ${line}`)
+              .join("\n") + (decodedStderr.endsWith("\n") ? "\n" : ""),
+          );
+        }
+
+        resolve({
+          output:
+            outputParts.join("") ||
+            `[stderr] uv venv exited with code ${code}${signal ? ` (signal: ${signal})` : ""}.\n`,
+          exitCode: code,
+          truncated: false,
+        });
+      });
+    });
   }
 
   private async extractTextWithTextutil(resolvedPath: string): Promise<string> {
@@ -696,7 +1097,14 @@ export class LocalSandbox
       };
     }
 
-    const preparedCommand = this.buildWorkspaceRuntimeCommand(command);
+    const isWindows = process.platform === "win32";
+    const windowsRuntimePlan = isWindows
+      ? this.buildWorkspaceRuntimeCommandForWindows(command)
+      : null;
+    const preparedCommand = windowsRuntimePlan?.command ?? this.buildWorkspaceRuntimeCommand(command);
+    const commandEnv = windowsRuntimePlan?.env ?? this.env;
+    const requiresWindowsPythonRuntime =
+      isWindows && needsWindowsPythonBootstrap(command);
     logInfo("LocalSandbox", "Execute requested", {
       sandboxId: this.id,
       command,
@@ -705,6 +1113,22 @@ export class LocalSandbox
       platform: process.platform,
     });
 
+    if (requiresWindowsPythonRuntime) {
+      const pythonRuntimeError = await this.ensureWindowsWorkspacePythonRuntime(
+        commandEnv,
+      );
+      if (pythonRuntimeError) {
+        logInfo("LocalSandbox", "Execute completed", {
+          sandboxId: this.id,
+          exitCode: pythonRuntimeError.exitCode,
+          signal: null,
+          truncated: pythonRuntimeError.truncated,
+          outputPreview: pythonRuntimeError.output.slice(0, 500),
+        });
+        return pythonRuntimeError;
+      }
+    }
+
     return new Promise<ExecuteResponse>((resolve) => {
       const outputParts: string[] = [];
       let totalBytes = 0;
@@ -712,7 +1136,6 @@ export class LocalSandbox
       let resolved = false;
 
       // Determine shell based on platform
-      const isWindows = process.platform === "win32";
       const shell = isWindows ? "cmd.exe" : "/bin/sh";
       const shellArgs = isWindows
         ? ["/d", "/s", "/c", preparedCommand]
@@ -720,7 +1143,7 @@ export class LocalSandbox
 
       const proc = spawn(shell, shellArgs, {
         cwd: this.workingDir,
-        env: this.env,
+        env: commandEnv,
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -743,7 +1166,7 @@ export class LocalSandbox
       proc.stdout.on("data", (data: Buffer) => {
         if (truncated) return;
 
-        const chunk = data.toString();
+        const chunk = decodeTextBuffer(data);
         const newTotal = totalBytes + chunk.length;
 
         if (newTotal > this.maxOutputBytes) {
@@ -764,7 +1187,7 @@ export class LocalSandbox
       proc.stderr.on("data", (data: Buffer) => {
         if (truncated) return;
 
-        const chunk = data.toString();
+        const chunk = decodeTextBuffer(data);
         // Prefix each line with [stderr]
         const prefixedLines = chunk
           .split("\n")

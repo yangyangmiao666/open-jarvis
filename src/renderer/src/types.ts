@@ -82,6 +82,12 @@ export interface OpenAICompatibleProfile {
   contextWindow?: number;
 }
 
+export interface ProxyConfig {
+  httpProxy: string;
+  httpsProxy: string;
+  allProxy: string;
+}
+
 export interface Provider {
   id: ProviderId;
   name: string;

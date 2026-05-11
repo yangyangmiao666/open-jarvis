@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Boxes, Cable, Sparkles, Wrench, Orbit } from "lucide-react";
+import { Boxes, Cable, Sparkles, Wrench, Orbit, Network } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { useAppStore } from "@/lib/store";
 import { OpenAICompatibleDialog } from "./OpenAICompatibleDialog";
 import { MCPConfigDialog } from "./MCPConfigDialog";
 import { SkillsDialog } from "../panels/SkillsDialog";
+import { ProxyConfigDialog } from "./ProxyConfigDialog";
 
 interface SettingsHubDialogProps {
   open: boolean;
@@ -66,12 +67,13 @@ export function SettingsHubDialog({
   const [openAICompatibleOpen, setOpenAICompatibleOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
+  const [proxyOpen, setProxyOpen] = useState(false);
   const { loadModels, loadProviders } = useAppStore();
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-5xl overflow-hidden">
+        <DialogContent className="flex max-h-[min(92vh,52rem)] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0">
           <DialogHeader className="app-premium-surface relative overflow-hidden rounded-[28px] px-6 py-4 pr-14 sm:px-7">
             <div className="flex items-center gap-3">
               <div className="app-premium-pill inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -84,31 +86,41 @@ export function SettingsHubDialog({
             </div>
           </DialogHeader>
 
-          <div className="grid items-stretch gap-4 bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--background-elevated)_18%,transparent))] md:grid-cols-3">
-            <SettingsCard
-              icon={Boxes}
-              eyebrow="Models"
-              title="自定义模型配置"
-              description="管理 OpenAI 兼容接口、私有网关和本地部署模型，保存后模型列表会自动刷新。"
-              actionLabel="打开模型配置"
-              onAction={() => setOpenAICompatibleOpen(true)}
-            />
-            <SettingsCard
-              icon={Wrench}
-              eyebrow="Skills"
-              title="技能配置"
-              description="维护全局技能源以及当前工作区中的 .deepagents/skills 目录，统一处理导入、新建和编辑。全局默认目录为 ~/.open-jarvis/skills。"
-              actionLabel="打开技能配置"
-              onAction={() => setSkillsOpen(true)}
-            />
-            <SettingsCard
-              icon={Cable}
-              eyebrow="MCP"
-              title="MCP 配置"
-              description="管理 MCP Server 列表，并配置所有会话默认启用的工具能力。"
-              actionLabel="打开 MCP 配置"
-              onAction={() => setMcpOpen(true)}
-            />
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 sm:px-7 sm:pb-7">
+            <div className="grid items-stretch gap-4 bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--background-elevated)_18%,transparent))] md:grid-cols-2 xl:grid-cols-4">
+              <SettingsCard
+                icon={Boxes}
+                eyebrow="Models"
+                title="自定义模型配置"
+                description="管理 OpenAI 兼容接口、私有网关和本地部署模型，保存后模型列表会自动刷新。"
+                actionLabel="打开模型配置"
+                onAction={() => setOpenAICompatibleOpen(true)}
+              />
+              <SettingsCard
+                icon={Network}
+                eyebrow="Proxy"
+                title="代理配置"
+                description="配置 HTTP、HTTPS 或 SOCKS 代理。保存后会立即更新主进程网络请求，不再依赖手改 .env。"
+                actionLabel="打开代理配置"
+                onAction={() => setProxyOpen(true)}
+              />
+              <SettingsCard
+                icon={Wrench}
+                eyebrow="Skills"
+                title="技能配置"
+                description="维护全局技能源以及当前工作区中的 .deepagents/skills 目录，统一处理导入、新建和编辑。全局默认目录为 ~/.open-jarvis/skills。"
+                actionLabel="打开技能配置"
+                onAction={() => setSkillsOpen(true)}
+              />
+              <SettingsCard
+                icon={Cable}
+                eyebrow="MCP"
+                title="MCP 配置"
+                description="管理 MCP Server 列表，并配置所有会话默认启用的工具能力。"
+                actionLabel="打开 MCP 配置"
+                onAction={() => setMcpOpen(true)}
+              />
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -126,6 +138,8 @@ export function SettingsHubDialog({
         open={skillsOpen}
         onOpenChange={setSkillsOpen}
       />
+
+      <ProxyConfigDialog open={proxyOpen} onOpenChange={setProxyOpen} />
 
       <MCPConfigDialog
         open={mcpOpen}

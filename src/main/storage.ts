@@ -9,11 +9,12 @@ import {
   unlinkSync,
   writeFileSync,
 } from "fs";
-import type { ProviderId } from "./types";
+import type { ProviderId, ProxyConfig } from "./types";
 
 const OPEN_JARVIS_DIR = join(homedir(), ".open-jarvis");
 const LEGACY_OPENWORK_DIR = join(homedir(), ".openwork");
 const ENV_FILE = join(OPEN_JARVIS_DIR, ".env");
+const PROXY_ENV_KEYS = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] as const;
 
 // Environment variable names for each provider
 const ENV_VAR_NAMES: Record<ProviderId, string> = {
@@ -97,6 +98,52 @@ export function loadEnvFileToProcessEnv(): Record<string, string> {
     process.env[key] = value;
   }
   return env;
+}
+
+export function getProxyConfig(): ProxyConfig {
+  const env = parseEnvFile();
+  return {
+    httpProxy: env["HTTP_PROXY"] ?? process.env["HTTP_PROXY"] ?? "",
+    httpsProxy: env["HTTPS_PROXY"] ?? process.env["HTTPS_PROXY"] ?? "",
+    allProxy: env["ALL_PROXY"] ?? process.env["ALL_PROXY"] ?? "",
+  };
+}
+
+export function setProxyConfig(config: ProxyConfig): ProxyConfig {
+  const env = parseEnvFile();
+  const normalized: ProxyConfig = {
+    httpProxy: config.httpProxy.trim(),
+    httpsProxy: config.httpsProxy.trim(),
+    allProxy: config.allProxy.trim(),
+  };
+
+  const nextEntries: Array<[typeof PROXY_ENV_KEYS[number], string]> = [
+    ["HTTP_PROXY", normalized.httpProxy],
+    ["HTTPS_PROXY", normalized.httpsProxy],
+    ["ALL_PROXY", normalized.allProxy],
+  ];
+
+  for (const [key, value] of nextEntries) {
+    if (value) {
+      env[key] = value;
+      process.env[key] = value;
+    } else {
+      delete env[key];
+      delete process.env[key];
+    }
+  }
+
+  const hasAnyProxy = nextEntries.some(([, value]) => value.length > 0);
+  if (hasAnyProxy) {
+    env["NODE_USE_ENV_PROXY"] = "1";
+    process.env["NODE_USE_ENV_PROXY"] = "1";
+  } else {
+    delete env["NODE_USE_ENV_PROXY"];
+    delete process.env["NODE_USE_ENV_PROXY"];
+  }
+
+  writeEnvFile(env);
+  return normalized;
 }
 
 // Write object back to .env file

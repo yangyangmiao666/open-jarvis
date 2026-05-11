@@ -82,6 +82,12 @@ export interface SetApiKeyParams {
   apiKey: string;
 }
 
+export interface ProxyConfig {
+  httpProxy: string;
+  httpsProxy: string;
+  allProxy: string;
+}
+
 // =============================================================================
 
 export interface Thread {
