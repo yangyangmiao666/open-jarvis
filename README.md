@@ -14,14 +14,32 @@
 
 ## 界面预览
 
-![主界面-亮色](docs/主界面-亮色.png)
-![主界面-深色](docs/主界面-深色.png)
-![文件预览-亮色](docs/文件预览-亮色.png)
-![文件预览-深色](docs/文件预览-深色.png)
-![子智能体-亮色](docs/子智能体-亮色.png)
-![子智能体-深色](docs/子智能体-深色.png)
-![多任务总览-亮色](docs/多任务总览-亮色.png)
-![多任务总览-深色](docs/多任务总览-深色.png)
+<table>
+  <tr>
+    <td align="center"><b>主界面 - 亮色</b></td>
+    <td align="center"><b>主界面 - 深色</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/主界面-亮色.png" alt="主界面-亮色" /></td>
+    <td><img src="docs/主界面-深色.png" alt="主界面-深色" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>设置中枢 - 亮色</b></td>
+    <td align="center"><b>设置中枢 - 深色</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/设置中枢-亮色.png" alt="设置中枢-亮色" /></td>
+    <td><img src="docs/设置中枢-深色.png" alt="设置中枢-深色" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>多任务总览 - 亮色</b></td>
+    <td align="center"><b>多任务总览 - 深色</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/多任务总览-亮色.png" alt="多任务总览-亮色" /></td>
+    <td><img src="docs/多任务总览-深色.png" alt="多任务总览-深色" /></td>
+  </tr>
+</table>
 
 ## 功能概览
 
@@ -120,9 +138,7 @@ AGENTS.md               # 给 AI / 协作者的架构与修改入口说明
 
 ## 贡献与协议
 
-欢迎贡献；说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-协议：**MIT**，见 [LICENSE](LICENSE)。
+欢迎贡献！协议：**MIT**。
 
 ## 协作者与自动化
 

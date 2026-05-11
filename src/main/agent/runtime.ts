@@ -1,10 +1,12 @@
 import { createDeepAgent } from "deepagents";
 import Store from "electron-store";
+import { createMiddleware } from "langchain";
 import { getThread } from "../db";
 import { getDefaultModel } from "../ipc/models";
 import { getMCPServerById } from "../mcp-config";
 import { getOpenAICompatibleProfileByModelId } from "../openai-compatible-profiles";
 import { getApiKey, getOpenworkDir, getThreadCheckpointPath } from "../storage";
+import { ToolMessage } from "@langchain/core/messages";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI, ChatOpenAICompletions } from "@langchain/openai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
@@ -24,6 +26,42 @@ interface ApprovalAliasTool {
   name?: string;
   __approvalAliases?: string[];
 }
+
+function toToolErrorText(error: unknown): string {
+  if (error instanceof Error) {
+    const details = error.message.trim();
+    return details.length > 0 ? details : "Tool execution failed";
+  }
+  if (typeof error === "string" && error.trim().length > 0) {
+    return error;
+  }
+  return "Tool execution failed";
+}
+
+const runtimeToolErrorMiddleware = createMiddleware({
+  name: "RuntimeToolErrorMiddleware",
+  wrapToolCall: async (request, handler) => {
+    try {
+      return await handler(request);
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw error;
+      }
+
+      const message = toToolErrorText(error);
+      console.warn(
+        `[Runtime] Tool call failed (${request.toolCall.name}):`,
+        message,
+      );
+      return new ToolMessage({
+        content: message,
+        tool_call_id: request.toolCall.id ?? "unknown_tool_call",
+        name: request.toolCall.name ?? "unknown_tool",
+        status: "error",
+      });
+    }
+  },
+});
 
 /**
  * Generate the full system prompt for the agent.
@@ -529,6 +567,7 @@ The workspace root is: ${workspacePath}`;
     filesystemSystemPrompt,
     // Require human approval for shell commands and enabled MCP tools.
     interruptOn,
+    middleware: [runtimeToolErrorMiddleware],
     ...(mcpTools.length > 0 ? { tools: mcpTools } : {}),
     ...(skills.length > 0 ? { skills } : {}),
   } as Parameters<typeof createDeepAgent>[0]);
