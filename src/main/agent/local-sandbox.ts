@@ -310,7 +310,66 @@ export class LocalSandbox
     return self.resolvePath(filePath);
   }
 
+  private buildWorkspaceRuntimeCommandForWindows(command: string): string {
+    const prelude: string[] = [
+      'set "PATH=%CD%\\node_modules\\.bin;%PATH%"',
+    ];
+
+    const requiresPython = needsPythonWorkspaceRuntime(command);
+    const requiresJavaScript = needsJavaScriptWorkspaceRuntime(command);
+
+    if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
+      prelude.push(
+        `set "OPEN_JARVIS_TOOLING_ROOT=${this.embeddedTooling.rootDir}"`,
+        `set "OPEN_JARVIS_TOOLING_BIN=${this.embeddedTooling.binDir}"`,
+        `set "OPEN_JARVIS_UV=${this.embeddedTooling.uvPath}"`,
+        `set "OPEN_JARVIS_BUN=${this.embeddedTooling.bunPath}"`,
+        `set "OPEN_JARVIS_PYTHON=${this.embeddedTooling.pythonPath}"`,
+        `set "UV_PYTHON_INSTALL_DIR=${this.embeddedTooling.pythonInstallDir}"`,
+        'set "UV_NO_PROGRESS=true"',
+      );
+    }
+
+    if (requiresPython) {
+      if (!this.embeddedTooling) {
+        prelude.push(
+          "echo Error: embedded Python tooling is not available. Run the packaging flow that prepares bundled tooling first. 1>&2",
+          "exit /b 127",
+        );
+      } else {
+        prelude.push(
+          'if not exist "%OPEN_JARVIS_UV%" (echo Error: embedded uv/python runtime is incomplete in this app package. 1>&2 & exit /b 127)',
+          'if not exist "%OPEN_JARVIS_PYTHON%" (echo Error: embedded uv/python runtime is incomplete in this app package. 1>&2 & exit /b 127)',
+          'if not exist "%CD%\\.venv\\Scripts\\python.exe" "%OPEN_JARVIS_UV%" venv "%CD%\\.venv" --python "%OPEN_JARVIS_PYTHON%" >nul',
+          'set "VIRTUAL_ENV=%CD%\\.venv"',
+          'set "PATH=%VIRTUAL_ENV%\\Scripts;%OPEN_JARVIS_TOOLING_BIN%;%PATH%"',
+        );
+      }
+    }
+
+    if (requiresJavaScript) {
+      if (!this.embeddedTooling) {
+        prelude.push(
+          "echo Error: embedded JavaScript tooling is not available. Run the packaging flow that prepares bundled tooling first. 1>&2",
+          "exit /b 127",
+        );
+      } else {
+        prelude.push(
+          'if not exist "%OPEN_JARVIS_BUN%" (echo Error: embedded bun runtime is incomplete in this app package. 1>&2 & exit /b 127)',
+          'set "PATH=%OPEN_JARVIS_TOOLING_BIN%;%PATH%"',
+        );
+      }
+    }
+
+    prelude.push(command);
+    return prelude.join(" && ");
+  }
+
   private buildWorkspaceRuntimeCommand(command: string): string {
+    if (process.platform === "win32") {
+      return this.buildWorkspaceRuntimeCommandForWindows(command);
+    }
+
     const prelude: string[] = ['export PATH="$PWD/node_modules/.bin:$PATH"'];
 
     const requiresPython = needsPythonWorkspaceRuntime(command);
@@ -639,7 +698,9 @@ export class LocalSandbox
       // Determine shell based on platform
       const isWindows = process.platform === "win32";
       const shell = isWindows ? "cmd.exe" : "/bin/sh";
-      const shellArgs = isWindows ? ["/c", command] : ["-c", preparedCommand];
+      const shellArgs = isWindows
+        ? ["/d", "/s", "/c", preparedCommand]
+        : ["-c", preparedCommand];
 
       const proc = spawn(shell, shellArgs, {
         cwd: this.workingDir,

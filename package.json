@@ -44,14 +44,26 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "bun run typecheck:node && bun run typecheck:web",
     "prepare:tooling": "node scripts/prepare-embedded-tooling.mjs",
+    "prepare:tooling:darwin:x64": "node scripts/prepare-embedded-tooling.mjs --target=darwin-x64",
+    "prepare:tooling:darwin:arm64": "node scripts/prepare-embedded-tooling.mjs --target=darwin-arm64",
+    "prepare:tooling:win:x64": "node scripts/prepare-embedded-tooling.mjs --target=win32-x64",
+    "prepare:tooling:win:arm64": "node scripts/prepare-embedded-tooling.mjs --target=win32-arm64",
+    "prepare:tooling:linux:x64": "node scripts/prepare-embedded-tooling.mjs --target=linux-x64",
+    "prepare:tooling:linux:arm64": "node scripts/prepare-embedded-tooling.mjs --target=linux-arm64",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "bun run typecheck && electron-vite build",
     "package:dir": "bun run prepare:tooling && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir",
     "package:mac": "bun run prepare:tooling && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir",
+    "package:mac:x64": "bun run prepare:tooling:darwin:x64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --x64",
+    "package:mac:arm64": "bun run prepare:tooling:darwin:arm64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --arm64",
     "dist": "bun run prepare:tooling && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
     "dist:mac": "bun run prepare:tooling && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
-    "dist:win": "bun run prepare:tooling && bun run build && electron-builder --win nsis",
+    "dist:mac:x64": "bun run prepare:tooling:darwin:x64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --x64",
+    "dist:mac:arm64": "bun run prepare:tooling:darwin:arm64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64",
+    "dist:win": "bun run prepare:tooling && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_LINK= WIN_CSC_LINK= CSC_KEY_PASSWORD= WIN_CSC_KEY_PASSWORD= electron-builder --win nsis",
+    "dist:win:x64": "bun run prepare:tooling:win:x64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_LINK= WIN_CSC_LINK= CSC_KEY_PASSWORD= WIN_CSC_KEY_PASSWORD= electron-builder --win nsis --x64",
+    "dist:win:arm64": "bun run prepare:tooling:win:arm64 && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_LINK= WIN_CSC_LINK= CSC_KEY_PASSWORD= WIN_CSC_KEY_PASSWORD= electron-builder --win nsis --arm64",
     "dist:linux": "bun run prepare:tooling && bun run build && electron-builder --linux AppImage tar.gz"
   },
   "dependencies": {
@@ -161,6 +173,7 @@
       "target": [
         "nsis"
       ],
+      "signAndEditExecutable": false,
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "nsis": {

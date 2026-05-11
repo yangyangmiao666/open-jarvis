@@ -20,16 +20,9 @@ import { dirname, join, relative, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = resolve(dirname(new URL(import.meta.url).pathname), "..");
-const toolingRoot = join(
-  repoRoot,
-  "resources",
-  "tooling",
-  `${process.platform}-${process.arch}`,
-);
-const binDir = join(toolingRoot, "bin");
-const pythonDir = join(toolingRoot, "python");
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const uvVersion = "0.11.7";
 const bunVersion = "1.3.13";
 const pythonVersion = "3.12.13";
@@ -39,23 +32,79 @@ const TARGETS = {
     arm64: {
       uvAsset: "uv-aarch64-apple-darwin.tar.gz",
       bunAsset: "bun-darwin-aarch64.zip",
+      uvBinaryName: "uv",
+      bunBinaryName: "bun",
     },
     x64: {
       uvAsset: "uv-x86_64-apple-darwin.tar.gz",
       bunAsset: "bun-darwin-x64.zip",
+      uvBinaryName: "uv",
+      bunBinaryName: "bun",
     },
   },
   linux: {
     arm64: {
       uvAsset: "uv-aarch64-unknown-linux-gnu.tar.gz",
       bunAsset: "bun-linux-aarch64.zip",
+      uvBinaryName: "uv",
+      bunBinaryName: "bun",
     },
     x64: {
       uvAsset: "uv-x86_64-unknown-linux-gnu.tar.gz",
       bunAsset: "bun-linux-x64.zip",
+      uvBinaryName: "uv",
+      bunBinaryName: "bun",
+    },
+  },
+  win32: {
+    arm64: {
+      uvAsset: "uv-aarch64-pc-windows-msvc.zip",
+      bunAsset: "bun-windows-aarch64.zip",
+      uvBinaryName: "uv.exe",
+      bunBinaryName: "bun.exe",
+    },
+    x64: {
+      uvAsset: "uv-x86_64-pc-windows-msvc.zip",
+      bunAsset: "bun-windows-x64.zip",
+      uvBinaryName: "uv.exe",
+      bunBinaryName: "bun.exe",
     },
   },
 };
+
+function parseTargetArg(argv) {
+  const byEquals = argv.find((arg) => arg.startsWith("--target="));
+  if (byEquals) {
+    return byEquals.slice("--target=".length);
+  }
+
+  const targetFlagIndex = argv.indexOf("--target");
+  if (targetFlagIndex >= 0) {
+    return argv[targetFlagIndex + 1] ?? "";
+  }
+
+  return `${process.platform}-${process.arch}`;
+}
+
+function resolveRequestedTarget(argv) {
+  const requested = parseTargetArg(argv);
+  const [platform, arch] = requested.split("-");
+
+  if (!platform || !arch) {
+    throw new Error(`Invalid --target value: ${requested}. Expected format <platform>-<arch>.`);
+  }
+
+  return {
+    platform,
+    arch,
+    id: `${platform}-${arch}`,
+  };
+}
+
+const requestedTarget = resolveRequestedTarget(process.argv.slice(2));
+const toolingRoot = join(repoRoot, "resources", "tooling", requestedTarget.id);
+const binDir = join(toolingRoot, "bin");
+const pythonDir = join(toolingRoot, "python");
 
 function run(command, args) {
   return execFileSync(command, args, {
@@ -101,17 +150,17 @@ function formatBytes(bytes) {
 }
 
 function getTargetConfig() {
-  const platformTargets = TARGETS[process.platform];
+  const platformTargets = TARGETS[requestedTarget.platform];
   if (!platformTargets) {
     throw new Error(
-      `Unsupported platform for embedded tooling download: ${process.platform}`,
+      `Unsupported platform for embedded tooling download: ${requestedTarget.platform}`,
     );
   }
 
-  const target = platformTargets[process.arch];
+  const target = platformTargets[requestedTarget.arch];
   if (!target) {
     throw new Error(
-      `Unsupported architecture for embedded tooling download: ${process.platform}-${process.arch}`,
+      `Unsupported architecture for embedded tooling download: ${requestedTarget.id}`,
     );
   }
 
@@ -233,7 +282,33 @@ function extractTarGz(archivePath, destinationDir) {
 }
 
 function extractZip(archivePath, destinationDir) {
-  run("unzip", ["-q", archivePath, "-d", destinationDir]);
+  if (requestedTarget.platform === "win32") {
+    // Windows runners often do not have `unzip`; prefer native PowerShell extraction.
+    const psScript = `Expand-Archive -LiteralPath '${archivePath.replace(/'/g, "''")}' -DestinationPath '${destinationDir.replace(/'/g, "''")}' -Force`;
+    try {
+      run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", psScript]);
+      return;
+    } catch {
+      // Continue to fallback commands below.
+    }
+
+    try {
+      run("pwsh", ["-NoProfile", "-NonInteractive", "-Command", psScript]);
+      return;
+    } catch {
+      // Continue to fallback commands below.
+    }
+
+    run("tar", ["-xf", archivePath, "-C", destinationDir]);
+    return;
+  }
+
+  try {
+    run("unzip", ["-q", archivePath, "-d", destinationDir]);
+  } catch {
+    // Some Linux images may not include unzip; bsdtar/gnu tar can extract zip.
+    run("tar", ["-xf", archivePath, "-C", destinationDir]);
+  }
 }
 
 function findFile(rootDir, predicate) {
@@ -265,7 +340,10 @@ function isExecutableFile(filePath) {
 }
 
 function resolvePythonExecutable(rootDir) {
-  const candidates = ["python3.12", "python3", "python"];
+  const candidates =
+    requestedTarget.platform === "win32"
+      ? ["python.exe", "python3.exe", "python3.12.exe"]
+      : ["python3.12", "python3", "python"];
 
   for (const candidate of candidates) {
     const found = findFile(
@@ -300,8 +378,8 @@ function hasUsableEmbeddedTooling() {
   const pythonPath = join(toolingRoot, manifest.python?.path ?? "");
 
   return (
-    manifest.platform === process.platform &&
-    manifest.arch === process.arch &&
+    manifest.platform === requestedTarget.platform &&
+    manifest.arch === requestedTarget.arch &&
     manifest.uv?.version === uvVersion &&
     manifest.bun?.version === bunVersion &&
     manifest.python?.version === pythonVersion &&
@@ -338,23 +416,27 @@ async function main() {
   const uvUrl = `https://github.com/astral-sh/uv/releases/download/${uvVersion}/${target.uvAsset}`;
   const bunUrl = `https://github.com/oven-sh/bun/releases/download/bun-v${bunVersion}/${target.bunAsset}`;
 
-  logStage(`Target platform: ${process.platform}-${process.arch}`);
+  logStage(`Target platform: ${requestedTarget.id}`);
   logStage(`Working directory: ${tempRoot}`);
   await downloadFile(uvUrl, uvArchivePath);
   await downloadFile(bunUrl, bunArchivePath);
 
   logStage(`Extracting ${target.uvAsset}`);
-  extractTarGz(uvArchivePath, uvExtractDir);
+  if (target.uvAsset.endsWith(".zip")) {
+    extractZip(uvArchivePath, uvExtractDir);
+  } else {
+    extractTarGz(uvArchivePath, uvExtractDir);
+  }
   logStage(`Extracting ${target.bunAsset}`);
   extractZip(bunArchivePath, bunExtractDir);
 
   const uvPath = findFile(
     uvExtractDir,
-    (entryPath, entryName) => entryName === "uv" && isExecutableFile(entryPath),
+    (entryPath, entryName) => entryName === target.uvBinaryName && isExecutableFile(entryPath),
   );
   const bunPath = findFile(
     bunExtractDir,
-    (entryPath, entryName) => entryName === "bun" && isExecutableFile(entryPath),
+    (entryPath, entryName) => entryName === target.bunBinaryName && isExecutableFile(entryPath),
   );
 
   if (!uvPath) {
@@ -401,25 +483,27 @@ async function main() {
   mkdirSync(binDir, { recursive: true });
   mkdirSync(pythonDir, { recursive: true });
 
-  stageExecutable(uvPath, join(binDir, "uv"));
-  stageExecutable(bunPath, join(binDir, "bun"));
+  stageExecutable(uvPath, join(binDir, target.uvBinaryName));
+  stageExecutable(bunPath, join(binDir, target.bunBinaryName));
   stageDirectory(pythonInstallDir, pythonDir);
-  rewriteSymlinksToStagedPaths(pythonInstallDir, pythonDir);
-  removeTopLevelSymlinks(pythonDir);
+  if (requestedTarget.platform !== "win32") {
+    rewriteSymlinksToStagedPaths(pythonInstallDir, pythonDir);
+    removeTopLevelSymlinks(pythonDir);
+  }
 
   const embeddedPythonPath = resolvePythonExecutable(pythonDir);
   const embeddedPythonRelativePath = relative(toolingRoot, embeddedPythonPath);
 
   const manifest = {
-    platform: process.platform,
-    arch: process.arch,
+    platform: requestedTarget.platform,
+    arch: requestedTarget.arch,
     uv: {
       version: actualUvVersion,
-      path: "bin/uv",
+      path: `bin/${target.uvBinaryName}`,
     },
     bun: {
       version: actualBunVersion,
-      path: "bin/bun",
+      path: `bin/${target.bunBinaryName}`,
     },
     python: {
       request: pythonVersion,

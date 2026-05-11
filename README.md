@@ -68,6 +68,61 @@ bun install
 bun run dev
 ```
 
+如果启动时报错 `Error: Electron uninstall`（通常是网络原因导致 Electron 二进制未下载完成），可使用镜像重装：
+
+- macOS / Linux：
+
+```bash
+ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ node node_modules/electron/install.js
+```
+
+- Windows PowerShell：
+
+```powershell
+$env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
+node node_modules/electron/install.js
+```
+
+- Windows CMD：
+
+```bat
+set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+node node_modules\electron\install.js
+```
+
+如果 Windows 上 `Invoke-WebRequest` 可访问镜像（如返回 200），但 `node -e "fetch(...)"` 仍报 `UND_ERR_CONNECT_TIMEOUT` 或 `fetch failed`，通常是 Node 进程没有正确走代理或 DNS/IPv6 路由导致。可在 PowerShell 中执行：
+
+```powershell
+$env:NODE_USE_ENV_PROXY = "1"
+$env:NODE_OPTIONS = "--dns-result-order=ipv4first"
+
+# 如你本机使用了代理工具（例如 Clash），按实际端口设置：
+$env:HTTP_PROXY = "http://127.0.0.1:7890"
+$env:HTTPS_PROXY = "http://127.0.0.1:7890"
+$env:ALL_PROXY = "http://127.0.0.1:7890"
+
+$env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
+node -e "fetch('https://npmmirror.com/mirrors/electron/').then(r=>console.log('node fetch status:',r.status)).catch(e=>{console.error(e); process.exit(1);})"
+node node_modules/electron/install.js
+```
+
+若你没有代理工具，请只设置 `NODE_USE_ENV_PROXY` 与 `NODE_OPTIONS` 后重试。
+
+若 Windows 打包时出现 `winCodeSign` 解压失败（`Cannot create symbolic link`），通常是自动签名阶段触发了系统符号链接权限限制。可关闭自动证书发现后再打包：
+
+```powershell
+$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+bun run dist:win:x64
+```
+
+仓库内 `dist:win*` 脚本已默认带上该环境变量，适用于 unsigned 本地打包。
+如果你在修改前已经失败过，建议先清理缓存后重试：
+
+```powershell
+Remove-Item "$env:LOCALAPPDATA\electron-builder\Cache\winCodeSign" -Recurse -Force -ErrorAction SilentlyContinue
+bun run dist:win:x64
+```
+
 其他常用命令：
 
 | 命令                  | 说明                       |
@@ -85,6 +140,11 @@ bun run dev
 - `bun run package:dir`：生成未安装版应用，便于本机直接验包。
 - `bun run dist`：按当前平台生成发行包；在 macOS 上会输出 `.dmg` 与 `.zip` 到 `release/`。
 - `bun run dist:mac`、`bun run dist:win`、`bun run dist:linux`：分别生成各平台目标。
+- `bun run dist:mac:x64` / `bun run package:mac:x64`：生成 macOS Intel（x64）安装包 / 目录包。
+- `bun run dist:mac:arm64` / `bun run package:mac:arm64`：生成 macOS Apple Silicon（arm64）安装包 / 目录包。
+- `bun run dist:win:x64`：生成 Windows x64 的 NSIS 安装包。
+- `bun run dist:win:arm64`：生成 Windows arm64 的 NSIS 安装包。
+- 如需预先准备指定目标的嵌入式工具链，可执行 `bun run prepare:tooling:darwin:x64`、`bun run prepare:tooling:win:arm64` 等命令。
 - 打包前会联网下载并嵌入固定版本的 `uv 0.11.7`、`bun 1.3.13` 与内置 Python 运行时，终端用户机器无需预装这些环境即可由智能体在工作区创建 `.venv` 并执行 Python / JS 命令。
 - `scripts/prepare-embedded-tooling.mjs` 会在打包前把 Python 安装中的符号链接改写为 bundle 内相对路径，避免 macOS 签名 / notarization 因绝对链接失效。
 - 当前脚本默认关闭了本地自动签名发现，方便先完成 unsigned 本地打包；如需正式签名与 notarization，可在 CI 或发布机上按证书环境变量覆盖。
