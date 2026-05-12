@@ -83,38 +83,87 @@
     "Songti SC", "STSong", serif;
 }
 
-/* 深色模式（默认） */
-html.dark,
+/* 亮色模式（默认） */
 :root {
   /* Foundation */
   --radius: 14px;
-  --background: #0f1115;
-  --background-elevated: #151922;
-  --background-interactive: #1c2230;
-  --foreground: #f5f7fb;
+  --background: #ffffff;
+  --background-elevated: #fafafa;
+  --background-interactive: #f5f5f5;
+  --foreground: #1f1f1f;
 
   /* Borders */
-  --border: #2d3442;
-  --border-emphasis: #424b5d;
-  --input: #151922;
-  --ring: #f5f7fb;
+  --border: #e5e5e5;
+  --border-emphasis: #d4d4d4;
+  --input: #fafafa;
+  --ring: #1f1f1f;
 
   /* Text hierarchy */
-  --muted: #171d28;
-  --muted-foreground: #98a2b3;
-  --tertiary-foreground: #697386;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --tertiary-foreground: #a3a3a3;
 
   /* Semantic mapping for shadcn compatibility */
-  --card: #151922;
-  --card-foreground: #f5f7fb;
-  --popover: #171c26;
-  --popover-foreground: #f5f7fb;
-  --primary: #f5f7fb;
-  --primary-foreground: #10131a;
-  --secondary: #1a202c;
-  --secondary-foreground: #f5f7fb;
-  --accent: #20283a;
-  --accent-foreground: #f5f7fb;
+  --card: #ffffff;
+  --card-foreground: #1f1f1f;
+  --popover: #ffffff;
+  --popover-foreground: #1f1f1f;
+  --primary: #1f1f1f;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #1f1f1f;
+  --accent: #f0f0f0;
+  --accent-foreground: #1f1f1f;
+  --destructive: #ff4d4f;
+
+  /* Status colors */
+  --status-critical: #ff4d4f;
+  --status-warning: #faad14;
+  --status-nominal: #52c41a;
+  --status-info: #1890ff;
+  --status-accent: #7c3aed;
+
+  /* Sidebar */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #1f1f1f;
+  --sidebar-primary: #1f1f1f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #1f1f1f;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #1f1f1f;
+}
+
+/* 深色模式 */
+html.dark {
+  /* Foundation */
+  --background: #1a1d21;
+  --background-elevated: #22262e;
+  --background-interactive: #2d333b;
+  --foreground: #e6edf3;
+
+  /* Borders */
+  --border: #373e47;
+  --border-emphasis: #4a5568;
+  --input: #22262e;
+  --ring: #e6edf3;
+
+  /* Text hierarchy */
+  --muted: #2d333b;
+  --muted-foreground: #8b949e;
+  --tertiary-foreground: #6e7681;
+
+  /* Semantic mapping for shadcn compatibility */
+  --card: #22262e;
+  --card-foreground: #e6edf3;
+  --popover: #2d333b;
+  --popover-foreground: #e6edf3;
+  --primary: #e6edf3;
+  --primary-foreground: #1a1d21;
+  --secondary: #2d333b;
+  --secondary-foreground: #e6edf3;
+  --accent: #373e47;
+  --accent-foreground: #e6edf3;
   --destructive: #ff4d4f;
 
   /* Status colors */
@@ -125,53 +174,14 @@ html.dark,
   --status-accent: #8b5cf6;
 
   /* Sidebar */
-  --sidebar: #10141c;
-  --sidebar-foreground: #f5f7fb;
-  --sidebar-primary: #f5f7fb;
-  --sidebar-primary-foreground: #10131a;
-  --sidebar-accent: #171d28;
-  --sidebar-accent-foreground: #f5f7fb;
-  --sidebar-border: #2d3442;
-  --sidebar-ring: #f5f7fb;
-}
-
-/* 亮色模式 */
-html.light {
-  --background: #ffffff;
-  --background-elevated: #fafafa;
-  --background-interactive: #f5f5f5;
-  --foreground: #000000;
-  --border: #d9d9d9;
-  --border-emphasis: #bfbfbf;
-  --input: #fafafa;
-  --ring: #000000;
-  --muted: #f5f5f5;
-  --muted-foreground: #666666;
-  --tertiary-foreground: #999999;
-  --card: #ffffff;
-  --card-foreground: #000000;
-  --popover: #ffffff;
-  --popover-foreground: #000000;
-  --primary: #000000;
-  --primary-foreground: #ffffff;
-  --secondary: #f5f5f5;
-  --secondary-foreground: #000000;
-  --accent: #f0f0f0;
-  --accent-foreground: #000000;
-  --destructive: #ff4d4f;
-  --status-critical: #ff4d4f;
-  --status-warning: #faad14;
-  --status-nominal: #52c41a;
-  --status-info: #1890ff;
-  --status-accent: #7c3aed;
-  --sidebar: #fafafa;
-  --sidebar-foreground: #000000;
-  --sidebar-primary: #000000;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ffffff;
-  --sidebar-accent-foreground: #000000;
-  --sidebar-border: #d9d9d9;
-  --sidebar-ring: #000000;
+  --sidebar: #1a1d21;
+  --sidebar-foreground: #e6edf3;
+  --sidebar-primary: #e6edf3;
+  --sidebar-primary-foreground: #1a1d21;
+  --sidebar-accent: #22262e;
+  --sidebar-accent-foreground: #e6edf3;
+  --sidebar-border: #373e47;
+  --sidebar-ring: #e6edf3;
 }
 
 @layer base {
