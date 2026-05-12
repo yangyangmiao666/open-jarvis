@@ -11,7 +11,7 @@ import { registerModelHandlers } from "./ipc/models";
 import { registerSkillHandlers } from "./ipc/skills";
 import { initializeDatabase } from "./db";
 import { getOpenworkDir, loadEnvFileToProcessEnv } from "./storage";
-import { getMainLogPath, logError, logInfo } from "./logger";
+import { logError, logInfo } from "./logger";
 import { applyGlobalProxyDispatcher, getProxyConfigFromEnv } from "./proxy-config";
 
 let mainWindow: BrowserWindow | null = null;
@@ -154,7 +154,6 @@ app.whenReady().then(async () => {
     platform: process.platform,
     arch: process.arch,
     resourcesPath: process.resourcesPath,
-    logPath: getMainLogPath(),
     loadedEnvKeys: Object.keys(loadedEnv),
     proxyEnv: {
       NODE_USE_ENV_PROXY: process.env["NODE_USE_ENV_PROXY"] ?? null,

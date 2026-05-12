@@ -11,6 +11,21 @@ const store = new Store({
 
 const KEY = "openaiCompatibleProfiles";
 
+function normalizeThinkingEffort(
+  effort?: OpenAICompatibleProfile["thinkingEffort"],
+): OpenAICompatibleProfile["thinkingEffort"] {
+  switch (effort) {
+    case "low":
+    case "medium":
+    case "high":
+    case "xhigh":
+    case "max":
+      return effort;
+    default:
+      return "high";
+  }
+}
+
 export function getOpenAICompatibleProfiles(): OpenAICompatibleProfile[] {
   const raw = store.get(KEY, []) as OpenAICompatibleProfile[];
   return Array.isArray(raw) ? raw : [];
@@ -37,6 +52,10 @@ export function upsertOpenAICompatibleProfile(
     baseUrl: profile.baseUrl.trim(),
     apiKey: profile.apiKey,
     model: modelTrim,
+    apiFormat: profile.apiFormat === "anthropic" ? "anthropic" : "openai",
+    thinkingType:
+      profile.thinkingType === "enabled" ? "enabled" : "disabled",
+    thinkingEffort: normalizeThinkingEffort(profile.thinkingEffort),
     contextWindow: getConfiguredContextWindow(profile.contextWindow),
   };
   const idx = profiles.findIndex((p) => p.id === id);

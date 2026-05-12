@@ -16,6 +16,7 @@ interface OpenAICompatibleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
+  initialProfileId?: string | null;
 }
 
 const emptyForm = (): Omit<OpenAICompatibleProfile, "id"> & {
@@ -25,13 +26,48 @@ const emptyForm = (): Omit<OpenAICompatibleProfile, "id"> & {
   baseUrl: "",
   apiKey: "",
   model: "",
+  apiFormat: "openai",
+  thinkingType: "disabled",
+  thinkingEffort: "high",
   contextWindow: undefined,
 });
+
+function normalizeThinkingEffort(
+  effort?: string,
+): NonNullable<OpenAICompatibleProfile["thinkingEffort"]> {
+  switch (effort) {
+    case "low":
+    case "medium":
+    case "high":
+    case "xhigh":
+    case "max":
+      return effort;
+    default:
+      return "high";
+  }
+}
+
+function formatThinkingEffort(
+  effort?: OpenAICompatibleProfile["thinkingEffort"],
+): string {
+  switch (effort) {
+    case "low":
+      return "low";
+    case "medium":
+      return "medium";
+    case "xhigh":
+    case "max":
+      return "xhigh/max";
+    default:
+      return "high";
+  }
+}
 
 export function OpenAICompatibleDialog({
   open,
   onOpenChange,
   onSaved,
+  initialProfileId,
 }: OpenAICompatibleDialogProps): React.JSX.Element {
   const [profiles, setProfiles] = useState<OpenAICompatibleProfile[]>([]);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -42,20 +78,39 @@ export function OpenAICompatibleDialog({
     (Omit<OpenAICompatibleProfile, "id"> & { id?: string }) | null
   >(null);
 
-  const load = async (): Promise<void> => {
+  const load = async (): Promise<OpenAICompatibleProfile[]> => {
     const list = await window.api.models.openaiCompatibleList();
     setProfiles(list);
+    return list;
   };
 
   useEffect(() => {
-    if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      void load();
-
-      setEditing(null);
-      setShowApiKey(false);
+    if (!open) {
+      return;
     }
-  }, [open]);
+
+    let cancelled = false;
+
+    void (async () => {
+      const list = await load();
+      if (cancelled) {
+        return;
+      }
+
+      setShowApiKey(false);
+
+      if (initialProfileId) {
+        const target = list.find((profile) => profile.id === initialProfileId);
+        setEditing(target ? { ...target } : emptyForm());
+      } else {
+        setEditing(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initialProfileId]);
 
   useEffect(() => {
     setShowApiKey(false);
@@ -106,7 +161,7 @@ export function OpenAICompatibleDialog({
                   已有配置
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  查看、编辑和删除当前已经接入的 OpenAI Compatible 模型配置。
+                  查看、编辑和删除当前已经接入的自定义模型配置，支持 OpenAI 格式和 Anthropic 格式接口。
                 </p>
               </div>
               <Button
@@ -140,6 +195,15 @@ export function OpenAICompatibleDialog({
                       </div>
                       <div className="text-muted-foreground truncate font-mono">
                         模型：{p.model}
+                      </div>
+                      <div className="text-muted-foreground truncate font-mono">
+                        格式：{p.apiFormat === "anthropic" ? "Anthropic" : "OpenAI"}
+                      </div>
+                      <div className="text-muted-foreground truncate font-mono">
+                        思考：
+                        {p.thinkingType === "enabled"
+                          ? `开启 / ${formatThinkingEffort(p.thinkingEffort)}`
+                          : "关闭"}
                       </div>
                       <div className="text-muted-foreground truncate font-mono">
                         上下文：
@@ -183,13 +247,36 @@ export function OpenAICompatibleDialog({
                   {editing ? "编辑配置" : "新增配置"}
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  填写 Base URL、API 密钥、模型 ID 和上下文窗口；保存后会立即进入模型列表，并同步用于上下文窗口展示与压缩阈值计算。
+                  填写请求格式、Base URL、API 密钥、模型 ID、思考参数和上下文窗口；保存后会立即进入模型列表，并同步用于上下文窗口展示与压缩阈值计算。
                 </p>
               </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             <div className="space-y-4">
+              <div className="space-y-1">
+                <label htmlFor="oac-format" className="text-sm font-medium">
+                  请求格式
+                </label>
+                <select
+                  id="oac-format"
+                  value={editing?.apiFormat ?? "openai"}
+                  onChange={(e) =>
+                    setEditing({
+                      ...(editing ?? emptyForm()),
+                      apiFormat:
+                        e.target.value === "anthropic" ? "anthropic" : "openai",
+                    })
+                  }
+                  className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                </select>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  选择你的网关兼容的请求体格式。OpenAI 格式会发送 `thinking` 和 `reasoning_effort`，Anthropic 格式会发送 `thinking` 和 `output_config.effort`。
+                </p>
+              </div>
               <div className="space-y-1">
                 <label htmlFor="oac-name" className="text-sm font-medium">
                   显示名称
@@ -213,7 +300,11 @@ export function OpenAICompatibleDialog({
                   onChange={(e) =>
                     setEditing({ ...(editing ?? emptyForm()), baseUrl: e.target.value })
                   }
-                  placeholder="https://api.example.com 或 http://127.0.0.1:11434/v1"
+                  placeholder={
+                    editing?.apiFormat === "anthropic"
+                      ? "https://api.example.com"
+                      : "https://api.example.com 或 http://127.0.0.1:11434/v1"
+                  }
                 />
               </div>
               <div className="space-y-1">
@@ -261,6 +352,53 @@ export function OpenAICompatibleDialog({
                   placeholder="例如：gpt-4o、Qwen/Qwen2.5-7B-Instruct"
                 />
               </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="oac-thinking-type" className="text-sm font-medium">
+                    思考模式
+                  </label>
+                  <select
+                    id="oac-thinking-type"
+                    value={editing?.thinkingType ?? "disabled"}
+                    onChange={(e) =>
+                      setEditing({
+                        ...(editing ?? emptyForm()),
+                        thinkingType:
+                          e.target.value === "enabled" ? "enabled" : "disabled",
+                      })
+                    }
+                    className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                  >
+                    <option value="disabled">关闭</option>
+                    <option value="enabled">开启</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="oac-thinking-effort" className="text-sm font-medium">
+                    思考强度
+                  </label>
+                  <select
+                    id="oac-thinking-effort"
+                    value={editing?.thinkingEffort ?? "high"}
+                    onChange={(e) =>
+                      setEditing({
+                        ...(editing ?? emptyForm()),
+                        thinkingEffort: normalizeThinkingEffort(e.target.value),
+                      })
+                    }
+                    disabled={(editing?.thinkingType ?? "disabled") !== "enabled"}
+                    className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                  >
+                    <option value="low">low</option>
+                    <option value="medium">medium</option>
+                    <option value="high">high</option>
+                    <option value="xhigh">xhigh/max</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs leading-5 text-muted-foreground">
+                会保留 low、medium、high、xhigh/max 这几个编辑档位。发送到兼容网关时，low/medium/high 会归一化到 high，xhigh/max 会归一化到 max。
+              </p>
               <div className="space-y-1">
                 <label
                   htmlFor="oac-context-window"

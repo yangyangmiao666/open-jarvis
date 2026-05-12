@@ -21,7 +21,7 @@ import { WorkspacePicker } from "./WorkspacePicker";
 import { selectWorkspaceFolder } from "@/lib/workspace-utils";
 import { ChatTodos } from "./ChatTodos";
 import { ContextUsageIndicator } from "./ContextUsageIndicator";
-import type { ApprovalMode, Message } from "@/types";
+import type { ApprovalMode, Message, SettingsOpenRequest } from "@/types";
 import { cn, truncate } from "@/lib/utils";
 import { messagesToMarkdown } from "@/lib/chat-markdown";
 
@@ -121,7 +121,7 @@ interface StreamMessage {
 
 interface ChatContainerProps {
   threadId: string;
-  onOpenSettings: () => void;
+  onOpenSettings: (request?: SettingsOpenRequest) => void;
 }
 
 export function ChatContainer({
@@ -143,6 +143,7 @@ export function ChatContainer({
   const [copyNoticeOpen, setCopyNoticeOpen] = useState(false);
   const [streamTipTick, setStreamTipTick] = useState(0);
   const [overlayInset, setOverlayInset] = useState(176);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const { threads, models, loadThreads, generateTitleForFirstMessage } =
     useAppStore();
@@ -478,6 +479,12 @@ export function ChatContainer({
     return () => window.clearInterval(timer);
   }, [isLoading, streamingTips.length]);
 
+  useEffect(() => {
+    if (!isLoading) {
+      setIsCancelling(false);
+    }
+  }, [isLoading]);
+
   // Build tool results map from tool messages
   const toolResults = useMemo(() => {
     const results = new Map<
@@ -624,6 +631,7 @@ export function ChatContainer({
         setPendingApproval(null);
       }
 
+      setIsCancelling(false);
       setInput("");
 
       const isFirstMessage = threadMessages.length === 0;
@@ -800,12 +808,14 @@ export function ChatContainer({
   }, [input]);
 
   const handleCancel = async (): Promise<void> => {
+    setIsCancelling(true);
     try {
       await Promise.all([
         window.api.agent.cancel(threadId),
         stream?.stop(),
       ]);
     } catch (error) {
+      setIsCancelling(false);
       console.error("[ChatContainer] Failed to cancel active run:", error);
     }
   };
@@ -1014,11 +1024,6 @@ export function ChatContainer({
             )}
             {isLoading && streamingTips.length > 0 && (
               <div className="animate-soft-fade flex items-center gap-3 overflow-hidden rounded-[18px] border border-border bg-background-elevated px-3 py-2 shadow-none">
-                <div className="agent-activity-mark shrink-0" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
                     Jarvis is working
@@ -1033,7 +1038,7 @@ export function ChatContainer({
                   </div>
                 </div>
                 <div className="hidden shrink-0 rounded-full border border-border bg-background-elevated px-2 py-1 text-[10px] font-medium text-muted-foreground sm:block">
-                  {pendingApproval ? "已暂停" : "处理中"}
+                  {pendingApproval ? "已暂停" : isCancelling ? "取消中" : "处理中"}
                 </div>
               </div>
             )}
@@ -1141,7 +1146,7 @@ export function ChatContainer({
                 )}
               </div>
             </div>
-            <div className="-mx-1 -my-2 overflow-x-auto px-1 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="app-subtle-scroll -mx-1 -my-2 overflow-x-auto overflow-y-hidden px-1 py-2">
               <div className="flex min-w-max items-center gap-2 whitespace-nowrap pb-1">
                 <ModelSwitcher
                   threadId={threadId}

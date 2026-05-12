@@ -16,7 +16,12 @@ import { closeAllMCPConnections, getMCPToolsForServers } from "./mcp-runtime";
 
 import { BASE_SYSTEM_PROMPT } from "./system-prompt";
 import { resolveSkillSourcesForWorkspace } from "../skill-config";
-import type { ThreadMetadata } from "../types";
+import type {
+  CustomModelApiFormat,
+  CustomModelThinkingType,
+  OpenAICompatibleProfile,
+  ThreadMetadata,
+} from "../types";
 import {
   getConfiguredContextWindow,
   getContextWindowForModel,
@@ -304,11 +309,25 @@ function normalizeOpenAICompatibleMessage(
 function normalizeOpenAICompatibleMessages(request: unknown): {
   request: unknown;
   normalizedCount: number;
+  retainedReasoningCount: number;
+  prunedReasoningCount: number;
 } {
   if (!request || typeof request !== "object")
-    return { request, normalizedCount: 0 };
+    return {
+      request,
+      normalizedCount: 0,
+      retainedReasoningCount: 0,
+      prunedReasoningCount: 0,
+    };
   const messages = (request as { messages?: unknown }).messages;
-  if (!Array.isArray(messages)) return { request, normalizedCount: 0 };
+  if (!Array.isArray(messages)) {
+    return {
+      request,
+      normalizedCount: 0,
+      retainedReasoningCount: 0,
+      prunedReasoningCount: 0,
+    };
+  }
 
   let normalizedCount = 0;
   const normalizedMessages = messages.map((message) => {
@@ -317,23 +336,103 @@ function normalizeOpenAICompatibleMessages(request: unknown): {
     return normalized.message;
   });
 
+  let latestAssistantReasoningIndex = -1;
+  for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
+    const message = normalizedMessages[index];
+    if (!message || typeof message !== "object") {
+      continue;
+    }
+
+    const record = message as Record<string, unknown>;
+    if (record.role !== "assistant") {
+      continue;
+    }
+
+    const reasoning = extractReasoningFromRecord(record);
+    if (reasoning.length > 0) {
+      latestAssistantReasoningIndex = index;
+      break;
+    }
+  }
+
+  let retainedReasoningCount = 0;
+  let prunedReasoningCount = 0;
+  const historyPrunedMessages = normalizedMessages.map((message, index) => {
+    if (!message || typeof message !== "object") {
+      return message;
+    }
+
+    const record = message as Record<string, unknown>;
+    if (record.role !== "assistant") {
+      return message;
+    }
+
+    const reasoning = extractReasoningFromRecord(record);
+    if (reasoning.length === 0) {
+      return message;
+    }
+
+    if (index === latestAssistantReasoningIndex) {
+      retainedReasoningCount += 1;
+      return {
+        ...record,
+        reasoning_content: reasoning,
+      };
+    }
+
+    prunedReasoningCount += 1;
+    const nextMessage = { ...record };
+    delete nextMessage.reasoning_content;
+    delete nextMessage.reasoning;
+    delete nextMessage.thinking;
+    delete nextMessage.think;
+
+    for (const containerKey of [
+      "additional_kwargs",
+      "kwargs",
+      "response_metadata",
+      "metadata",
+    ] as const) {
+      const container = nextMessage[containerKey];
+      if (!container || typeof container !== "object") {
+        continue;
+      }
+
+      const nextContainer = { ...(container as Record<string, unknown>) };
+      delete nextContainer.reasoning_content;
+      delete nextContainer.reasoning;
+      delete nextContainer.thinking;
+      delete nextContainer.think;
+      nextMessage[containerKey] = nextContainer;
+    }
+
+    return nextMessage;
+  });
+
   return {
     request: {
       ...(request as Record<string, unknown>),
-      messages: normalizedMessages,
+      messages: historyPrunedMessages,
     },
     normalizedCount,
+    retainedReasoningCount,
+    prunedReasoningCount,
   };
 }
 
 class OpenAICompatibleChatCompletions extends ChatOpenAICompletions {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   override async completionWithRetry(request: any, requestOptions?: any) {
-    const { request: normalizedRequest, normalizedCount } =
+    const {
+      request: normalizedRequest,
+      normalizedCount,
+      retainedReasoningCount,
+      prunedReasoningCount,
+    } =
       normalizeOpenAICompatibleMessages(request);
-    if (normalizedCount > 0) {
+    if (normalizedCount > 0 || prunedReasoningCount > 0) {
       console.log(
-        `[Runtime] Normalized ${normalizedCount} array-format message(s) for OpenAI-compatible API`,
+        `[Runtime] Normalized ${normalizedCount} array-format message(s) and retained ${retainedReasoningCount} latest reasoning block(s) while pruning ${prunedReasoningCount} historical reasoning block(s) for OpenAI-compatible API`,
       );
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -372,6 +471,125 @@ function applyContextWindowProfile<T extends object>(
   return model;
 }
 
+function normalizeCustomModelApiFormat(
+  profile: Pick<OpenAICompatibleProfile, "apiFormat">,
+): CustomModelApiFormat {
+  return profile.apiFormat === "anthropic" ? "anthropic" : "openai";
+}
+
+function normalizeCustomModelThinkingType(
+  profile: Pick<OpenAICompatibleProfile, "thinkingType">,
+): CustomModelThinkingType {
+  return profile.thinkingType === "enabled" ? "enabled" : "disabled";
+}
+
+function normalizeCustomModelThinkingEffort(
+  profile: Pick<OpenAICompatibleProfile, "thinkingEffort">,
+): "high" | "max" {
+  return profile.thinkingEffort === "xhigh" || profile.thinkingEffort === "max"
+    ? "max"
+    : "high";
+}
+
+function createCustomOpenAIChatModel(
+  modelId: string,
+  profile: OpenAICompatibleProfile,
+): ChatOpenAI {
+  let baseURL = profile.baseUrl.trim().replace(/\/$/, "");
+  if (!baseURL.includes("/v1")) {
+    baseURL = `${baseURL}/v1`;
+  }
+
+  const key = profile.apiKey?.trim() ?? "";
+  const thinkingType = normalizeCustomModelThinkingType(profile);
+  const thinkingEffort = normalizeCustomModelThinkingEffort(profile);
+  const modelKwargs: Record<string, unknown> = {
+    thinking: { type: thinkingType },
+  };
+  if (thinkingType === "enabled") {
+    modelKwargs.reasoning_effort = thinkingEffort;
+  }
+
+  logInfo("Runtime", "Configuring OpenAI-format custom model", {
+    modelId,
+    baseURL,
+    profileModel: profile.model,
+    thinkingType,
+    thinkingEffort: thinkingType === "enabled" ? thinkingEffort : null,
+    timeoutMs: MODEL_REQUEST_TIMEOUT_MS,
+    proxyEnv: {
+      NODE_USE_ENV_PROXY: process.env["NODE_USE_ENV_PROXY"] ?? null,
+      HTTP_PROXY: process.env["HTTP_PROXY"] ? "<set>" : null,
+      HTTPS_PROXY: process.env["HTTPS_PROXY"] ? "<set>" : null,
+      ALL_PROXY: process.env["ALL_PROXY"] ? "<set>" : null,
+    },
+  });
+
+  const chatModel = new ChatOpenAI({
+    model: profile.model,
+    apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
+    configuration: { baseURL },
+    useResponsesApi: false,
+    timeout: MODEL_REQUEST_TIMEOUT_MS,
+    maxRetries: 1,
+    modelKwargs,
+    completions: new OpenAICompatibleChatCompletions({
+      model: profile.model,
+      apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
+      configuration: { baseURL },
+      timeout: MODEL_REQUEST_TIMEOUT_MS,
+      maxRetries: 1,
+      modelKwargs,
+    }),
+  });
+
+  return applyContextWindowProfile(
+    chatModel,
+    getContextWindowForModel(profile.model, profile.contextWindow),
+  );
+}
+
+function createCustomAnthropicChatModel(
+  modelId: string,
+  profile: OpenAICompatibleProfile,
+): ChatAnthropic {
+  const apiUrl = profile.baseUrl.trim().replace(/\/$/, "");
+  const key = profile.apiKey?.trim() ?? "";
+  const thinkingType = normalizeCustomModelThinkingType(profile);
+  const thinkingEffort = normalizeCustomModelThinkingEffort(profile);
+  const outputConfig =
+    thinkingType === "enabled"
+      ? ({ effort: thinkingEffort } as const)
+      : undefined;
+  const invocationKwargs =
+    thinkingType === "enabled"
+      ? ({ thinking: { type: "enabled" } } as const)
+      : undefined;
+
+  logInfo("Runtime", "Configuring Anthropic-format custom model", {
+    modelId,
+    apiUrl,
+    profileModel: profile.model,
+    thinkingType,
+    thinkingEffort: outputConfig?.effort ?? null,
+  });
+
+  const chatModel = new ChatAnthropic({
+    model: profile.model,
+    anthropicApiKey: key.length > 0 ? key : "sk-placeholder-no-key",
+    anthropicApiUrl: apiUrl,
+    thinking: { type: "disabled" } as const,
+    invocationKwargs,
+    outputConfig,
+    maxRetries: 1,
+  });
+
+  return applyContextWindowProfile(
+    chatModel,
+    getContextWindowForModel(profile.model, profile.contextWindow),
+  );
+}
+
 export async function getCheckpointer(threadId: string): Promise<SqlJsSaver> {
   let checkpointer = checkpointers.get(threadId);
   if (!checkpointer) {
@@ -404,6 +622,12 @@ function getModelInstance(
 ): ChatAnthropic | ChatOpenAI | ChatGoogleGenerativeAI | string {
   const model = modelId || getDefaultModel();
   console.log("[Runtime] Using model:", model);
+
+  if (typeof model !== "string" || model.trim().length === 0) {
+    throw new Error(
+      "No custom model configured. Please add a model in 设置中枢 > 自定义模型配置.",
+    );
+  }
 
   // Determine provider from model ID
   if (model.startsWith("claude")) {
@@ -449,42 +673,10 @@ function getModelInstance(
     if (!profile) {
       throw new Error("OpenAI-compatible endpoint not found");
     }
-    let baseURL = profile.baseUrl.trim().replace(/\/$/, "");
-    if (!baseURL.includes("/v1")) {
-      baseURL = `${baseURL}/v1`;
-    }
-    const key = profile.apiKey?.trim() ?? "";
-    logInfo("Runtime", "Configuring OpenAI-compatible model", {
-      modelId: model,
-      baseURL,
-      profileModel: profile.model,
-      timeoutMs: MODEL_REQUEST_TIMEOUT_MS,
-      proxyEnv: {
-        NODE_USE_ENV_PROXY: process.env["NODE_USE_ENV_PROXY"] ?? null,
-        HTTP_PROXY: process.env["HTTP_PROXY"] ? "<set>" : null,
-        HTTPS_PROXY: process.env["HTTPS_PROXY"] ? "<set>" : null,
-        ALL_PROXY: process.env["ALL_PROXY"] ? "<set>" : null,
-      },
-    });
-    const chatModel = new ChatOpenAI({
-      model: profile.model,
-      apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
-      configuration: { baseURL },
-      useResponsesApi: false,
-      timeout: MODEL_REQUEST_TIMEOUT_MS,
-      maxRetries: 1,
-      completions: new OpenAICompatibleChatCompletions({
-        model: profile.model,
-        apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
-        configuration: { baseURL },
-        timeout: MODEL_REQUEST_TIMEOUT_MS,
-        maxRetries: 1,
-      }),
-    });
-    return applyContextWindowProfile(
-      chatModel,
-      getContextWindowForModel(profile.model, profile.contextWindow),
-    );
+    const apiFormat = normalizeCustomModelApiFormat(profile);
+    return apiFormat === "anthropic"
+      ? createCustomAnthropicChatModel(model, profile)
+      : createCustomOpenAIChatModel(model, profile);
   }
 
   // Default to model string (let deepagents handle it)

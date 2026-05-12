@@ -314,9 +314,19 @@ html.light {
   background: transparent;
 }
 
+.app-subtle-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
 .app-subtle-scroll::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 999px;
+}
+
+.app-subtle-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: var(--border) transparent;
 }
 
 .app-subtle-scroll::-webkit-scrollbar-thumb:hover {

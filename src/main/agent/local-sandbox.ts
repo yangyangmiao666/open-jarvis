@@ -249,12 +249,15 @@ function needsWindowsPythonBootstrap(command: string): boolean {
     return false;
   }
 
+  const workspacePythonSegmentPattern =
+    /(^|[\s(;|&])(?:python|python3|pip|pip3|pytest|py\.test)(?=$|[\s);|&])/i;
+
   return pythonSegments.some((segment) => {
     if (/^(where|which)\b/i.test(segment)) {
-      return false;
+      return workspacePythonSegmentPattern.test(segment);
     }
 
-    if (/^(uv|python|python3|pip|pip3)\s+(--version|-V)\b/i.test(segment)) {
+    if (/^uv\s+(--version|-V)\b/i.test(segment)) {
       return false;
     }
 
@@ -381,6 +384,10 @@ export class LocalSandbox
     return self.resolvePath(filePath);
   }
 
+  private getWorkspacePythonInstallDir(): string {
+    return path.join(this.workingDir, ".open-jarvis", "python-install");
+  }
+
   private ensureWindowsRuntimeShims(
     requiresPython: boolean,
     _requiresJavaScript: boolean,
@@ -408,56 +415,40 @@ export class LocalSandbox
 
     const pythonShims: Array<{ fileName: string; content: string }> = [];
 
-    const embeddedPythonPath = this.embeddedTooling?.pythonPath;
-    const hasEmbeddedPython =
-      !!embeddedPythonPath && fsSync.existsSync(embeddedPythonPath);
+    const hasEmbeddedUv =
+      !!this.embeddedTooling?.uvPath && fsSync.existsSync(this.embeddedTooling.uvPath);
 
-    if (hasEmbeddedPython && embeddedPythonPath) {
+    if (hasEmbeddedUv) {
       pythonShims.push(
         {
           fileName: "python.cmd",
           content:
-            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" python %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" %*\r\n)\r\n",
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" python %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
         },
         {
           fileName: "python3.cmd",
           content:
-            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" python %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" %*\r\n)\r\n",
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" python %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
         },
         {
           fileName: "pip.cmd",
           content:
-            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" -m pip %*\r\n)\r\n",
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
         },
         {
           fileName: "pip3.cmd",
           content:
-            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" -m pip %*\r\n)\r\n",
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
         },
         {
           fileName: "pytest.cmd",
           content:
-            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" pytest %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" -m pytest %*\r\n)\r\n",
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" pytest %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
         },
         {
           fileName: "py.test.cmd",
           content:
-            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" pytest %*\r\n) else (\r\n  \"%OPEN_JARVIS_PYTHON%\" -m pytest %*\r\n)\r\n",
-        },
-      );
-    } else if (requiresPython) {
-      pythonShims.push(
-        {
-          fileName: "python3.cmd",
-          content: "@echo off\r\npython %*\r\n",
-        },
-        {
-          fileName: "pip.cmd",
-          content: "@echo off\r\npython -m pip %*\r\n",
-        },
-        {
-          fileName: "pip3.cmd",
-          content: "@echo off\r\npython -m pip %*\r\n",
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" run --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" pytest %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
         },
       );
     }
@@ -601,20 +592,20 @@ export class LocalSandbox
     });
 
     if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
-      const embeddedPythonDir = path.dirname(this.embeddedTooling.pythonPath);
+      const workspacePythonInstallDir = this.getWorkspacePythonInstallDir();
       commandEnv.OPEN_JARVIS_TOOLING_ROOT = this.embeddedTooling.rootDir;
       commandEnv.OPEN_JARVIS_TOOLING_BIN = this.embeddedTooling.binDir;
       commandEnv.OPEN_JARVIS_UV = this.embeddedTooling.uvPath;
       commandEnv.OPEN_JARVIS_BUN = this.embeddedTooling.bunPath;
-      commandEnv.OPEN_JARVIS_PYTHON = this.embeddedTooling.pythonPath;
-      commandEnv.OPEN_JARVIS_PYTHON_DIR = embeddedPythonDir;
-      commandEnv.UV_PYTHON_INSTALL_DIR = this.embeddedTooling.pythonInstallDir;
+      commandEnv.OPEN_JARVIS_PYTHON_VERSION = this.embeddedTooling.pythonVersion;
+      commandEnv.UV_PYTHON_INSTALL_DIR = workspacePythonInstallDir;
       commandEnv.UV_NO_PROGRESS = "true";
 
       logInfo("LocalSandbox", "Embedded tooling environment variables set", {
         OPEN_JARVIS_UV: this.embeddedTooling.uvPath,
         OPEN_JARVIS_BUN: this.embeddedTooling.bunPath,
-        OPEN_JARVIS_PYTHON: this.embeddedTooling.pythonPath,
+        OPEN_JARVIS_PYTHON_VERSION: this.embeddedTooling.pythonVersion,
+        UV_PYTHON_INSTALL_DIR: workspacePythonInstallDir,
       });
     }
 
@@ -631,11 +622,6 @@ export class LocalSandbox
     }
 
     if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
-      if (requiresPython) {
-        const embeddedPythonDir = path.dirname(this.embeddedTooling.pythonPath);
-        pathSegments.push(embeddedPythonDir);
-      }
-
       pathSegments.push(this.embeddedTooling.binDir);
     }
 
@@ -654,19 +640,17 @@ export class LocalSandbox
     if (requiresPython) {
       const hasUv =
         this.embeddedTooling && fsSync.existsSync(this.embeddedTooling.uvPath);
-      const hasPython =
-        this.embeddedTooling &&
-        fsSync.existsSync(this.embeddedTooling.pythonPath);
+      const hasPythonVersion = !!this.embeddedTooling?.pythonVersion;
 
       logInfo("LocalSandbox", "Python runtime check", {
         embeddedToolingExists: !!this.embeddedTooling,
         uvExists: hasUv,
-        pythonExists: hasPython,
+        pythonVersion: this.embeddedTooling?.pythonVersion ?? null,
       });
 
-      if (!this.embeddedTooling || !hasUv || !hasPython) {
+      if (!this.embeddedTooling || !hasUv || !hasPythonVersion) {
         prelude.push(
-          "echo Error: embedded uv/python runtime is incomplete in this app package. 1>&2",
+          "echo Error: embedded uv runtime is incomplete in this app package. 1>&2",
           "exit /b 127",
         );
       }
@@ -703,13 +687,14 @@ export class LocalSandbox
     const requiresJavaScript = needsJavaScriptWorkspaceRuntime(command);
 
     if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
+      const workspacePythonInstallDir = this.getWorkspacePythonInstallDir();
       prelude.push(
         `export OPEN_JARVIS_TOOLING_ROOT=${shellQuote(this.embeddedTooling.rootDir)}`,
         `export OPEN_JARVIS_TOOLING_BIN=${shellQuote(this.embeddedTooling.binDir)}`,
         `export OPEN_JARVIS_UV=${shellQuote(this.embeddedTooling.uvPath)}`,
         `export OPEN_JARVIS_BUN=${shellQuote(this.embeddedTooling.bunPath)}`,
-        `export OPEN_JARVIS_PYTHON=${shellQuote(this.embeddedTooling.pythonPath)}`,
-        `export UV_PYTHON_INSTALL_DIR=${shellQuote(this.embeddedTooling.pythonInstallDir)}`,
+        `export OPEN_JARVIS_PYTHON_VERSION=${shellQuote(this.embeddedTooling.pythonVersion)}`,
+        `export UV_PYTHON_INSTALL_DIR=${shellQuote(workspacePythonInstallDir)}`,
         'export UV_NO_PROGRESS="true"',
       );
     }
@@ -722,12 +707,12 @@ export class LocalSandbox
         );
       } else {
       prelude.push(
-        'if [ ! -x "$OPEN_JARVIS_UV" ] || [ ! -x "$OPEN_JARVIS_PYTHON" ]; then',
-        "  printf '%s\\n' 'Error: embedded uv/python runtime is incomplete in this app package.' >&2",
+        'if [ ! -x "$OPEN_JARVIS_UV" ] || [ -z "$OPEN_JARVIS_PYTHON_VERSION" ]; then',
+        "  printf '%s\\n' 'Error: embedded uv runtime is incomplete in this app package.' >&2",
         "  exit 127",
         "fi",
         'if [ ! -x "$PWD/.venv/bin/python" ]; then',
-        '  "$OPEN_JARVIS_UV" venv "$PWD/.venv" --python "$OPEN_JARVIS_PYTHON" >/dev/null',
+        '  "$OPEN_JARVIS_UV" venv "$PWD/.venv" --python "$OPEN_JARVIS_PYTHON_VERSION" >/dev/null',
         "fi",
         'export VIRTUAL_ENV="$PWD/.venv"',
         'export PATH="$VIRTUAL_ENV/bin:$OPEN_JARVIS_TOOLING_BIN:$PATH"',
@@ -740,27 +725,15 @@ export class LocalSandbox
         "  esac",
         "}",
         "python() {",
-        '  if [ -x "$VIRTUAL_ENV/bin/python" ]; then',
-        '    "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" python "$@"',
-        "  else",
-        '    "$OPEN_JARVIS_PYTHON" "$@"',
-        "  fi",
+        '  "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" python "$@"',
         "}",
         'python3() { python "$@"; }',
         "pip() {",
-        '  if [ -x "$VIRTUAL_ENV/bin/python" ]; then',
-        '    "$OPEN_JARVIS_UV" pip --python "$VIRTUAL_ENV/bin/python" "$@"',
-        "  else",
-        '    "$OPEN_JARVIS_PYTHON" -m pip "$@"',
-        "  fi",
+        '  "$OPEN_JARVIS_UV" pip --python "$VIRTUAL_ENV/bin/python" "$@"',
         "}",
         'pip3() { pip "$@"; }',
         "pytest() {",
-        '  if [ -x "$VIRTUAL_ENV/bin/python" ]; then',
-        '    "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" pytest "$@"',
-        "  else",
-        '    "$OPEN_JARVIS_PYTHON" -m pytest "$@"',
-        "  fi",
+        '  "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" pytest "$@"',
         "}",
       );
       }
@@ -843,9 +816,7 @@ export class LocalSandbox
 
     const hasUv =
       !!this.embeddedTooling?.uvPath && fsSync.existsSync(this.embeddedTooling.uvPath);
-    const hasPython =
-      !!this.embeddedTooling?.pythonPath &&
-      fsSync.existsSync(this.embeddedTooling.pythonPath);
+    const pythonVersion = this.embeddedTooling?.pythonVersion ?? null;
 
     logInfo("LocalSandbox", "Ensuring Windows Python runtime", {
       sandboxId: this.id,
@@ -853,14 +824,13 @@ export class LocalSandbox
       venvPythonPath,
       hasEmbeddedTooling: !!this.embeddedTooling,
       uvPath: this.embeddedTooling?.uvPath ?? null,
-      pythonPath: this.embeddedTooling?.pythonPath ?? null,
+      pythonVersion,
       hasUv,
-      hasPython,
     });
 
-    if (!this.embeddedTooling || !hasUv || !hasPython) {
+    if (!this.embeddedTooling || !hasUv || !pythonVersion) {
       return {
-        output: "[stderr] Error: embedded uv/python runtime is incomplete in this app package.\n",
+        output: "[stderr] Error: embedded uv runtime is incomplete in this app package.\n",
         exitCode: 127,
         truncated: false,
       };
@@ -877,7 +847,7 @@ export class LocalSandbox
           "venv",
           path.join(this.workingDir, ".venv"),
           "--python",
-          this.embeddedTooling!.pythonPath,
+          pythonVersion,
         ],
         {
           cwd: this.workingDir,

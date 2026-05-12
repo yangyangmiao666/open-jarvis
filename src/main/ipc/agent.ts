@@ -17,11 +17,209 @@ import type {
 
 // Track active runs for cancellation
 const activeRuns = new Map<string, AbortController>();
+const conversationLogSignatures = new Map<string, Set<string>>();
 const DEFAULT_STREAM_MODES: StreamMode[] = ["messages", "values"];
 const store = new Store({
   name: "settings",
   cwd: getOpenworkDir(),
 });
+
+function getConversationLogCache(threadId: string): Set<string> {
+  let cache = conversationLogSignatures.get(threadId);
+  if (!cache) {
+    cache = new Set<string>();
+    conversationLogSignatures.set(threadId, cache);
+  }
+  return cache;
+}
+
+function stringifyConversationContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content.trim();
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") {
+          return part.trim();
+        }
+        if (!part || typeof part !== "object") {
+          return "";
+        }
+
+        const record = part as Record<string, unknown>;
+        if (typeof record.text === "string") {
+          return record.text.trim();
+        }
+        if (typeof record.content === "string") {
+          return record.content.trim();
+        }
+        if (typeof record.reasoning === "string") {
+          return record.reasoning.trim();
+        }
+        if (typeof record.thinking === "string") {
+          return record.thinking.trim();
+        }
+        return "";
+      })
+      .filter((value) => value.length > 0)
+      .join("\n")
+      .trim();
+  }
+
+  if (content && typeof content === "object") {
+    const record = content as Record<string, unknown>;
+    if (typeof record.text === "string") {
+      return record.text.trim();
+    }
+    if (typeof record.content === "string") {
+      return record.content.trim();
+    }
+    try {
+      return JSON.stringify(content);
+    } catch {
+      return String(content);
+    }
+  }
+
+  return "";
+}
+
+function extractConversationReasoning(record: Record<string, unknown>): string {
+  const directCandidates: unknown[] = [
+    record.reasoning_content,
+    record.reasoning,
+    record.thinking,
+    record.think,
+  ];
+
+  for (const candidate of directCandidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  const nestedContainers: unknown[] = [
+    record.additional_kwargs,
+    record.kwargs,
+    record.response_metadata,
+    record.metadata,
+  ];
+
+  for (const container of nestedContainers) {
+    if (!container || typeof container !== "object") {
+      continue;
+    }
+
+    const nested = container as Record<string, unknown>;
+    const nestedReasoning =
+      nested.reasoning_content ?? nested.reasoning ?? nested.thinking ?? nested.think;
+
+    if (typeof nestedReasoning === "string" && nestedReasoning.trim().length > 0) {
+      return nestedReasoning.trim();
+    }
+  }
+
+  return "";
+}
+
+function summarizeToolCalls(toolCalls: unknown): string {
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) {
+    return "";
+  }
+
+  return toolCalls
+    .map((toolCall) => {
+      if (!toolCall || typeof toolCall !== "object") {
+        return "tool";
+      }
+      const record = toolCall as Record<string, unknown>;
+      const name =
+        typeof record.name === "string"
+          ? record.name
+          : typeof (record.function as { name?: unknown } | undefined)?.name ===
+              "string"
+            ? String((record.function as { name?: unknown }).name)
+            : "tool";
+      return name;
+    })
+    .join(", ");
+}
+
+function logConversationMessage(threadId: string, role: string, content: string): void {
+  const normalized = content.trim();
+  if (normalized.length === 0) {
+    return;
+  }
+  console.log(`[Chat][${threadId}][${role}] ${normalized}`);
+}
+
+function logConversationMessagesFromValues(threadId: string, data: unknown): void {
+  if (!data || typeof data !== "object") {
+    return;
+  }
+
+  const state = data as {
+    messages?: Array<{
+      id?: unknown;
+      kwargs?: Record<string, unknown>;
+    }>;
+  };
+
+  if (!Array.isArray(state.messages) || state.messages.length === 0) {
+    return;
+  }
+
+  const cache = getConversationLogCache(threadId);
+
+  for (const message of state.messages) {
+    const kwargs = message.kwargs ?? {};
+    const classId = Array.isArray(message.id) ? message.id : [];
+    const className = classId[classId.length - 1] || "";
+
+    if (className.includes("Human")) {
+      continue;
+    }
+
+    const role = className.includes("Tool") ? "tool" : "assistant";
+    const reasoning = extractConversationReasoning(kwargs);
+    const content = stringifyConversationContent(kwargs.content);
+    const toolCallSummary = summarizeToolCalls(kwargs.tool_calls);
+    const answerContent =
+      content || (toolCallSummary.length > 0 ? `tool_calls: ${toolCallSummary}` : "");
+    const printableContent = [
+      reasoning.length > 0 ? `<think>\n${reasoning}\n</think>` : "",
+      answerContent,
+    ]
+      .filter((value) => value.length > 0)
+      .join("\n")
+      .trim();
+
+    if (printableContent.length === 0) {
+      continue;
+    }
+
+    const signature = [
+      role,
+      typeof kwargs.id === "string" ? kwargs.id : "",
+      typeof kwargs.tool_call_id === "string" ? kwargs.tool_call_id : "",
+      typeof kwargs.name === "string" ? kwargs.name : "",
+      printableContent,
+    ].join("::");
+
+    if (cache.has(signature)) {
+      continue;
+    }
+
+    cache.add(signature);
+    const prefix =
+      role === "tool" && typeof kwargs.name === "string"
+        ? `${kwargs.name}: ${printableContent}`
+        : printableContent;
+    logConversationMessage(threadId, role, prefix);
+  }
+}
 
 export function registerAgentHandlers(ipcMain: IpcMain): void {
   logInfo("Agent", "Registering agent handlers");
@@ -43,6 +241,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         modelId,
         referencedPathsCount: referencedPaths?.length ?? 0,
       });
+      logConversationMessage(threadId, "user", message);
 
       if (!window) {
         logError("Agent", "No window found for invoke", { threadId });
@@ -141,6 +340,10 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
             });
           }
 
+          if (mode === "values") {
+            logConversationMessagesFromValues(threadId, data);
+          }
+
           // Forward raw stream events - transport layer handles parsing
           // Serialize to plain objects for IPC (class instances don't transfer)
           window.webContents.send(channel, {
@@ -204,6 +407,13 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         command,
         modelId,
       });
+      if (command?.resume?.decision) {
+        logConversationMessage(
+          threadId,
+          "resume",
+          `decision=${command.resume.decision}`,
+        );
+      }
 
       if (!window) {
         logError("Agent", "No window found for resume", { threadId });
@@ -297,6 +507,11 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
               elapsedMs: Date.now() - requestStartedAt,
             });
           }
+
+          if (mode === "values") {
+            logConversationMessagesFromValues(threadId, data);
+          }
+
           window.webContents.send(channel, {
             type: "stream",
             mode,

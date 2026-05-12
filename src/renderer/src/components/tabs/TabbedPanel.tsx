@@ -2,11 +2,12 @@ import { useCurrentThread } from "@/lib/thread-context";
 import { TabBar } from "./TabBar";
 import { FileViewer } from "./FileViewer";
 import { ChatContainer } from "@/components/chat/ChatContainer";
+import type { SettingsOpenRequest } from "@/types";
 
 interface TabbedPanelProps {
   threadId: string;
   showTabBar?: boolean;
-  onOpenSettings: () => void;
+  onOpenSettings: (request?: SettingsOpenRequest) => void;
 }
 
 export function TabbedPanel({

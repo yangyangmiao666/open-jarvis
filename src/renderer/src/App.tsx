@@ -9,6 +9,7 @@ import { WindowTitleBar } from "@/components/WindowTitleBar";
 import { SettingsHubDialog } from "@/components/chat/SettingsHubDialog";
 import { useAppStore } from "@/lib/store";
 import { ThreadProvider } from "@/lib/thread-context";
+import type { SettingsOpenRequest } from "@/types";
 
 // 左侧栏最小宽度（会话列表 + 品牌区）
 const BADGE_MIN_SCREEN_WIDTH = 220;
@@ -38,6 +39,21 @@ function AppShell({
 }: AppShellProps): React.JSX.Element {
   const { currentThreadId, showKanbanView, settingsOpen, setSettingsOpen } =
     useAppStore();
+  const [settingsRequest, setSettingsRequest] = useState<SettingsOpenRequest | null>(
+    null,
+  );
+
+  const handleOpenSettings = useCallback((request?: SettingsOpenRequest) => {
+    setSettingsRequest(request ?? null);
+    setSettingsOpen(true);
+  }, [setSettingsOpen]);
+
+  const handleSettingsOpenChange = useCallback((nextOpen: boolean) => {
+    setSettingsOpen(nextOpen);
+    if (!nextOpen) {
+      setSettingsRequest(null);
+    }
+  }, [setSettingsOpen]);
 
   return (
     <div className="app-shell flex h-screen flex-col overflow-hidden bg-background">
@@ -50,7 +66,7 @@ function AppShell({
               style={{ width: leftWidth }}
               className="app-sidebar-chrome flex shrink-0 flex-col overflow-hidden border-r border-border/70"
             >
-              <ThreadSidebar onOpenSettings={() => setSettingsOpen(true)} />
+              <ThreadSidebar onOpenSettings={handleOpenSettings} />
             </div>
 
             <ResizeHandle onDrag={handleLeftResize} />
@@ -83,7 +99,7 @@ function AppShell({
                         <TabbedPanel
                           threadId={currentThreadId}
                           showTabBar={false}
-                          onOpenSettings={() => setSettingsOpen(true)}
+                          onOpenSettings={handleOpenSettings}
                         />
                       ) : (
                         <div className="flex flex-1 items-center justify-center text-muted-foreground">
@@ -106,7 +122,11 @@ function AppShell({
         </div>
       </div>
 
-      <SettingsHubDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsHubDialog
+        open={settingsOpen}
+        onOpenChange={handleSettingsOpenChange}
+        request={settingsRequest}
+      />
     </div>
   );
 }

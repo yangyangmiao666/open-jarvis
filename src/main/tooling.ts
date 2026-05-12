@@ -7,14 +7,16 @@ interface EmbeddedToolingManifestEntry {
   path: string;
 }
 
+interface EmbeddedPythonVersionEntry {
+  version: string;
+}
+
 interface EmbeddedToolingManifest {
   platform: string;
   arch: string;
   uv: EmbeddedToolingManifestEntry;
   bun: EmbeddedToolingManifestEntry;
-  python: EmbeddedToolingManifestEntry & {
-    request: string;
-  };
+  python: EmbeddedPythonVersionEntry;
 }
 
 export interface EmbeddedToolingRuntime {
@@ -22,9 +24,8 @@ export interface EmbeddedToolingRuntime {
   manifest: EmbeddedToolingManifest;
   uvPath: string;
   bunPath: string;
-  pythonPath: string;
   binDir: string;
-  pythonInstallDir: string;
+  pythonVersion: string;
 }
 
 function getPlatformArch(): string {
@@ -126,21 +127,19 @@ export function getEmbeddedToolingRuntime(): EmbeddedToolingRuntime | null {
       manifest,
       uvPath: join(rootDir, manifest.uv.path),
       bunPath: join(rootDir, manifest.bun.path),
-      pythonPath: join(rootDir, manifest.python.path),
       binDir: join(rootDir, "bin"),
-      pythonInstallDir: join(rootDir, "python"),
+      pythonVersion: manifest.python.version,
     };
 
     // Verify all critical paths exist
     const uvExists = existsSync(runtime.uvPath);
     const bunExists = existsSync(runtime.bunPath);
-    const pythonExists = existsSync(runtime.pythonPath);
 
     logInfo("Tooling", "Resolved embedded tooling runtime", {
       ...runtime,
       uvExists,
       bunExists,
-      pythonExists,
+      hasPythonVersion: !!runtime.pythonVersion,
     });
 
     return runtime;

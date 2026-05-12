@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Boxes, Cable, Sparkles, Wrench, Orbit, Network } from "lucide-react";
 import {
   Dialog,
@@ -12,10 +12,12 @@ import { OpenAICompatibleDialog } from "./OpenAICompatibleDialog";
 import { MCPConfigDialog } from "./MCPConfigDialog";
 import { SkillsDialog } from "../panels/SkillsDialog";
 import { ProxyConfigDialog } from "./ProxyConfigDialog";
+import type { SettingsOpenRequest } from "@/types";
 
 interface SettingsHubDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  request?: SettingsOpenRequest | null;
 }
 
 interface SettingsCardProps {
@@ -63,12 +65,21 @@ function SettingsCard({
 export function SettingsHubDialog({
   open,
   onOpenChange,
+  request,
 }: SettingsHubDialogProps): React.JSX.Element {
   const [openAICompatibleOpen, setOpenAICompatibleOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
   const { loadModels, loadProviders } = useAppStore();
+
+  useEffect(() => {
+    if (!open || request?.panel !== "models") {
+      return;
+    }
+
+    setOpenAICompatibleOpen(true);
+  }, [open, request]);
 
   return (
     <>
@@ -128,6 +139,7 @@ export function SettingsHubDialog({
       <OpenAICompatibleDialog
         open={openAICompatibleOpen}
         onOpenChange={setOpenAICompatibleOpen}
+        initialProfileId={request?.panel === "models" ? request.profileId : null}
         onSaved={() => {
           void loadProviders();
           void loadModels();

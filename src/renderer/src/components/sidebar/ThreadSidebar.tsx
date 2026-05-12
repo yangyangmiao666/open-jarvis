@@ -33,7 +33,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import type { Thread } from "@/types";
+import type { Thread, SettingsOpenRequest } from "@/types";
 
 // Thread status indicator that shows loading, interrupted, or default state
 function ThreadStatusIcon({
@@ -171,7 +171,7 @@ function ThreadListItem({
 }
 
 interface ThreadSidebarProps {
-  onOpenSettings: () => void;
+  onOpenSettings: (request?: SettingsOpenRequest) => void;
 }
 
 export function ThreadSidebar({
@@ -409,7 +409,7 @@ export function ThreadSidebar({
             variant="outline"
             size="icon"
             className="size-9 shrink-0 rounded-2xl"
-            onClick={onOpenSettings}
+            onClick={() => onOpenSettings()}
             title="打开设置"
           >
             <Settings className="size-4" />

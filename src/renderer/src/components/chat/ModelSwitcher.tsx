@@ -16,7 +16,7 @@ import { useAppStore } from "@/lib/store";
 import { useCurrentThread } from "@/lib/thread-context";
 import { cn } from "@/lib/utils";
 import { ApiKeyDialog } from "./ApiKeyDialog";
-import type { Provider, ProviderId } from "@/types";
+import type { Provider, ProviderId, SettingsOpenRequest } from "@/types";
 
 // Provider icons as simple SVG components
 function AnthropicIcon({
@@ -65,15 +65,12 @@ const PROVIDER_ICONS: Record<ProviderId, React.FC<{ className?: string }>> = {
 
 // Fallback providers in case the backend hasn't loaded them yet
 const FALLBACK_PROVIDERS: Provider[] = [
-  { id: "anthropic", name: "Anthropic", hasApiKey: false },
-  { id: "openai", name: "OpenAI", hasApiKey: false },
-  { id: "google", name: "Google", hasApiKey: false },
   { id: "openai_compatible", name: "自定义模型", hasApiKey: false },
 ];
 
 interface ModelSwitcherProps {
   threadId: string;
-  onOpenSettings: () => void;
+  onOpenSettings: (request?: SettingsOpenRequest) => void;
 }
 
 export function ModelSwitcher({
@@ -115,6 +112,13 @@ export function ModelSwitcher({
     (p) => p.id === effectiveProviderId,
   );
 
+  function buildModelSettingsRequest(): SettingsOpenRequest {
+    return {
+      panel: "models",
+      profileId: currentModel.startsWith("oac:") ? currentModel.slice(4) : undefined,
+    };
+  }
+
   function handleProviderClick(provider: Provider): void {
     setSelectedProviderId(provider.id);
   }
@@ -126,7 +130,7 @@ export function ModelSwitcher({
 
   function handleConfigureApiKey(provider: Provider): void {
     if (provider.id === "openai_compatible") {
-      onOpenSettings();
+      onOpenSettings(buildModelSettingsRequest());
       setOpen(false);
       return;
     }
@@ -238,11 +242,11 @@ export function ModelSwitcher({
                   <Button
                     size="sm"
                     onClick={() => {
-                      onOpenSettings();
+                      onOpenSettings(buildModelSettingsRequest());
                       setOpen(false);
                     }}
                   >
-                    打开设置
+                    设置大模型
                   </Button>
                 </div>
               ) : (
@@ -300,7 +304,7 @@ export function ModelSwitcher({
                       <Key className="size-3.5" />
                       <span>
                         {selectedProvider.id === "openai_compatible"
-                          ? "打开设置"
+                          ? "设置大模型"
                           : "编辑 API 密钥"}
                       </span>
                     </button>

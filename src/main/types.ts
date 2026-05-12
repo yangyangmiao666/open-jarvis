@@ -173,6 +173,17 @@ export type ProviderId =
   | "ollama"
   | "openai_compatible";
 
+export type CustomModelApiFormat = "openai" | "anthropic";
+
+export type CustomModelThinkingType = "enabled" | "disabled";
+
+export type CustomModelThinkingEffort =
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
+
 export interface Provider {
   id: ProviderId;
   name: string;
@@ -186,6 +197,9 @@ export interface OpenAICompatibleProfile {
   baseUrl: string;
   apiKey: string;
   model: string;
+  apiFormat?: CustomModelApiFormat;
+  thinkingType?: CustomModelThinkingType;
+  thinkingEffort?: CustomModelThinkingEffort;
   contextWindow?: number;
 }
 

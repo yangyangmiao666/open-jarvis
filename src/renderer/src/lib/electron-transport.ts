@@ -41,11 +41,29 @@ interface SerializedMessageChunk {
   /** Actual message data is in kwargs */
   kwargs?: {
     id?: string;
-    content?: string | Array<{ type: string; text?: string }>;
+    content?:
+      | string
+      | Array<{
+          type?: string;
+          text?: string;
+          content?: string;
+          input_text?: string;
+          output_text?: string;
+          reasoning_content?: string;
+          reasoning?: string;
+          thinking?: string;
+          think?: string;
+        }>;
     tool_calls?: ToolCall[];
     tool_call_chunks?: ToolCallChunk[];
     tool_call_id?: string;
     name?: string;
+    reasoning_content?: string;
+    reasoning?: string;
+    thinking?: string;
+    think?: string;
+    additional_kwargs?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
     usage_metadata?: UsageMetadata;
     response_metadata?: {
       usage?: UsageMetadata;
@@ -79,6 +97,11 @@ interface CompletedToolCall {
   args: Record<string, unknown>;
 }
 
+interface StreamingAssistantState {
+  thinkOpened: boolean;
+  thinkClosed: boolean;
+}
+
 interface HitlActionRequest {
   id?: string;
   action?: string;
@@ -105,12 +128,17 @@ export class ElectronIPCTransport implements UseStreamTransport {
   private completedToolCallsByName: Map<string, CompletedToolCall[]> =
     new Map();
 
+  // Track assistant streaming state so reasoning is rendered as one continuous block
+  private streamingAssistantStates: Map<string, StreamingAssistantState> =
+    new Map();
+
   async stream(payload: StreamPayload): Promise<AsyncGenerator<StreamEvent>> {
     // Reset state for new stream
     this.currentMessageId = null;
     this.activeSubagents.clear();
     this.accumulatedToolCalls.clear();
     this.completedToolCallsByName.clear();
+    this.streamingAssistantStates.clear();
     // Extract thread ID and model ID from config
     const threadId = payload.config?.configurable?.thread_id;
     const modelId = payload.config?.configurable?.model_id as
@@ -479,9 +507,9 @@ export class ElectronIPCTransport implements UseStreamTransport {
         className.includes("AI") || className.includes("AIMessageChunk");
 
       if (isAIMessage) {
-        const content = this.extractContent(kwargs.content);
         const msgId = kwargs.id || this.currentMessageId || crypto.randomUUID();
         this.currentMessageId = msgId;
+        const content = this.buildStreamingAssistantDelta(kwargs, msgId);
 
         if (content || kwargs.tool_calls?.length) {
           events.push({
@@ -688,7 +716,10 @@ export class ElectronIPCTransport implements UseStreamTransport {
           const type: "ai" | "tool" = className.includes("Tool")
             ? "tool"
             : "ai";
-          const content = this.extractContent(kwargs.content);
+          const content =
+            type === "ai"
+              ? this.buildAssistantContent(kwargs)
+              : this.extractContent(kwargs.content);
 
           return {
             id: kwargs.id || crypto.randomUUID(),
@@ -829,21 +860,296 @@ export class ElectronIPCTransport implements UseStreamTransport {
    * Extract text content from message content (string or content blocks)
    */
   private extractContent(
-    content: string | Array<{ type: string; text?: string }> | undefined,
+    content:
+      | string
+      | Array<{
+          type?: string;
+          text?: string;
+          content?: string;
+          input_text?: string;
+          output_text?: string;
+        }>
+      | undefined,
   ): string {
     if (typeof content === "string") {
       return content;
     }
     if (Array.isArray(content)) {
       return content
-        .filter(
-          (block): block is { type: "text"; text: string } =>
-            block.type === "text",
-        )
-        .map((block) => block.text)
+        .map((block) => {
+          if (!block || typeof block !== "object") {
+            return "";
+          }
+
+          const type = typeof block.type === "string" ? block.type : "";
+          if (type.includes("reasoning") || type.includes("thinking")) {
+            return "";
+          }
+
+          if (typeof block.text === "string") {
+            return block.text;
+          }
+          if (typeof block.content === "string") {
+            return block.content;
+          }
+          if (typeof block.input_text === "string") {
+            return block.input_text;
+          }
+          if (typeof block.output_text === "string") {
+            return block.output_text;
+          }
+          return "";
+        })
+        .filter((value) => value.length > 0)
         .join("");
     }
     return "";
+  }
+
+  private extractReasoning(
+    message: Record<string, unknown>,
+  ): string {
+    const directCandidates: unknown[] = [
+      message.reasoning_content,
+      message.reasoning,
+      message.thinking,
+      message.think,
+    ];
+
+    for (const candidate of directCandidates) {
+      if (typeof candidate === "string" && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+
+    const content = message.content;
+    if (Array.isArray(content)) {
+      const reasoningParts = content
+        .map((part) => {
+          if (!part || typeof part !== "object") {
+            return "";
+          }
+
+          const record = part as Record<string, unknown>;
+          const type = typeof record.type === "string" ? record.type : "";
+
+          const directPartReasoning =
+            record.reasoning_content ??
+            record.reasoning ??
+            record.thinking ??
+            record.think;
+          if (
+            typeof directPartReasoning === "string" &&
+            directPartReasoning.trim().length > 0
+          ) {
+            return directPartReasoning.trim();
+          }
+
+          if (type.includes("reasoning") || type.includes("thinking")) {
+            if (typeof record.text === "string" && record.text.trim().length > 0) {
+              return record.text.trim();
+            }
+            if (
+              typeof record.content === "string" &&
+              record.content.trim().length > 0
+            ) {
+              return record.content.trim();
+            }
+          }
+
+          return "";
+        })
+        .filter((value) => value.length > 0);
+
+      if (reasoningParts.length > 0) {
+        return reasoningParts.join("\n");
+      }
+    }
+
+    const nestedContainers: unknown[] = [
+      message.additional_kwargs,
+      message.response_metadata,
+      message.metadata,
+    ];
+
+    for (const container of nestedContainers) {
+      if (!container || typeof container !== "object") {
+        continue;
+      }
+
+      const nested = container as Record<string, unknown>;
+      const nestedReasoning =
+        nested.reasoning_content ?? nested.reasoning ?? nested.thinking ?? nested.think;
+      if (
+        typeof nestedReasoning === "string" &&
+        nestedReasoning.trim().length > 0
+      ) {
+        return nestedReasoning.trim();
+      }
+    }
+
+    return "";
+  }
+
+  private extractStreamingReasoning(
+    message: Record<string, unknown>,
+  ): string {
+    const directCandidates: unknown[] = [
+      message.reasoning_content,
+      message.reasoning,
+      message.thinking,
+      message.think,
+    ];
+
+    for (const candidate of directCandidates) {
+      if (typeof candidate === "string" && candidate.length > 0) {
+        return candidate;
+      }
+    }
+
+    const content = message.content;
+    if (Array.isArray(content)) {
+      const reasoningParts = content
+        .map((part) => {
+          if (!part || typeof part !== "object") {
+            return "";
+          }
+
+          const record = part as Record<string, unknown>;
+          const type = typeof record.type === "string" ? record.type : "";
+          const directPartReasoning =
+            record.reasoning_content ??
+            record.reasoning ??
+            record.thinking ??
+            record.think;
+
+          if (typeof directPartReasoning === "string" && directPartReasoning.length > 0) {
+            return directPartReasoning;
+          }
+
+          if (type.includes("reasoning") || type.includes("thinking")) {
+            if (typeof record.text === "string" && record.text.length > 0) {
+              return record.text;
+            }
+            if (typeof record.content === "string" && record.content.length > 0) {
+              return record.content;
+            }
+          }
+
+          return "";
+        })
+        .filter((value) => value.length > 0);
+
+      if (reasoningParts.length > 0) {
+        return reasoningParts.join("");
+      }
+    }
+
+    const nestedContainers: unknown[] = [
+      message.additional_kwargs,
+      message.response_metadata,
+      message.metadata,
+    ];
+
+    for (const container of nestedContainers) {
+      if (!container || typeof container !== "object") {
+        continue;
+      }
+
+      const nested = container as Record<string, unknown>;
+      const nestedReasoning =
+        nested.reasoning_content ?? nested.reasoning ?? nested.thinking ?? nested.think;
+      if (typeof nestedReasoning === "string" && nestedReasoning.length > 0) {
+        return nestedReasoning;
+      }
+    }
+
+    return "";
+  }
+
+  private getStreamingAssistantState(messageId: string): StreamingAssistantState {
+    let state = this.streamingAssistantStates.get(messageId);
+    if (!state) {
+      state = { thinkOpened: false, thinkClosed: false };
+      this.streamingAssistantStates.set(messageId, state);
+    }
+    return state;
+  }
+
+  private buildStreamingAssistantDelta(
+    kwargs: SerializedMessageChunk["kwargs"] | Record<string, unknown>,
+    messageId: string,
+  ): string {
+    const record = kwargs as Record<string, unknown>;
+    const state = this.getStreamingAssistantState(messageId);
+    const reasoning = this.extractStreamingReasoning(record);
+    const content = this.extractContent(
+      record.content as
+        | string
+        | Array<{
+            type?: string;
+            text?: string;
+            content?: string;
+            input_text?: string;
+            output_text?: string;
+          }>
+        | undefined,
+    );
+    const hasToolCalls =
+      Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
+    const parts: string[] = [];
+
+    if (reasoning.length > 0) {
+      if (!state.thinkOpened) {
+        parts.push("<think>\n");
+        state.thinkOpened = true;
+      }
+      parts.push(reasoning);
+    }
+
+    const shouldCloseThink =
+      state.thinkOpened && !state.thinkClosed && (content.length > 0 || hasToolCalls);
+
+    if (shouldCloseThink) {
+      parts.push("\n</think>");
+      state.thinkClosed = true;
+      if (content.length > 0) {
+        parts.push("\n");
+      }
+    }
+
+    if (content.length > 0) {
+      parts.push(content);
+    }
+
+    return parts.join("");
+  }
+
+  private buildAssistantContent(
+    kwargs: SerializedMessageChunk["kwargs"] | Record<string, unknown>,
+  ): string {
+    const messageRecord = kwargs as Record<string, unknown>;
+    const reasoning = this.extractReasoning(messageRecord);
+    const content = this.extractContent(
+      messageRecord.content as
+        | string
+        | Array<{
+            type?: string;
+            text?: string;
+            content?: string;
+            input_text?: string;
+            output_text?: string;
+          }>
+        | undefined,
+    ).trim();
+
+    return [
+      reasoning.length > 0 ? `<think>\n${reasoning}\n</think>` : "",
+      content,
+    ]
+      .filter((value) => value.length > 0)
+      .join("\n")
+      .trim();
   }
 
   /**
