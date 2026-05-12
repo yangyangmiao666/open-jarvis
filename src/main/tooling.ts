@@ -7,8 +7,9 @@ interface EmbeddedToolingManifestEntry {
   path: string;
 }
 
-interface EmbeddedPythonVersionEntry {
+interface EmbeddedPythonManifestEntry {
   version: string;
+  path?: string;
 }
 
 interface EmbeddedToolingManifest {
@@ -16,7 +17,7 @@ interface EmbeddedToolingManifest {
   arch: string;
   uv: EmbeddedToolingManifestEntry;
   bun: EmbeddedToolingManifestEntry;
-  python: EmbeddedPythonVersionEntry;
+  python: EmbeddedPythonManifestEntry;
 }
 
 export interface EmbeddedToolingRuntime {
@@ -24,6 +25,7 @@ export interface EmbeddedToolingRuntime {
   manifest: EmbeddedToolingManifest;
   uvPath: string;
   bunPath: string;
+  pythonPath: string | null;
   binDir: string;
   pythonVersion: string;
 }
@@ -127,6 +129,9 @@ export function getEmbeddedToolingRuntime(): EmbeddedToolingRuntime | null {
       manifest,
       uvPath: join(rootDir, manifest.uv.path),
       bunPath: join(rootDir, manifest.bun.path),
+      pythonPath: manifest.python.path
+        ? join(rootDir, manifest.python.path)
+        : null,
       binDir: join(rootDir, "bin"),
       pythonVersion: manifest.python.version,
     };
@@ -134,11 +139,13 @@ export function getEmbeddedToolingRuntime(): EmbeddedToolingRuntime | null {
     // Verify all critical paths exist
     const uvExists = existsSync(runtime.uvPath);
     const bunExists = existsSync(runtime.bunPath);
+    const pythonExists = runtime.pythonPath ? existsSync(runtime.pythonPath) : false;
 
     logInfo("Tooling", "Resolved embedded tooling runtime", {
       ...runtime,
       uvExists,
       bunExists,
+      pythonExists,
       hasPythonVersion: !!runtime.pythonVersion,
     });
 

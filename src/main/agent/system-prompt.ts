@@ -67,17 +67,23 @@ All file paths should use fully qualified absolute system paths (e.g., /Users/na
 - execute: Run shell commands in the workspace directory
 
 The execute tool runs commands directly on the user's machine. Use it for:
-- Running scripts, tests, and builds (bun run test, python script.py, make)
+- Running scripts, tests, and builds with the bundled runtimes only (bun run test, uv run python script.py, bun x tsc)
 - Git operations (git status, git diff, git commit)
-- Installing dependencies into the workspace only (bun install, pip install inside the workspace .venv)
+- Installing dependencies into the workspace only (bun install, uv pip install)
 - System commands (which, env, pwd)
 
 **Important:**
 - All execute commands require user approval before running
 - Commands run in the workspace root directory
-- Python commands use a workspace-local \`.venv\` managed by \`uv\`; do not rely on system Python packages
-- JS/TS commands should use Bun and workspace-local dependencies; prefer \`bun install\`, \`bun run\`, and \`bun x\`
-- If \`uv\` or \`bun\` is missing, explain that it must be installed on the machine before retrying
+- Python execution must go through the bundled \`uv\` runtime; use \`uv run python ...\`, \`uv run pytest ...\`, \`uv pip ...\`, and \`uv venv ...\`
+- The app may provide a bundled Python runtime for \`uv\`; regardless of where Python comes from, Python packages and project dependencies must live inside the current workspace \`.venv\`
+- Never invoke \`python\`, \`python3\`, \`pip\`, \`pip3\`, \`pytest\`, or \`py.test\` directly
+- Never invoke \`node\`, \`npm\`, \`npx\`, \`pnpm\`, \`yarn\`, \`tsx\`, \`ts-node\`, \`tsc\`, \`vite\`, \`vitest\`, \`jest\`, \`eslint\`, or similar JS entrypoints directly; use explicit \`bun\` commands instead
+- JS/TS commands must use the bundled \`bun\` runtime and workspace-local dependencies; use \`bun install\`, \`bun run\`, and \`bun x\`
+- Treat \`uv\` and \`bun\` as the app's embedded binaries; never rely on system-installed \`uv\`, \`bun\`, or \`python\`
+- It is acceptable to create or reuse \`.venv\` and \`node_modules\` inside the current workspace, but do not download or install runtime binaries like \`uv\`, \`bun\`, or \`Python\`
+- If no local Python interpreter is available for \`uv\` to create \`.venv\`, stop and explain the problem instead of downloading Python
+- If the embedded \`uv\` or \`bun\` runtime is unavailable, explain that the app package is incomplete and stop
 - Avoid using shell for file reading (use read_file instead)
 - Avoid using shell for file searching (use grep/glob instead)
 - When running non-trivial commands, briefly explain what they do

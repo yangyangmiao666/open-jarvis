@@ -149,6 +149,12 @@ const SPECIAL_TEXT_FILENAMES = new Set([
 ]);
 const PYTHON_COMMAND_PATTERN =
   /(^|[\s(;|&])(?:python|python3|pip|pip3|pytest|py\.test|uv)(?=$|[\s);|&])/;
+const DIRECT_PYTHON_EXECUTABLE_PATTERN =
+  /^(?:python|python3|pip|pip3|pytest|py\.test)$/i;
+const DIRECT_JAVASCRIPT_EXECUTABLE_PATTERN =
+  /^(?:node|npm|npx|pnpm|yarn|tsx|ts-node|tsc|vite|vitest|jest|eslint|prettier|webpack|rollup|parcel|next|nuxt)$/i;
+const SHELL_WRAPPER_EXECUTABLE_PATTERN =
+  /^(?:bash|sh|zsh|cmd(?:\.exe)?|powershell(?:\.exe)?|pwsh(?:\.exe)?)$/i;
 const JS_COMMAND_PATTERN =
   /(^|[\s(;|&])(?:bun|node|npm|npx|pnpm|yarn|tsx|ts-node|tsc|vite|vitest|jest|eslint|prettier|webpack|rollup|parcel|next|nuxt)(?=$|[\s);|&])/;
 
@@ -231,15 +237,145 @@ function needsPythonWorkspaceRuntime(command: string): boolean {
   return PYTHON_COMMAND_PATTERN.test(command);
 }
 
+function splitShellSegments(command: string): string[] {
+  return command
+    .split(/(?:&&|\|\||[;&])(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+}
+
+function stripLeadingEnvWrappers(segment: string): string {
+  let remaining = segment.trim();
+
+  if (/^env\b/i.test(remaining)) {
+    remaining = remaining.replace(/^env\b\s*/i, "");
+    while (/^-[A-Za-z]\b/.test(remaining)) {
+      remaining = remaining.replace(/^-[A-Za-z]\b\s*/, "");
+      if (/^\S+/.test(remaining)) {
+        remaining = remaining.replace(/^\S+\s*/, "");
+      }
+    }
+  }
+
+  while (
+    /^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)(?:\s+|$)/.test(
+      remaining,
+    )
+  ) {
+    remaining = remaining.replace(
+      /^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)(?:\s+|$)/,
+      "",
+    );
+  }
+
+  return remaining.trimStart();
+}
+
+function getLeadingExecutable(segment: string): string | null {
+  const normalized = stripLeadingEnvWrappers(segment);
+  if (!normalized) {
+    return null;
+  }
+
+  const commandMatch = normalized.match(/^(?:command|builtin)\s+(.+)$/i);
+  const candidate = commandMatch?.[1]?.trimStart() ?? normalized;
+  const executable = candidate.match(/^[^\s]+/)?.[0] ?? null;
+  return executable ? executable.replace(/^['"]|['"]$/g, "") : null;
+}
+
+function stripMatchingQuotes(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length < 2) {
+    return trimmed;
+  }
+
+  const first = trimmed[0];
+  const last = trimmed[trimmed.length - 1];
+  if ((first === '"' || first === "'") && first === last) {
+    return trimmed.slice(1, -1);
+  }
+
+  return trimmed;
+}
+
+function getNestedShellCommand(segment: string): string | null {
+  const normalized = stripLeadingEnvWrappers(segment);
+  const executable = getLeadingExecutable(normalized);
+  if (!executable || !SHELL_WRAPPER_EXECUTABLE_PATTERN.test(executable)) {
+    return null;
+  }
+
+  const rest = normalized.slice(executable.length).trimStart();
+  if (!rest) {
+    return null;
+  }
+
+  if (/^cmd(?:\.exe)?$/i.test(executable)) {
+    const commandMatch = rest.match(/^\/[cC]\s+([\s\S]+)$/);
+    return commandMatch ? stripMatchingQuotes(commandMatch[1]) : null;
+  }
+
+  if (/^(?:powershell(?:\.exe)?|pwsh(?:\.exe)?)$/i.test(executable)) {
+    const commandMatch = rest.match(
+      /^(?:(?:-(?:NoProfile|NonInteractive|NoLogo))\s+|(?:-ExecutionPolicy\s+\S+)\s+|(?:-File\s+\S+)\s+)*-(?:c|command)\s+([\s\S]+)$/i,
+    );
+    return commandMatch ? stripMatchingQuotes(commandMatch[1]) : null;
+  }
+
+  const commandMatch = rest.match(
+    /^(?:-[A-Za-z-]+\s+)*-[A-Za-z-]*c[A-Za-z-]*\s+([\s\S]+)$/,
+  );
+  return commandMatch ? stripMatchingQuotes(commandMatch[1]) : null;
+}
+
+function getExecutableCandidates(segment: string, depth = 0): string[] {
+  const executable = getLeadingExecutable(segment);
+  if (!executable) {
+    return [];
+  }
+
+  if (depth >= 3) {
+    return [executable];
+  }
+
+  const nestedCommand = getNestedShellCommand(segment);
+  if (!nestedCommand || nestedCommand === segment) {
+    return [executable];
+  }
+
+  return [executable, ...getExecutableCandidates(nestedCommand, depth + 1)];
+}
+
+function getDirectPythonInvocation(command: string): string | null {
+  for (const segment of splitShellSegments(command)) {
+    for (const executable of getExecutableCandidates(segment)) {
+      if (DIRECT_PYTHON_EXECUTABLE_PATTERN.test(executable)) {
+        return executable;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getDirectJavaScriptInvocation(command: string): string | null {
+  for (const segment of splitShellSegments(command)) {
+    for (const executable of getExecutableCandidates(segment)) {
+      if (DIRECT_JAVASCRIPT_EXECUTABLE_PATTERN.test(executable)) {
+        return executable;
+      }
+    }
+  }
+
+  return null;
+}
+
 function needsWindowsPythonBootstrap(command: string): boolean {
   if (!needsPythonWorkspaceRuntime(command)) {
     return false;
   }
 
-  const segments = command
-    .split(/(?:&&|\|\||[;&])(?=(?:[^"]*"[^"]*")*[^"]*$)/)
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0);
+  const segments = splitShellSegments(command);
 
   const pythonSegments = segments.filter((segment) =>
     PYTHON_COMMAND_PATTERN.test(segment),
@@ -408,10 +544,6 @@ export class LocalSandbox
   private resolvePathSafe(filePath: string): string {
     const self = this as unknown as { resolvePath: (k: string) => string };
     return self.resolvePath(filePath);
-  }
-
-  private getWorkspacePythonInstallDir(): string {
-    return path.join(this.workingDir, ".open-jarvis", "python-install");
   }
 
   private ensureWindowsRuntimeShims(
@@ -618,20 +750,23 @@ export class LocalSandbox
     });
 
     if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
-      const workspacePythonInstallDir = this.getWorkspacePythonInstallDir();
       commandEnv.OPEN_JARVIS_TOOLING_ROOT = this.embeddedTooling.rootDir;
       commandEnv.OPEN_JARVIS_TOOLING_BIN = this.embeddedTooling.binDir;
       commandEnv.OPEN_JARVIS_UV = this.embeddedTooling.uvPath;
       commandEnv.OPEN_JARVIS_BUN = this.embeddedTooling.bunPath;
-      commandEnv.OPEN_JARVIS_PYTHON_VERSION = this.embeddedTooling.pythonVersion;
-      commandEnv.UV_PYTHON_INSTALL_DIR = workspacePythonInstallDir;
+      if (this.embeddedTooling.pythonPath) {
+        commandEnv.OPEN_JARVIS_PYTHON = this.embeddedTooling.pythonPath;
+      }
+      commandEnv.UV_NO_MANAGED_PYTHON = "true";
+      commandEnv.UV_PYTHON_DOWNLOADS = "false";
       commandEnv.UV_NO_PROGRESS = "true";
 
       logInfo("LocalSandbox", "Embedded tooling environment variables set", {
         OPEN_JARVIS_UV: this.embeddedTooling.uvPath,
         OPEN_JARVIS_BUN: this.embeddedTooling.bunPath,
-        OPEN_JARVIS_PYTHON_VERSION: this.embeddedTooling.pythonVersion,
-        UV_PYTHON_INSTALL_DIR: workspacePythonInstallDir,
+        OPEN_JARVIS_PYTHON: this.embeddedTooling.pythonPath ?? null,
+        UV_NO_MANAGED_PYTHON: commandEnv.UV_NO_MANAGED_PYTHON,
+        UV_PYTHON_DOWNLOADS: commandEnv.UV_PYTHON_DOWNLOADS,
       });
     }
 
@@ -666,15 +801,19 @@ export class LocalSandbox
     if (requiresPython) {
       const hasUv =
         this.embeddedTooling && fsSync.existsSync(this.embeddedTooling.uvPath);
-      const hasPythonVersion = !!this.embeddedTooling?.pythonVersion;
+      const hasBundledPython =
+        !!this.embeddedTooling?.pythonPath &&
+        fsSync.existsSync(this.embeddedTooling.pythonPath);
 
       logInfo("LocalSandbox", "Python runtime check", {
         embeddedToolingExists: !!this.embeddedTooling,
         uvExists: hasUv,
         pythonVersion: this.embeddedTooling?.pythonVersion ?? null,
+        pythonPath: this.embeddedTooling?.pythonPath ?? null,
+        bundledPythonExists: hasBundledPython,
       });
 
-      if (!this.embeddedTooling || !hasUv || !hasPythonVersion) {
+      if (!this.embeddedTooling || !hasUv) {
         prelude.push(
           "echo Error: embedded uv runtime is incomplete in this app package. 1>&2",
           "exit /b 127",
@@ -713,14 +852,20 @@ export class LocalSandbox
     const requiresJavaScript = needsJavaScriptWorkspaceRuntime(command);
 
     if ((requiresPython || requiresJavaScript) && this.embeddedTooling) {
-      const workspacePythonInstallDir = this.getWorkspacePythonInstallDir();
       prelude.push(
         `export OPEN_JARVIS_TOOLING_ROOT=${shellQuote(this.embeddedTooling.rootDir)}`,
         `export OPEN_JARVIS_TOOLING_BIN=${shellQuote(this.embeddedTooling.binDir)}`,
         `export OPEN_JARVIS_UV=${shellQuote(this.embeddedTooling.uvPath)}`,
         `export OPEN_JARVIS_BUN=${shellQuote(this.embeddedTooling.bunPath)}`,
-        `export OPEN_JARVIS_PYTHON_VERSION=${shellQuote(this.embeddedTooling.pythonVersion)}`,
-        `export UV_PYTHON_INSTALL_DIR=${shellQuote(workspacePythonInstallDir)}`,
+        ...(this.embeddedTooling.pythonPath
+          ? [
+              `export OPEN_JARVIS_PYTHON=${shellQuote(
+                this.embeddedTooling.pythonPath,
+              )}`,
+            ]
+          : []),
+        'export UV_NO_MANAGED_PYTHON="true"',
+        'export UV_PYTHON_DOWNLOADS="false"',
         'export UV_NO_PROGRESS="true"',
       );
     }
@@ -733,12 +878,26 @@ export class LocalSandbox
         );
       } else {
       prelude.push(
-        'if [ ! -x "$OPEN_JARVIS_UV" ] || [ -z "$OPEN_JARVIS_PYTHON_VERSION" ]; then',
+        'if [ ! -x "$OPEN_JARVIS_UV" ]; then',
         "  printf '%s\\n' 'Error: embedded uv runtime is incomplete in this app package.' >&2",
         "  exit 127",
         "fi",
         'if [ ! -x "$PWD/.venv/bin/python" ]; then',
-        '  "$OPEN_JARVIS_UV" venv "$PWD/.venv" --python "$OPEN_JARVIS_PYTHON_VERSION" >/dev/null',
+        '  OPEN_JARVIS_SYSTEM_PYTHON=""',
+        '  if [ -n "${OPEN_JARVIS_PYTHON-}" ]; then',
+        '    if [ ! -x "$OPEN_JARVIS_PYTHON" ]; then',
+        "      printf '%s\\n' 'Error: embedded Python runtime is incomplete in this app package.' >&2",
+        "      exit 127",
+        "    fi",
+        '    OPEN_JARVIS_SYSTEM_PYTHON="$OPEN_JARVIS_PYTHON"',
+        "  else",
+        '    OPEN_JARVIS_SYSTEM_PYTHON="$($OPEN_JARVIS_UV python find --system --no-managed-python --no-python-downloads 2>/dev/null || true)"',
+        "  fi",
+        '  if [ -z "$OPEN_JARVIS_SYSTEM_PYTHON" ]; then',
+        "    printf '%s\\n' 'Error: no bundled or local Python interpreter is available for uv. Install an app package with embedded Python, or install Python on the machine. Python downloads are disabled.' >&2",
+        "    exit 127",
+        "  fi",
+        '  "$OPEN_JARVIS_UV" venv "$PWD/.venv" --python "$OPEN_JARVIS_SYSTEM_PYTHON" --no-managed-python --no-python-downloads >/dev/null',
         "fi",
         'export VIRTUAL_ENV="$PWD/.venv"',
         'export PATH="$VIRTUAL_ENV/bin:$OPEN_JARVIS_TOOLING_BIN:$PATH"',
@@ -842,19 +1001,20 @@ export class LocalSandbox
 
     const hasUv =
       !!this.embeddedTooling?.uvPath && fsSync.existsSync(this.embeddedTooling.uvPath);
-    const pythonVersion = this.embeddedTooling?.pythonVersion ?? null;
-
+    const bundledPythonPath = this.embeddedTooling?.pythonPath ?? null;
+    const hasBundledPython = !!bundledPythonPath && fsSync.existsSync(bundledPythonPath);
     logInfo("LocalSandbox", "Ensuring Windows Python runtime", {
       sandboxId: this.id,
       workingDir: this.workingDir,
       venvPythonPath,
       hasEmbeddedTooling: !!this.embeddedTooling,
       uvPath: this.embeddedTooling?.uvPath ?? null,
-      pythonVersion,
+      bundledPythonPath,
+      hasBundledPython,
       hasUv,
     });
 
-    if (!this.embeddedTooling || !hasUv || !pythonVersion) {
+    if (!this.embeddedTooling || !hasUv) {
       return {
         output: "[stderr] Error: embedded uv runtime is incomplete in this app package.\n",
         exitCode: 127,
@@ -862,25 +1022,90 @@ export class LocalSandbox
       };
     }
 
-    return new Promise<ExecuteResponse | null>((resolve) => {
+    if (bundledPythonPath && !hasBundledPython) {
+      return {
+        output:
+          "[stderr] Error: embedded Python runtime is incomplete in this app package.\n",
+        exitCode: 127,
+        truncated: false,
+      };
+    }
+
+    let resolvedPython = bundledPythonPath;
+
+    if (!resolvedPython) {
+      const systemPythonResult = await this.runToolingProcess(
+        this.embeddedTooling.uvPath,
+        ["python", "find", "--system", "--no-managed-python", "--no-python-downloads"],
+        commandEnv,
+      );
+
+      if (systemPythonResult.exitCode !== 0) {
+        return {
+          output:
+            systemPythonResult.output ||
+            "[stderr] Error: no bundled or local Python interpreter is available for uv. Python downloads are disabled.\n",
+          exitCode: systemPythonResult.exitCode,
+          truncated: systemPythonResult.truncated,
+        };
+      }
+
+      resolvedPython = systemPythonResult.output
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find((line) => line.length > 0) ?? null;
+    }
+
+    if (!resolvedPython) {
+      return {
+        output:
+          "[stderr] Error: no bundled or local Python interpreter is available for uv. Python downloads are disabled.\n",
+        exitCode: 127,
+        truncated: false,
+      };
+    }
+
+    const venvResult = await this.runToolingProcess(
+      this.embeddedTooling.uvPath,
+      [
+        "venv",
+        path.join(this.workingDir, ".venv"),
+        "--python",
+        resolvedPython,
+        "--no-managed-python",
+        "--no-python-downloads",
+      ],
+      commandEnv,
+    );
+
+    if (venvResult.exitCode === 0) {
+      logInfo("LocalSandbox", "Windows Python runtime ready", {
+        sandboxId: this.id,
+        workingDir: this.workingDir,
+        venvPythonPath,
+        resolvedPython,
+      });
+      return null;
+    }
+
+    return venvResult;
+  }
+
+  private async runToolingProcess(
+    executable: string,
+    args: string[],
+    env: Record<string, string>,
+  ): Promise<ExecuteResponse> {
+    return new Promise<ExecuteResponse>((resolve) => {
       const stdout: Buffer[] = [];
       const stderr: Buffer[] = [];
       let settled = false;
 
-      const proc = spawn(
-        this.embeddedTooling!.uvPath,
-        [
-          "venv",
-          path.join(this.workingDir, ".venv"),
-          "--python",
-          pythonVersion,
-        ],
-        {
-          cwd: this.workingDir,
-          env: commandEnv,
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      );
+      const proc = spawn(executable, args, {
+        cwd: this.workingDir,
+        env,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
 
       const timeoutId = setTimeout(() => {
         if (settled) {
@@ -924,18 +1149,8 @@ export class LocalSandbox
 
         const decodedStdout = decodeTextBuffer(Buffer.concat(stdout));
         const decodedStderr = decodeTextBuffer(Buffer.concat(stderr));
-
-        if (code === 0) {
-          logInfo("LocalSandbox", "Windows Python runtime ready", {
-            sandboxId: this.id,
-            workingDir: this.workingDir,
-            venvPythonPath,
-          });
-          resolve(null);
-          return;
-        }
-
         const outputParts: string[] = [];
+
         if (decodedStdout) {
           outputParts.push(decodedStdout);
         }
@@ -952,7 +1167,7 @@ export class LocalSandbox
         resolve({
           output:
             outputParts.join("") ||
-            `[stderr] uv venv exited with code ${code}${signal ? ` (signal: ${signal})` : ""}.\n`,
+            `[stderr] ${path.basename(executable)} exited with code ${code}${signal ? ` (signal: ${signal})` : ""}.\n`,
           exitCode: code,
           truncated: false,
         });
@@ -1175,6 +1390,26 @@ export class LocalSandbox
       return {
         output: "Error: Shell tool expects a non-empty command string.",
         exitCode: 1,
+        truncated: false,
+      };
+    }
+
+    const directPythonInvocation = getDirectPythonInvocation(command);
+    if (directPythonInvocation) {
+      return {
+        output:
+          `[stderr] Error: direct ${directPythonInvocation} invocations are blocked. Use the bundled uv runtime instead, for example: uv run python ..., uv run pytest ..., or uv pip ...\n`,
+        exitCode: 127,
+        truncated: false,
+      };
+    }
+
+    const directJavaScriptInvocation = getDirectJavaScriptInvocation(command);
+    if (directJavaScriptInvocation) {
+      return {
+        output:
+          `[stderr] Error: direct ${directJavaScriptInvocation} invocations are blocked. Use the bundled bun runtime instead, for example: bun run ..., bun x ..., or bun install ...\n`,
+        exitCode: 127,
         truncated: false,
       };
     }

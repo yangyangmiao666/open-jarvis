@@ -11,7 +11,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import process from "node:process";
@@ -29,12 +29,14 @@ const TARGETS = {
       bunAsset: "bun-darwin-aarch64.zip",
       uvBinaryName: "uv",
       bunBinaryName: "bun",
+      pythonBinaryName: "python3",
     },
     x64: {
       uvAsset: "uv-x86_64-apple-darwin.tar.gz",
       bunAsset: "bun-darwin-x64.zip",
       uvBinaryName: "uv",
       bunBinaryName: "bun",
+      pythonBinaryName: "python3",
     },
   },
   linux: {
@@ -43,12 +45,14 @@ const TARGETS = {
       bunAsset: "bun-linux-aarch64.zip",
       uvBinaryName: "uv",
       bunBinaryName: "bun",
+      pythonBinaryName: "python3",
     },
     x64: {
       uvAsset: "uv-x86_64-unknown-linux-gnu.tar.gz",
       bunAsset: "bun-linux-x64.zip",
       uvBinaryName: "uv",
       bunBinaryName: "bun",
+      pythonBinaryName: "python3",
     },
   },
   win32: {
@@ -57,12 +61,14 @@ const TARGETS = {
       bunAsset: "bun-windows-aarch64.zip",
       uvBinaryName: "uv.exe",
       bunBinaryName: "bun.exe",
+      pythonBinaryName: "python.exe",
     },
     x64: {
       uvAsset: "uv-x86_64-pc-windows-msvc.zip",
       bunAsset: "bun-windows-x64.zip",
       uvBinaryName: "uv.exe",
       bunBinaryName: "bun.exe",
+      pythonBinaryName: "python.exe",
     },
   },
 };
@@ -100,11 +106,12 @@ const requestedTarget = resolveRequestedTarget(process.argv.slice(2));
 const toolingRoot = join(repoRoot, "resources", "tooling", requestedTarget.id);
 const binDir = join(toolingRoot, "bin");
 
-function run(command, args) {
+function run(command, args, extraOptions = {}) {
   return execFileSync(command, args, {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    ...extraOptions,
   }).trim();
 }
 
@@ -258,6 +265,28 @@ function isExecutableFile(filePath) {
   }
 }
 
+function toManifestPath(filePath) {
+  return filePath.split("\\").join("/");
+}
+
+function getManagedPythonSubpath(pythonExecutablePath, exactVersion) {
+  const normalizedPath = resolve(pythonExecutablePath);
+  const parts = normalizedPath.split(/[\\/]+/).filter(Boolean);
+  const exactPrefix = `cpython-${exactVersion}-`;
+  const exactIndex = parts.findIndex((part) => part.startsWith(exactPrefix));
+
+  if (exactIndex >= 0) {
+    return parts.slice(exactIndex).join("/");
+  }
+
+  const fallbackIndex = parts.findIndex((part) => /^cpython-/.test(part));
+  if (fallbackIndex >= 0) {
+    return parts.slice(fallbackIndex).join("/");
+  }
+
+  return null;
+}
+
 function readExistingManifest() {
   const manifestPath = join(toolingRoot, "manifest.json");
   if (!existsSync(manifestPath)) {
@@ -267,45 +296,169 @@ function readExistingManifest() {
   return JSON.parse(readFileSync(manifestPath, "utf8"));
 }
 
-function hasUsableEmbeddedTooling() {
-  const manifest = readExistingManifest();
-  if (!manifest) {
-    return false;
+function findExistingBundledPythonPath(rootDir, exactVersion, pythonBinaryName) {
+  const pythonRoot = join(rootDir, "python-install");
+  if (!existsSync(pythonRoot)) {
+    return null;
   }
 
-  const uvPath = join(toolingRoot, manifest.uv?.path ?? "");
-  const bunPath = join(toolingRoot, manifest.bun?.path ?? "");
+  const exactPrefix = `cpython-${exactVersion}-`;
+  const exactDirs = readdirSync(pythonRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith(exactPrefix))
+    .map((entry) => entry.name);
 
-  return (
-    manifest.platform === requestedTarget.platform &&
-    manifest.arch === requestedTarget.arch &&
-    manifest.uv?.version === uvVersion &&
-    manifest.bun?.version === bunVersion &&
-    manifest.python?.version === pythonVersion &&
-    existsSync(uvPath) &&
-    existsSync(bunPath)
+  for (const dirName of exactDirs) {
+    const executablePath = findFile(
+      join(pythonRoot, dirName),
+      (entryPath, entryName) =>
+        entryName === pythonBinaryName && isExecutableFile(entryPath),
+    );
+    if (executablePath) {
+      return executablePath;
+    }
+  }
+
+  return findFile(
+    pythonRoot,
+    (entryPath, entryName) =>
+      entryName === pythonBinaryName &&
+      entryPath.includes(exactPrefix) &&
+      isExecutableFile(entryPath),
+  );
+}
+
+function resolveVersionedExecutable(candidatePaths, expectedVersion, versionArgs, transform) {
+  for (const candidatePath of candidatePaths) {
+    if (!candidatePath || !existsSync(candidatePath)) {
+      continue;
+    }
+
+    try {
+      const actualVersion = transform(run(candidatePath, versionArgs));
+      if (actualVersion === expectedVersion) {
+        return candidatePath;
+      }
+    } catch {
+      // Ignore invalid or incompatible cached executables.
+    }
+  }
+
+  return null;
+}
+
+function getReusableExistingTooling(target) {
+  const manifest = readExistingManifest();
+  if (
+    manifest &&
+    (manifest.platform !== requestedTarget.platform ||
+      manifest.arch !== requestedTarget.arch)
+  ) {
+    return null;
+  }
+
+  const uvPath = resolveVersionedExecutable(
+    [
+      manifest?.uv?.path ? join(toolingRoot, manifest.uv.path) : null,
+      join(toolingRoot, "bin", target.uvBinaryName),
+    ],
+    uvVersion,
+    ["--version"],
+    (output) => normalizeVersion(output.replace(/^uv\s+/, "")),
+  );
+  const bunPath = resolveVersionedExecutable(
+    [
+      manifest?.bun?.path ? join(toolingRoot, manifest.bun.path) : null,
+      join(toolingRoot, "bin", target.bunBinaryName),
+    ],
+    bunVersion,
+    ["--version"],
+    (output) => normalizeVersion(output),
+  );
+  const pythonPathFromManifest =
+    manifest?.python?.version === pythonVersion && manifest?.python?.path
+      ? join(toolingRoot, manifest.python.path)
+      : null;
+  const pythonPath =
+    (pythonPathFromManifest && existsSync(pythonPathFromManifest)
+      ? pythonPathFromManifest
+      : null) ??
+    findExistingBundledPythonPath(
+      toolingRoot,
+      pythonVersion,
+      target.pythonBinaryName,
+    );
+
+  return {
+    uvPath,
+    bunPath,
+    pythonPath,
+    pythonRelativePath: pythonPath
+      ? toManifestPath(relative(toolingRoot, pythonPath))
+      : null,
+  };
+}
+
+function hasUsableEmbeddedTooling(target) {
+  const reusableExistingTooling = getReusableExistingTooling(target);
+  return !!(
+    reusableExistingTooling?.uvPath &&
+    reusableExistingTooling?.bunPath &&
+    reusableExistingTooling?.pythonPath &&
+    reusableExistingTooling?.pythonRelativePath
   );
 }
 
 async function main() {
+  const target = getTargetConfig();
   logStage(`Checking embedded tooling cache at ${toolingRoot}`);
-  if (hasUsableEmbeddedTooling()) {
+  const reusableExistingTooling = getReusableExistingTooling(target);
+  if (
+    reusableExistingTooling?.uvPath &&
+    reusableExistingTooling?.bunPath &&
+    reusableExistingTooling?.pythonPath &&
+    reusableExistingTooling?.pythonRelativePath
+  ) {
+    const manifest = {
+      platform: requestedTarget.platform,
+      arch: requestedTarget.arch,
+      uv: {
+        version: uvVersion,
+        path: `bin/${target.uvBinaryName}`,
+      },
+      bun: {
+        version: bunVersion,
+        path: `bin/${target.bunBinaryName}`,
+      },
+      python: {
+        version: pythonVersion,
+        path: reusableExistingTooling.pythonRelativePath,
+      },
+    };
+    mkdirSync(toolingRoot, { recursive: true });
+    writeFileSync(
+      join(toolingRoot, "manifest.json"),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    );
     logStage(`Reusing embedded tooling at ${toolingRoot}`);
+    console.log(JSON.stringify(manifest, null, 2));
     return;
   }
 
   logStage("Cache miss or version mismatch, preparing embedded tooling");
 
-  const target = getTargetConfig();
   const tempRoot = mkdtempSync(join(tmpdir(), "open-jarvis-tooling-"));
   const downloadsDir = join(tempRoot, "downloads");
   const extractDir = join(tempRoot, "extract");
   const uvExtractDir = join(extractDir, "uv");
   const bunExtractDir = join(extractDir, "bun");
+  const pythonInstallDir = join(tempRoot, "python-install");
+  const stagedBinaryDir = join(tempRoot, "staged-bin");
 
   mkdirSync(downloadsDir, { recursive: true });
   mkdirSync(uvExtractDir, { recursive: true });
   mkdirSync(bunExtractDir, { recursive: true });
+  mkdirSync(pythonInstallDir, { recursive: true });
+  mkdirSync(stagedBinaryDir, { recursive: true });
 
   const uvArchivePath = join(downloadsDir, target.uvAsset);
   const bunArchivePath = join(downloadsDir, target.bunAsset);
@@ -314,38 +467,45 @@ async function main() {
 
   logStage(`Target platform: ${requestedTarget.id}`);
   logStage(`Working directory: ${tempRoot}`);
-  await downloadFile(uvUrl, uvArchivePath);
-  await downloadFile(bunUrl, bunArchivePath);
+  let uvSourcePath = reusableExistingTooling?.uvPath ?? null;
+  let bunSourcePath = reusableExistingTooling?.bunPath ?? null;
 
-  logStage(`Extracting ${target.uvAsset}`);
-  if (target.uvAsset.endsWith(".zip")) {
-    extractZip(uvArchivePath, uvExtractDir);
+  if (uvSourcePath && bunSourcePath) {
+    logStage(`Reusing existing uv and bun binaries from ${toolingRoot}`);
   } else {
-    extractTarGz(uvArchivePath, uvExtractDir);
+    await downloadFile(uvUrl, uvArchivePath);
+    await downloadFile(bunUrl, bunArchivePath);
+
+    logStage(`Extracting ${target.uvAsset}`);
+    if (target.uvAsset.endsWith(".zip")) {
+      extractZip(uvArchivePath, uvExtractDir);
+    } else {
+      extractTarGz(uvArchivePath, uvExtractDir);
+    }
+    logStage(`Extracting ${target.bunAsset}`);
+    extractZip(bunArchivePath, bunExtractDir);
+
+    uvSourcePath = findFile(
+      uvExtractDir,
+      (entryPath, entryName) => entryName === target.uvBinaryName && isExecutableFile(entryPath),
+    );
+    bunSourcePath = findFile(
+      bunExtractDir,
+      (entryPath, entryName) => entryName === target.bunBinaryName && isExecutableFile(entryPath),
+    );
   }
-  logStage(`Extracting ${target.bunAsset}`);
-  extractZip(bunArchivePath, bunExtractDir);
 
-  const uvPath = findFile(
-    uvExtractDir,
-    (entryPath, entryName) => entryName === target.uvBinaryName && isExecutableFile(entryPath),
-  );
-  const bunPath = findFile(
-    bunExtractDir,
-    (entryPath, entryName) => entryName === target.bunBinaryName && isExecutableFile(entryPath),
-  );
-
-  if (!uvPath) {
+  if (!uvSourcePath) {
     throw new Error(`Unable to locate uv executable after extracting ${target.uvAsset}`);
   }
-  if (!bunPath) {
+  if (!bunSourcePath) {
     throw new Error(`Unable to locate bun executable after extracting ${target.bunAsset}`);
   }
 
   const actualUvVersion = normalizeVersion(
-    run(uvPath, ["--version"]).replace(/^uv\s+/, ""),
+    run(uvSourcePath, ["--version"]).replace(/^uv\s+/, ""),
   );
-  const actualBunVersion = normalizeVersion(run(bunPath, ["--version"]));
+  const actualBunVersion = normalizeVersion(run(bunSourcePath, ["--version"]));
 
   if (actualUvVersion !== uvVersion) {
     throw new Error(`uv version mismatch: expected ${uvVersion}, got ${actualUvVersion}`);
@@ -354,11 +514,108 @@ async function main() {
     throw new Error(`bun version mismatch: expected ${bunVersion}, got ${actualBunVersion}`);
   }
 
-  rmSync(toolingRoot, { recursive: true, force: true });
+  const pythonInstallEnv = {
+    ...process.env,
+    UV_NO_PROGRESS: "true",
+    UV_PYTHON_INSTALL_DIR: pythonInstallDir,
+  };
+  let resolvedPythonPath = null;
+
+  if (
+    reusableExistingTooling?.pythonPath &&
+    reusableExistingTooling.pythonRelativePath
+  ) {
+    logStage(`Reusing existing managed Python ${pythonVersion} from ${toolingRoot}`);
+    cpSync(join(toolingRoot, "python-install"), pythonInstallDir, {
+      recursive: true,
+      force: true,
+    });
+    resolvedPythonPath = join(
+      tempRoot,
+      ...reusableExistingTooling.pythonRelativePath.split("/"),
+    );
+  } else {
+    logStage(`Installing managed Python ${pythonVersion} with uv`);
+    run(
+      uvSourcePath,
+      ["python", "install", "--install-dir", pythonInstallDir, pythonVersion],
+      { env: pythonInstallEnv },
+    );
+    resolvedPythonPath = run(
+      uvSourcePath,
+      [
+        "python",
+        "find",
+        "--managed-python",
+        pythonVersion,
+      ],
+      { env: pythonInstallEnv },
+    ).split(/\r?\n/).find(Boolean);
+  }
+
+  if (!resolvedPythonPath || !existsSync(resolvedPythonPath)) {
+    throw new Error(
+      `Unable to resolve embedded Python executable after installing ${pythonVersion}`,
+    );
+  }
+
+  const stagedUvBinaryPath = join(stagedBinaryDir, target.uvBinaryName);
+  const stagedBunBinaryPath = join(stagedBinaryDir, target.bunBinaryName);
+  stageExecutable(uvSourcePath, stagedUvBinaryPath);
+  stageExecutable(bunSourcePath, stagedBunBinaryPath);
+
+  rmSync(toolingRoot, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 100,
+  });
   mkdirSync(binDir, { recursive: true });
 
-  stageExecutable(uvPath, join(binDir, target.uvBinaryName));
-  stageExecutable(bunPath, join(binDir, target.bunBinaryName));
+  stageExecutable(stagedUvBinaryPath, join(binDir, target.uvBinaryName));
+  stageExecutable(stagedBunBinaryPath, join(binDir, target.bunBinaryName));
+  const stagedPythonInstallDir = join(toolingRoot, "python-install");
+  cpSync(pythonInstallDir, stagedPythonInstallDir, {
+    recursive: true,
+    force: true,
+  });
+  const normalizedPythonInstallDir = resolve(pythonInstallDir);
+  const normalizedResolvedPythonPath = resolve(resolvedPythonPath);
+  const pythonRelativePath = relative(
+    normalizedPythonInstallDir,
+    normalizedResolvedPythonPath,
+  );
+  const managedPythonSubpath = getManagedPythonSubpath(
+    normalizedResolvedPythonPath,
+    pythonVersion,
+  );
+
+  let stagedPythonPath =
+    pythonRelativePath && !pythonRelativePath.startsWith("..")
+      ? join(stagedPythonInstallDir, pythonRelativePath)
+      : null;
+
+  if ((!stagedPythonPath || !existsSync(stagedPythonPath)) && managedPythonSubpath) {
+    stagedPythonPath = join(
+      stagedPythonInstallDir,
+      ...managedPythonSubpath.split("/"),
+    );
+  }
+
+  if (!stagedPythonPath || !existsSync(stagedPythonPath)) {
+    const resolvedPythonBaseName = basename(normalizedResolvedPythonPath);
+    stagedPythonPath = findFile(
+      stagedPythonInstallDir,
+      (entryPath, entryName) =>
+        entryName === resolvedPythonBaseName && isExecutableFile(entryPath),
+    );
+  }
+
+  if (!stagedPythonPath || !existsSync(stagedPythonPath)) {
+    throw new Error(
+      `Embedded Python executable was not staged correctly: ${stagedPythonPath}`,
+    );
+  }
 
   const manifest = {
     platform: requestedTarget.platform,
@@ -373,12 +630,18 @@ async function main() {
     },
     python: {
       version: pythonVersion,
+      path: toManifestPath(relative(toolingRoot, stagedPythonPath)),
     },
   };
 
   writeFileSync(join(toolingRoot, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 
-  rmSync(tempRoot, { recursive: true, force: true });
+  rmSync(tempRoot, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 100,
+  });
 
   logStage(`Staged embedded tooling at ${toolingRoot}`);
   console.log(JSON.stringify(manifest, null, 2));
