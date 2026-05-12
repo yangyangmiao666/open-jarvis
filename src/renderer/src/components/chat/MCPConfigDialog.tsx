@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/toast";
 import type { MCPServerConfig, MCPTransportType } from "@/types";
 
 interface MCPConfigDialogProps {
@@ -71,7 +72,6 @@ export function MCPConfigDialog({
   const [headersText, setHeadersText] = useState("");
   const [argsText, setArgsText] = useState("");
   const [importJson, setImportJson] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
   const [serverSearch, setServerSearch] = useState("");
 
   const filteredServers = useMemo(
@@ -115,8 +115,6 @@ export function MCPConfigDialog({
     setEditing(null);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setImportJson("");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStatus(null);
   }, [open]);
 
   const handleSave = async (): Promise<void> => {
@@ -132,26 +130,34 @@ export function MCPConfigDialog({
         .filter(Boolean),
     };
 
-    await window.api.mcp.upsertServer(payload);
-    await load();
-    setEditing(null);
-    setStatus("MCP 配置已保存");
+    try {
+      await window.api.mcp.upsertServer(payload);
+      await load();
+      setEditing(null);
+      toast.success("MCP 配置已保存");
+    } catch {
+      toast.error("保存失败");
+    }
   };
 
   const handleDelete = async (): Promise<void> => {
     if (!deleteTarget) return;
     const id = deleteTarget.id;
-    await window.api.mcp.deleteServer(id);
-    await load();
-    if (enabledIdSet.has(id)) {
-      const nextIds = enabledMcpServerIds.filter(
-        (serverId) => serverId !== id,
-      );
-      setEnabledMcpServerIds(nextIds);
-      await window.api.mcp.setEnabledForThread(undefined, nextIds);
+    try {
+      await window.api.mcp.deleteServer(id);
+      await load();
+      if (enabledIdSet.has(id)) {
+        const nextIds = enabledMcpServerIds.filter(
+          (serverId) => serverId !== id,
+        );
+        setEnabledMcpServerIds(nextIds);
+        await window.api.mcp.setEnabledForThread(undefined, nextIds);
+      }
+      setDeleteTarget(null);
+      toast.success("MCP 配置已删除");
+    } catch {
+      toast.error("删除失败");
     }
-    setStatus("MCP 配置已删除");
-    setDeleteTarget(null);
   };
 
   const handleToggleEnabled = (serverId: string, checked: boolean): void => {
@@ -163,27 +169,35 @@ export function MCPConfigDialog({
   };
 
   const handleImport = async (): Promise<void> => {
-    const result = await window.api.mcp.importServers(importJson);
-    await load();
-    setStatus(
-      `已导入 ${result.imported.length} 项${
-        result.skipped.length > 0 ? `，跳过 ${result.skipped.length} 项` : ""
-      }`,
-    );
-    setImportJson("");
+    try {
+      const result = await window.api.mcp.importServers(importJson);
+      await load();
+      toast.success(
+        `已导入 ${result.imported.length} 项${
+          result.skipped.length > 0 ? `，跳过 ${result.skipped.length} 项` : ""
+        }`,
+      );
+      setImportJson("");
+    } catch {
+      toast.error("导入失败");
+    }
   };
 
   const handleCopyExport = async (): Promise<void> => {
-    const exported = await window.api.mcp.exportServers();
-    await navigator.clipboard.writeText(JSON.stringify(exported, null, 2));
-    setStatus("已复制导出 JSON");
+    try {
+      const exported = await window.api.mcp.exportServers();
+      await navigator.clipboard.writeText(JSON.stringify(exported, null, 2));
+      toast.success("已复制导出 JSON");
+    } catch {
+      toast.error("复制失败");
+    }
   };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex max-h-[min(92vh,54rem)] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0">
-        <DialogHeader className="rounded-t-[32px] border-b border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14 sm:px-7">
+        <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
           <div className="flex items-center gap-3">
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               <Cable className="size-3.5" />
@@ -500,7 +514,6 @@ export function MCPConfigDialog({
         </div>
         </div>
 
-          <div className="text-xs text-muted-foreground min-h-4">{status ?? ""}</div>
         </DialogContent>
       </Dialog>
 

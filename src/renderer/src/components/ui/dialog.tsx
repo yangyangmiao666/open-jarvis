@@ -35,13 +35,13 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "app-premium-popup fixed left-[50%] top-[50%] z-50 grid w-[min(94vw,60rem)] max-w-5xl translate-x-[-50%] translate-y-[-50%] gap-6 overflow-hidden rounded-[32px] p-7 text-foreground data-[state=open]:animate-scale-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-200 sm:p-8",
+        "app-premium-popup fixed left-[50%] top-[calc(50%+0.5rem)] z-50 grid w-[min(94vw,60rem)] max-w-5xl translate-x-[-50%] translate-y-[-50%] gap-6 overflow-hidden rounded-[32px] p-7 text-foreground data-[state=open]:animate-scale-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-200 sm:top-[calc(50%+0.75rem)] sm:p-8",
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="app-premium-pill absolute right-4 top-4 z-20 flex size-11 items-center justify-center rounded-full border border-border/60 bg-background/88 p-2 text-muted-foreground opacity-100 shadow-[0_10px_26px_color-mix(in_srgb,#000_14%,transparent)] backdrop-blur-md ring-offset-background transition-all duration-200 hover:-translate-y-px hover:border-border hover:bg-background hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/45 focus:ring-offset-2 disabled:pointer-events-none sm:right-5 sm:top-5 sm:size-11">
+      <DialogPrimitive.Close className="app-no-drag absolute right-5 top-6 z-[60] flex size-11 items-center justify-center rounded-full border border-border/80 bg-background-elevated text-muted-foreground shadow-[0_4px_12px_color-mix(in_srgb,#000_10%,transparent)] transition-all duration-200 hover:border-border hover:bg-background-interactive hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring/45 focus:ring-offset-2 disabled:pointer-events-none sm:right-6 sm:top-7">
         <X className="size-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

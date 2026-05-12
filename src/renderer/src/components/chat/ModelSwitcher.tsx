@@ -299,7 +299,7 @@ export function ModelSwitcher({
                   {selectedProvider?.hasApiKey && (
                     <button
                       onClick={() => handleConfigureApiKey(selectedProvider)}
-                      className="mt-2 flex w-full items-center gap-2 rounded-2xl border-t border-border pt-3 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                      className="mt-2 flex w-full items-center gap-2 rounded-2xl border border-border/70 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground hover:border-border"
                     >
                       <Key className="size-3.5" />
                       <span>

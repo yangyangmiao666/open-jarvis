@@ -6,7 +6,6 @@ import {
   X,
   Copy,
   ShieldAlert,
-  Check,
   Shield,
   ShieldCheck,
 } from "lucide-react";
@@ -24,6 +23,7 @@ import { ContextUsageIndicator } from "./ContextUsageIndicator";
 import type { ApprovalMode, Message, SettingsOpenRequest } from "@/types";
 import { cn, truncate } from "@/lib/utils";
 import { messagesToMarkdown } from "@/lib/chat-markdown";
+import { toast } from "@/components/ui/toast";
 
 const STREAMING_BASE_TIPS = [
   "正在交叉阅读上下文、消息、工具结果和线程状态，尽量减少无效来回。",
@@ -140,7 +140,6 @@ export function ChatContainer({
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
-  const [copyNoticeOpen, setCopyNoticeOpen] = useState(false);
   const [streamTipTick, setStreamTipTick] = useState(0);
   const [overlayInset, setOverlayInset] = useState(176);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -507,19 +506,11 @@ export function ChatContainer({
     if (!md) return;
     try {
       await navigator.clipboard.writeText(md);
-      setCopyNoticeOpen(true);
-    } catch (e) {
-      console.error("[ChatContainer] Copy failed:", e);
+      toast.success("已复制到剪贴板");
+    } catch {
+      toast.error("复制失败");
     }
   }, [displayMessages, toolResults]);
-
-  useEffect(() => {
-    if (!copyNoticeOpen) return;
-    const timer = window.setTimeout(() => {
-      setCopyNoticeOpen(false);
-    }, 1800);
-    return () => window.clearTimeout(timer);
-  }, [copyNoticeOpen]);
 
   // Get the actual scrollable viewport element from Radix ScrollArea
   const getViewport = useCallback((): HTMLDivElement | null => {
@@ -593,7 +584,7 @@ export function ChatContainer({
       observer.disconnect();
       window.removeEventListener("resize", updateOverlayInset);
     };
-  }, [pendingApproval, input, copyNoticeOpen, isLoading, streamTipTick]);
+  }, [pendingApproval, input, isLoading, streamTipTick]);
 
   useEffect(() => {
     const viewport = getViewport();
@@ -1016,12 +1007,6 @@ export function ChatContainer({
             )}
           >
             {isLoading && <div className="agent-glow-inner-mask" />}
-            {copyNoticeOpen && (
-              <div className="animate-enter absolute -top-14 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-border bg-background-elevated px-3 py-1.5 text-xs font-medium text-status-nominal shadow-none">
-                <Check className="size-3.5" />
-                已复制到剪贴板
-              </div>
-            )}
             {isLoading && streamingTips.length > 0 && (
               <div className="animate-soft-fade flex items-center gap-3 overflow-hidden rounded-[18px] border border-border bg-background-elevated px-3 py-2 shadow-none">
                 <div className="min-w-0 flex-1">

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
 import type { ProxyConfig } from "@/types";
 
 interface ProxyConfigDialogProps {
@@ -27,14 +28,12 @@ export function ProxyConfigDialog({
   onOpenChange,
 }: ProxyConfigDialogProps): React.JSX.Element {
   const [config, setConfig] = useState<ProxyConfig>(emptyConfig);
-  const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     void window.api.settings.getProxyConfig().then((nextConfig) => {
       setConfig(nextConfig);
-      setStatus(null);
     });
   }, [open]);
 
@@ -47,7 +46,9 @@ export function ProxyConfigDialog({
     try {
       const saved = await window.api.settings.setProxyConfig(config);
       setConfig(saved);
-      setStatus("代理配置已保存并立即生效");
+      toast.success("代理配置已保存并立即生效");
+    } catch {
+      toast.error("保存失败");
     } finally {
       setSaving(false);
     }
@@ -58,7 +59,9 @@ export function ProxyConfigDialog({
     try {
       const saved = await window.api.settings.setProxyConfig(emptyConfig);
       setConfig(saved);
-      setStatus("代理配置已清空");
+      toast.success("代理配置已清空");
+    } catch {
+      toast.error("重置失败");
     } finally {
       setSaving(false);
     }
@@ -67,7 +70,7 @@ export function ProxyConfigDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(92vh,48rem)] w-[min(96vw,42rem)] max-w-2xl flex-col overflow-hidden p-0">
-        <DialogHeader className="rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-14 sm:px-7">
+        <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
           <div className="flex items-center gap-3">
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               <Network className="size-3.5" />
@@ -124,9 +127,6 @@ export function ProxyConfigDialog({
         </div>
 
         <DialogFooter className="shrink-0 border-t border-border/60 px-6 py-4 sm:px-7">
-          <div className="mr-auto min-h-5 text-xs text-muted-foreground">
-            {status ?? ""}
-          </div>
           <Button
             type="button"
             variant="ghost"

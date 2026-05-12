@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import type { Message, HITLRequest } from "@/types";
 import { singleMessageToMarkdown } from "@/lib/chat-markdown";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { JarvisMark } from "@/components/branding/JarvisMark";
 import { ToolCallRenderer } from "./ToolCallRenderer";
 import { ThinkAwareMarkdown } from "./ThinkAwareMarkdown";
@@ -45,8 +46,9 @@ export function MessageBubble({
     if (!md) return;
     try {
       await navigator.clipboard.writeText(md);
-    } catch (e) {
-      console.error("[MessageBubble] Copy failed:", e);
+      toast.success("已复制到剪贴板");
+    } catch {
+      toast.error("复制失败");
     }
   }, [message, toolResults]);
 

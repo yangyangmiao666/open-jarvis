@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "@/components/ui/toast";
 import type { OpenAICompatibleProfile } from "@/types";
 
 interface OpenAICompatibleDialogProps {
@@ -119,27 +120,41 @@ export function OpenAICompatibleDialog({
   const handleSave = async (): Promise<void> => {
     if (!editing) return;
     if (!editing.baseUrl.trim() || !editing.model.trim()) {
+      toast.error("请填写接口地址和模型 ID");
       return;
     }
-    await window.api.models.openaiCompatibleUpsert(editing);
-    await load();
-    onSaved();
-    setEditing(null);
+    try {
+      const saved = await window.api.models.openaiCompatibleUpsert(editing);
+      const list = await load();
+      onSaved();
+      const matched = list.find((p) => p.id === (saved?.id ?? editing.id));
+      if (matched) {
+        setEditing({ ...matched });
+      }
+      toast.success("模型配置已保存");
+    } catch (e) {
+      toast.error("保存失败");
+    }
   };
 
   const handleDelete = async (): Promise<void> => {
     if (!deleteTarget) return;
-    await window.api.models.openaiCompatibleDelete(deleteTarget.id);
-    await load();
-    onSaved();
-    setDeleteTarget(null);
+    try {
+      await window.api.models.openaiCompatibleDelete(deleteTarget.id);
+      await load();
+      onSaved();
+      setDeleteTarget(null);
+      toast.success("模型配置已删除");
+    } catch (e) {
+      toast.error("删除失败");
+    }
   };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex max-h-[min(92vh,54rem)] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0">
-        <DialogHeader className="rounded-t-[32px] border-b border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14 sm:px-7">
+        <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
           <div className="flex items-center gap-3">
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               <Boxes className="size-3.5" />
@@ -244,7 +259,7 @@ export function OpenAICompatibleDialog({
               <div className="min-w-0">
                 <div className="text-section-header">Editor</div>
                 <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
-                  {editing ? "编辑配置" : "新增配置"}
+                  {editing?.id ? "编辑配置" : "新增配置"}
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   填写请求格式、Base URL、API 密钥、模型 ID、思考参数和上下文窗口；保存后会立即进入模型列表，并同步用于上下文窗口展示与压缩阈值计算。

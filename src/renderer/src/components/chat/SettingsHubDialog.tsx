@@ -38,7 +38,7 @@ function SettingsCard({
   onAction,
 }: SettingsCardProps): React.JSX.Element {
   return (
-    <div className="app-premium-surface group flex h-full flex-col gap-4 rounded-[28px] px-5 py-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-[inset_0_0_0_1px_color-mix(in_srgb,#fff_8%,transparent),0_16px_34px_color-mix(in_srgb,#000_12%,transparent)]">
+    <div className="app-premium-surface group flex h-full flex-col gap-4 overflow-visible rounded-[28px] px-5 py-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-[inset_0_0_0_1px_color-mix(in_srgb,#fff_8%,transparent),0_16px_34px_color-mix(in_srgb,#000_12%,transparent)]">
       <div className="flex items-center gap-3">
         <div className="app-premium-pill flex size-10 shrink-0 items-center justify-center rounded-[16px] text-primary transition-transform duration-200 group-hover:scale-[1.03]">
           <Icon className="size-4.5" />
@@ -84,7 +84,7 @@ export function SettingsHubDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex max-h-[min(92vh,52rem)] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0">
+        <DialogContent className="flex max-h-[min(92vh,52rem)] w-[min(96vw,72rem)] max-w-5xl flex-col p-0">
           <DialogHeader className="app-premium-surface relative overflow-hidden rounded-[28px] px-6 py-4 pr-14 sm:px-7">
             <div className="flex items-center gap-3">
               <div className="app-premium-pill inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -98,7 +98,7 @@ export function SettingsHubDialog({
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 sm:px-7 sm:pb-7">
-            <div className="grid items-stretch gap-4 bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--background-elevated)_18%,transparent))] md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid items-stretch gap-4 bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--background-elevated)_18%,transparent))] md:grid-cols-2 xl:grid-cols-4 py-2">
               <SettingsCard
                 icon={Boxes}
                 eyebrow="Models"

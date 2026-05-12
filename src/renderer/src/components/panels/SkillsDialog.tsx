@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/toast";
 
 interface SkillsDialogProps {
   open: boolean;
@@ -48,7 +49,6 @@ export function SkillsDialog({
   const [currentPage, setCurrentPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [workspaceReady, setWorkspaceReady] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
 
   const [deleteConfirm, setDeleteConfirm] =
     useState<SkillsDeleteConfirmState>(null);
@@ -86,7 +86,6 @@ export function SkillsDialog({
   useEffect(() => {
     if (!open) return;
     void reload();
-    setStatus(null);
     setCurrentPage(1);
     setSearchQuery("");
   }, [open]);
@@ -130,14 +129,14 @@ export function SkillsDialog({
     const nextSources = [...sources, normalized];
     setSources(nextSources);
     setNewSource("");
-    setStatus("已添加技能来源路径");
+    toast.success("已添加技能来源路径");
     void window.api.skills.setSources(nextSources);
   };
 
   const removeSource = (target: string): void => {
     const nextSources = sources.filter((source) => source !== target);
     setSources(nextSources);
-    setStatus("已移除技能来源路径");
+    toast.success("已移除技能来源路径");
     void window.api.skills.setSources(nextSources);
   };
 
@@ -159,7 +158,9 @@ export function SkillsDialog({
       const result = await window.api.skills.importFolder(workspaceSkillTarget);
       await reload();
       if (result.success) {
-        setStatus("已从磁盘导入技能目录");
+        toast.success("已从磁盘导入技能目录");
+      } else {
+        toast.error(result.error ?? "导入失败");
       }
     } finally {
       setBusy(false);
@@ -229,10 +230,10 @@ export function SkillsDialog({
           editorMarkdown.trim() ? editorMarkdown : undefined,
         );
         if (!createResult.success) {
-          setStatus(createResult.error ?? "创建技能失败");
+          toast.error(createResult.error ?? "创建技能失败");
           return;
         }
-        setStatus("技能已创建");
+        toast.success("技能已创建");
       } else {
         if (!originFolder) return;
         let finalFolder = originFolder;
@@ -243,7 +244,7 @@ export function SkillsDialog({
           skillName,
         );
         if (!renameResult.success) {
-          setStatus(renameResult.error ?? "重命名失败");
+          toast.error(renameResult.error ?? "重命名失败");
           return;
         }
         if (renameResult.folder) {
@@ -256,10 +257,10 @@ export function SkillsDialog({
           editorMarkdown,
         );
         if (!writeResult.success) {
-          setStatus(writeResult.error ?? "保存失败");
+          toast.error(writeResult.error ?? "保存失败");
           return;
         }
-        setStatus("技能已更新");
+        toast.success("技能已更新");
       }
 
       setEditorOpen(false);
@@ -276,8 +277,10 @@ export function SkillsDialog({
     try {
       await window.api.skills.deleteSkillFolders(workspaceSkillTarget, [...selected]);
       await reload();
-      setStatus("已删除选中的技能目录");
+      toast.success("已删除选中的技能目录");
       setDeleteConfirm(null);
+    } catch {
+      toast.error("删除失败");
     } finally {
       setBusy(false);
     }
@@ -291,7 +294,7 @@ export function SkillsDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex max-h-[min(92vh,56rem)] w-[min(96vw,88rem)] max-w-[88rem] flex-col overflow-hidden p-0">
-          <DialogHeader className="rounded-t-[32px] border-b border-border/70 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_46%),linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-6 py-4 pr-14">
+          <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
             <div className="flex items-center gap-3">
               <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
                 <WandSparkles className="size-3.5" />
@@ -537,35 +540,59 @@ export function SkillsDialog({
           </div>
           </div>
 
-          <div className="min-h-5 text-xs text-muted-foreground">{status ?? ""}</div>
-        </DialogContent>
+          </DialogContent>
       </Dialog>
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="flex max-h-[min(88vh,48rem)] w-[min(96vw,56rem)] max-w-3xl flex-col overflow-hidden p-0">
-          <DialogHeader className="rounded-t-[32px] border-b border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_98%,transparent),color-mix(in_srgb,var(--background)_94%,transparent))] px-5 py-4 pr-14">
+          <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-5 py-5 pr-16 sm:pr-20">
             <DialogTitle>
               {editorMode === "create" ? "新增技能" : "编辑技能"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          <div className="space-y-3 min-h-0 flex flex-col">
-            <Input
-              value={editorName}
-              onChange={(event) => setEditorName(event.target.value)}
-              placeholder="技能目录名（将规范为小写与连字符）"
-              className="text-xs font-mono"
-              disabled={busy || editorLoading}
-            />
-            <textarea
-              value={editorMarkdown}
-              onChange={(event) => setEditorMarkdown(event.target.value)}
-              placeholder={editorLoading ? "加载中..." : "SKILL.md 内容"}
-              disabled={busy || editorLoading}
-              className={cn(textAreaClassName, "min-h-[360px] flex-1")}
-            />
-          </div>
+            <div className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[24px] border border-border/80 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_88%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))] p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-[16px] border border-border/70 bg-background-elevated/85 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                  <SquarePen className="size-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-section-header">Editor</div>
+                  <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
+                    {editorMode === "create" ? "新建技能内容" : "编辑技能内容"}
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    修改技能目录名与 SKILL.md 内容。保存时会同步创建、重命名目录并写入文档。
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">技能目录名</label>
+                <Input
+                  value={editorName}
+                  onChange={(event) => setEditorName(event.target.value)}
+                  placeholder="技能目录名（将规范为小写与连字符）"
+                  className="rounded-2xl border-border/80 bg-background/80 text-xs font-mono"
+                  disabled={busy || editorLoading}
+                />
+              </div>
+
+              <div className="min-h-0 flex flex-1 flex-col space-y-1.5">
+                <label className="text-sm font-medium text-foreground">SKILL.md 内容</label>
+                <textarea
+                  value={editorMarkdown}
+                  onChange={(event) => setEditorMarkdown(event.target.value)}
+                  placeholder={editorLoading ? "加载中..." : "SKILL.md 内容"}
+                  disabled={busy || editorLoading}
+                  className={cn(
+                    textAreaClassName,
+                    "min-h-[360px] flex-1 rounded-[24px] border-border/85 bg-background/88 shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--border)_35%,transparent)]",
+                  )}
+                />
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="shrink-0 border-t border-border/60 px-5 py-4 sm:gap-2">

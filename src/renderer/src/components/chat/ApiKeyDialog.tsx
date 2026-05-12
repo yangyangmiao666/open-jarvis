@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/lib/store";
+import { toast } from "@/components/ui/toast";
 import type { Provider } from "@/types";
 
 interface ApiKeyDialogProps {
@@ -54,14 +55,13 @@ export function ApiKeyDialog({
     if (!apiKey.trim()) return;
     if (!provider) return;
 
-    console.log("[ApiKeyDialog] Saving API key for provider:", provider.id);
     setSaving(true);
     try {
       await saveApiKey(provider.id, apiKey.trim());
-      console.log("[ApiKeyDialog] API key saved successfully");
       onOpenChange(false);
-    } catch (e) {
-      console.error("[ApiKeyDialog] Failed to save API key:", e);
+      toast.success("API 密钥已保存");
+    } catch {
+      toast.error("保存失败");
     } finally {
       setSaving(false);
     }
@@ -73,8 +73,9 @@ export function ApiKeyDialog({
     try {
       await deleteApiKey(provider.id);
       onOpenChange(false);
-    } catch (e) {
-      console.error("Failed to delete API key:", e);
+      toast.success("API 密钥已移除");
+    } catch {
+      toast.error("移除失败");
     } finally {
       setDeleting(false);
     }

@@ -7,6 +7,7 @@ import { ResizeHandle } from "@/components/ui/resizable";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WindowTitleBar } from "@/components/WindowTitleBar";
 import { SettingsHubDialog } from "@/components/chat/SettingsHubDialog";
+import { Toaster } from "@/components/ui/toast";
 import { useAppStore } from "@/lib/store";
 import { ThreadProvider } from "@/lib/thread-context";
 import type { SettingsOpenRequest } from "@/types";
@@ -221,6 +222,7 @@ function App(): React.JSX.Element {
         handleLeftResize={handleLeftResize}
         handleRightResize={handleRightResize}
       />
+      <Toaster position="top-center" richColors duration={2000} />
     </ThreadProvider>
   );
 }
