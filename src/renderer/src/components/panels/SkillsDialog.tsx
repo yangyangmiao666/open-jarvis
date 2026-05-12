@@ -551,48 +551,52 @@ export function SkillsDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            <div className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[24px] border border-border/80 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_88%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))] p-4 sm:p-5">
-              <div className="flex items-start gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-[16px] border border-border/70 bg-background-elevated/85 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
-                  <SquarePen className="size-4.5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-section-header">Editor</div>
-                  <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
-                    {editorMode === "create" ? "新建技能内容" : "编辑技能内容"}
+          <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
+            <ScrollArea className="min-h-0 flex-1 rounded-[24px] border border-border/80 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_88%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))]">
+              <div className="flex flex-col gap-4 p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-[16px] border border-border/70 bg-background-elevated/85 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                    <SquarePen className="size-4.5" />
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    修改技能目录名与 SKILL.md 内容。保存时会同步创建、重命名目录并写入文档。
-                  </p>
+                  <div className="min-w-0">
+                    <div className="text-section-header">Editor</div>
+                    <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
+                      {editorMode === "create" ? "新建技能内容" : "编辑技能内容"}
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      修改技能目录名与 SKILL.md 内容。保存时会同步创建、重命名目录并写入文档。
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">技能目录名</label>
+                  <Input
+                    value={editorName}
+                    onChange={(event) => setEditorName(event.target.value)}
+                    placeholder="技能目录名（将规范为小写与连字符）"
+                    className="rounded-2xl border-border/80 bg-background/80 text-xs font-mono"
+                    disabled={busy || editorLoading}
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">SKILL.md 内容</label>
+                  <ScrollArea className="rounded-[24px] border border-border/85 bg-background/88 shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--border)_35%,transparent)]">
+                    <textarea
+                      value={editorMarkdown}
+                      onChange={(event) => setEditorMarkdown(event.target.value)}
+                      placeholder={editorLoading ? "加载中..." : "SKILL.md 内容"}
+                      disabled={busy || editorLoading}
+                      className={cn(
+                        textAreaClassName,
+                        "min-h-[360px] resize-none border-0 bg-transparent shadow-none",
+                      )}
+                    />
+                  </ScrollArea>
                 </div>
               </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">技能目录名</label>
-                <Input
-                  value={editorName}
-                  onChange={(event) => setEditorName(event.target.value)}
-                  placeholder="技能目录名（将规范为小写与连字符）"
-                  className="rounded-2xl border-border/80 bg-background/80 text-xs font-mono"
-                  disabled={busy || editorLoading}
-                />
-              </div>
-
-              <div className="min-h-0 flex flex-1 flex-col space-y-1.5">
-                <label className="text-sm font-medium text-foreground">SKILL.md 内容</label>
-                <textarea
-                  value={editorMarkdown}
-                  onChange={(event) => setEditorMarkdown(event.target.value)}
-                  placeholder={editorLoading ? "加载中..." : "SKILL.md 内容"}
-                  disabled={busy || editorLoading}
-                  className={cn(
-                    textAreaClassName,
-                    "min-h-[360px] flex-1 rounded-[24px] border-border/85 bg-background/88 shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--border)_35%,transparent)]",
-                  )}
-                />
-              </div>
-            </div>
+            </ScrollArea>
           </div>
 
           <DialogFooter className="shrink-0 border-t border-border/60 px-5 py-4 sm:gap-2">
