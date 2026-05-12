@@ -591,12 +591,12 @@ export class LocalSandbox
         {
           fileName: "pip.cmd",
           content:
-            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
         },
         {
           fileName: "pip3.cmd",
           content:
-            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip --python \"%VIRTUAL_ENV%\\Scripts\\python.exe\" %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
+            "@echo off\r\nsetlocal\r\nif exist \"%VIRTUAL_ENV%\\Scripts\\python.exe\" (\r\n  \"%OPEN_JARVIS_UV%\" pip %*\r\n) else (\r\n  echo Error: workspace Python runtime is not initialized. 1>&2\r\n  exit /b 127\r\n)\r\n",
         },
         {
           fileName: "pytest.cmd",
@@ -883,27 +883,22 @@ export class LocalSandbox
         "  exit 127",
         "fi",
         'if [ ! -x "$PWD/.venv/bin/python" ]; then',
-        '  OPEN_JARVIS_SYSTEM_PYTHON=""',
-        '  if [ -n "${OPEN_JARVIS_PYTHON-}" ]; then',
-        '    if [ ! -x "$OPEN_JARVIS_PYTHON" ]; then',
-        "      printf '%s\\n' 'Error: embedded Python runtime is incomplete in this app package.' >&2",
-        "      exit 127",
-        "    fi",
-        '    OPEN_JARVIS_SYSTEM_PYTHON="$OPEN_JARVIS_PYTHON"',
-        "  else",
-        '    OPEN_JARVIS_SYSTEM_PYTHON="$($OPEN_JARVIS_UV python find --system --no-managed-python --no-python-downloads 2>/dev/null || true)"',
-        "  fi",
-        '  if [ -z "$OPEN_JARVIS_SYSTEM_PYTHON" ]; then',
-        "    printf '%s\\n' 'Error: no bundled or local Python interpreter is available for uv. Install an app package with embedded Python, or install Python on the machine. Python downloads are disabled.' >&2",
+        '  if [ -z "${OPEN_JARVIS_PYTHON-}" ]; then',
+        "    printf '%s\\n' 'Error: embedded Python 3.12.13 runtime is missing from this app package.' >&2",
         "    exit 127",
         "  fi",
-        '  "$OPEN_JARVIS_UV" venv "$PWD/.venv" --python "$OPEN_JARVIS_SYSTEM_PYTHON" --no-managed-python --no-python-downloads >/dev/null',
+        '  if [ ! -x "$OPEN_JARVIS_PYTHON" ]; then',
+        "    printf '%s\\n' 'Error: embedded Python 3.12.13 runtime is incomplete in this app package.' >&2",
+        "    exit 127",
+        "  fi",
+        '  "$OPEN_JARVIS_UV" venv "$PWD/.venv" --python "$OPEN_JARVIS_PYTHON" --no-managed-python --no-python-downloads >/dev/null',
         "fi",
         'export VIRTUAL_ENV="$PWD/.venv"',
         'export PATH="$VIRTUAL_ENV/bin:$OPEN_JARVIS_TOOLING_BIN:$PATH"',
+        'export UV_PYTHON="$VIRTUAL_ENV/bin/python"',
         "uv() {",
         '  case "${1-}" in',
-        '    pip) shift; "$OPEN_JARVIS_UV" pip --python "$VIRTUAL_ENV/bin/python" "$@" ;;',
+        '    pip) shift; "$OPEN_JARVIS_UV" pip "$@" ;;',
         '    run) shift; "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" "$@" ;;',
         '    python) shift; "$OPEN_JARVIS_UV" run --python "$VIRTUAL_ENV/bin/python" python "$@" ;;',
         '    *) "$OPEN_JARVIS_UV" "$@" ;;',
@@ -914,7 +909,7 @@ export class LocalSandbox
         "}",
         'python3() { python "$@"; }',
         "pip() {",
-        '  "$OPEN_JARVIS_UV" pip --python "$VIRTUAL_ENV/bin/python" "$@"',
+        '  "$OPEN_JARVIS_UV" pip "$@"',
         "}",
         'pip3() { pip "$@"; }',
         "pytest() {",
@@ -1025,41 +1020,16 @@ export class LocalSandbox
     if (bundledPythonPath && !hasBundledPython) {
       return {
         output:
-          "[stderr] Error: embedded Python runtime is incomplete in this app package.\n",
+          "[stderr] Error: embedded Python 3.12.13 runtime is incomplete in this app package.\n",
         exitCode: 127,
         truncated: false,
       };
     }
 
-    let resolvedPython = bundledPythonPath;
-
-    if (!resolvedPython) {
-      const systemPythonResult = await this.runToolingProcess(
-        this.embeddedTooling.uvPath,
-        ["python", "find", "--system", "--no-managed-python", "--no-python-downloads"],
-        commandEnv,
-      );
-
-      if (systemPythonResult.exitCode !== 0) {
-        return {
-          output:
-            systemPythonResult.output ||
-            "[stderr] Error: no bundled or local Python interpreter is available for uv. Python downloads are disabled.\n",
-          exitCode: systemPythonResult.exitCode,
-          truncated: systemPythonResult.truncated,
-        };
-      }
-
-      resolvedPython = systemPythonResult.output
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .find((line) => line.length > 0) ?? null;
-    }
-
-    if (!resolvedPython) {
+    if (!bundledPythonPath) {
       return {
         output:
-          "[stderr] Error: no bundled or local Python interpreter is available for uv. Python downloads are disabled.\n",
+          "[stderr] Error: embedded Python 3.12.13 runtime is missing from this app package.\n",
         exitCode: 127,
         truncated: false,
       };
@@ -1071,7 +1041,7 @@ export class LocalSandbox
         "venv",
         path.join(this.workingDir, ".venv"),
         "--python",
-        resolvedPython,
+        bundledPythonPath,
         "--no-managed-python",
         "--no-python-downloads",
       ],
@@ -1083,7 +1053,7 @@ export class LocalSandbox
         sandboxId: this.id,
         workingDir: this.workingDir,
         venvPythonPath,
-        resolvedPython,
+        resolvedPython: bundledPythonPath,
       });
       return null;
     }

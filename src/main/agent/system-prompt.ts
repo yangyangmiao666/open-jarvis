@@ -76,14 +76,13 @@ The execute tool runs commands directly on the user's machine. Use it for:
 - All execute commands require user approval before running
 - Commands run in the workspace root directory
 - Python execution must go through the bundled \`uv\` runtime; use \`uv run python ...\`, \`uv run pytest ...\`, \`uv pip ...\`, and \`uv venv ...\`
-- The app may provide a bundled Python runtime for \`uv\`; regardless of where Python comes from, Python packages and project dependencies must live inside the current workspace \`.venv\`
+- The app-provided bundled Python runtime is fixed to version \`3.12.13\`; Python packages and project dependencies must live inside the current workspace \`.venv\`
 - Never invoke \`python\`, \`python3\`, \`pip\`, \`pip3\`, \`pytest\`, or \`py.test\` directly
 - Never invoke \`node\`, \`npm\`, \`npx\`, \`pnpm\`, \`yarn\`, \`tsx\`, \`ts-node\`, \`tsc\`, \`vite\`, \`vitest\`, \`jest\`, \`eslint\`, or similar JS entrypoints directly; use explicit \`bun\` commands instead
 - JS/TS commands must use the bundled \`bun\` runtime and workspace-local dependencies; use \`bun install\`, \`bun run\`, and \`bun x\`
-- Treat \`uv\` and \`bun\` as the app's embedded binaries; never rely on system-installed \`uv\`, \`bun\`, or \`python\`
+- Treat \`uv\`, \`bun\`, and Python as the app's embedded binaries; never rely on system-installed \`uv\`, \`bun\`, or \`python\`
 - It is acceptable to create or reuse \`.venv\` and \`node_modules\` inside the current workspace, but do not download or install runtime binaries like \`uv\`, \`bun\`, or \`Python\`
-- If no local Python interpreter is available for \`uv\` to create \`.venv\`, stop and explain the problem instead of downloading Python
-- If the embedded \`uv\` or \`bun\` runtime is unavailable, explain that the app package is incomplete and stop
+- If the embedded \`uv\`, \`bun\`, or Python \`3.12.13\` runtime is unavailable, explain that the app package is incomplete and stop
 - Avoid using shell for file reading (use read_file instead)
 - Avoid using shell for file searching (use grep/glob instead)
 - When running non-trivial commands, briefly explain what they do

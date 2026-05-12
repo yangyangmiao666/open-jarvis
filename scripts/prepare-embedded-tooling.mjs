@@ -3,15 +3,17 @@ import {
   cpSync,
   createWriteStream,
   existsSync,
+  readlinkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import process from "node:process";
@@ -279,12 +281,98 @@ function getManagedPythonSubpath(pythonExecutablePath, exactVersion) {
     return parts.slice(exactIndex).join("/");
   }
 
-  const fallbackIndex = parts.findIndex((part) => /^cpython-/.test(part));
-  if (fallbackIndex >= 0) {
-    return parts.slice(fallbackIndex).join("/");
+  return null;
+}
+
+function pruneBundledPythonInstall(rootDir, exactVersion) {
+  const pythonRoot = join(rootDir, "python-install");
+  if (!existsSync(pythonRoot)) {
+    return;
   }
 
-  return null;
+  const exactPrefix = `cpython-${exactVersion}-`;
+  for (const entry of readdirSync(pythonRoot, { withFileTypes: true })) {
+    const shouldRemoveLegacyPythonEntry =
+      entry.name.startsWith("cpython-") && !entry.name.startsWith(exactPrefix);
+    const shouldRemoveTransientEntry =
+      entry.name === ".temp" || entry.name === ".DS_Store";
+
+    if (!shouldRemoveLegacyPythonEntry && !shouldRemoveTransientEntry) {
+      continue;
+    }
+
+    rmSync(join(pythonRoot, entry.name), {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
+  }
+}
+
+function rewriteBundledPythonSymlinks(rootDir, exactVersion) {
+  const pythonRoot = join(rootDir, "python-install");
+  if (!existsSync(pythonRoot)) {
+    return;
+  }
+
+  const stack = [pythonRoot];
+  let rewrittenCount = 0;
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const entryPath = join(current, entry.name);
+
+      if (entry.isDirectory()) {
+        stack.push(entryPath);
+        continue;
+      }
+
+      if (!entry.isSymbolicLink()) {
+        continue;
+      }
+
+      const linkTarget = readlinkSync(entryPath);
+      if (!isAbsolute(linkTarget)) {
+        continue;
+      }
+
+      const managedPythonSubpath = getManagedPythonSubpath(linkTarget, exactVersion);
+      if (!managedPythonSubpath) {
+        continue;
+      }
+
+      const normalizedTargetPath = join(
+        pythonRoot,
+        ...managedPythonSubpath.split("/"),
+      );
+      if (!existsSync(normalizedTargetPath)) {
+        throw new Error(
+          `Unable to rewrite embedded Python symlink ${entryPath}: missing target ${normalizedTargetPath}`,
+        );
+      }
+
+      const relativeTarget = relative(dirname(entryPath), normalizedTargetPath);
+      rmSync(entryPath, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 100,
+      });
+      symlinkSync(relativeTarget, entryPath);
+      rewrittenCount += 1;
+    }
+  }
+
+  if (rewrittenCount > 0) {
+    logStage(`Rewrote ${rewrittenCount} embedded Python symlink(s) under ${pythonRoot}`);
+  }
+}
+
+function normalizeBundledPythonInstall(rootDir, exactVersion) {
+  pruneBundledPythonInstall(rootDir, exactVersion);
+  rewriteBundledPythonSymlinks(rootDir, exactVersion);
 }
 
 function readExistingManifest() {
@@ -418,6 +506,8 @@ async function main() {
     reusableExistingTooling?.pythonPath &&
     reusableExistingTooling?.pythonRelativePath
   ) {
+    normalizeBundledPythonInstall(toolingRoot, pythonVersion);
+
     const manifest = {
       platform: requestedTarget.platform,
       arch: requestedTarget.arch,
@@ -579,6 +669,7 @@ async function main() {
     recursive: true,
     force: true,
   });
+  normalizeBundledPythonInstall(toolingRoot, pythonVersion);
   const normalizedPythonInstallDir = resolve(pythonInstallDir);
   const normalizedResolvedPythonPath = resolve(resolvedPythonPath);
   const pythonRelativePath = relative(
