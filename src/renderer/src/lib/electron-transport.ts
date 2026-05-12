@@ -603,6 +603,12 @@ export class ElectronIPCTransport implements UseStreamTransport {
       if (isToolMessage && kwargs.tool_call_id) {
         const content = this.extractContent(kwargs.content);
         const msgId = kwargs.id || crypto.randomUUID();
+        const toolRecord = kwargs as Record<string, unknown>;
+        const isError =
+          toolRecord.is_error === true ||
+          toolRecord.status === "error" ||
+          (toolRecord.additional_kwargs as { is_error?: boolean } | undefined)
+            ?.is_error === true;
 
         // Emit tool message to the stream
         events.push({
@@ -614,6 +620,7 @@ export class ElectronIPCTransport implements UseStreamTransport {
               content,
               tool_call_id: kwargs.tool_call_id,
               name: kwargs.name,
+              is_error: isError,
             },
             { langgraph_node: metadata?.langgraph_node || "tools" },
           ],

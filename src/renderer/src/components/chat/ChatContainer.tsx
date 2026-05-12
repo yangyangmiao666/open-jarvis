@@ -117,6 +117,7 @@ interface StreamMessage {
   tool_calls?: Message["tool_calls"];
   tool_call_id?: string;
   name?: string;
+  is_error?: boolean;
 }
 
 interface ChatContainerProps {
@@ -344,6 +345,9 @@ export function ChatContainer({
                 tool_call_id: streamMsg.tool_call_id,
               }),
             ...(role === "tool" && streamMsg.name && { name: streamMsg.name }),
+            ...(role === "tool" && streamMsg.is_error !== undefined
+              ? { is_error: streamMsg.is_error }
+              : {}),
             created_at: new Date(),
           };
           appendMessage(storeMsg);
@@ -383,6 +387,9 @@ export function ChatContainer({
           ...(role === "tool" &&
             streamMsg.tool_call_id && { tool_call_id: streamMsg.tool_call_id }),
           ...(role === "tool" && streamMsg.name && { name: streamMsg.name }),
+          ...(role === "tool" && streamMsg.is_error !== undefined
+            ? { is_error: streamMsg.is_error }
+            : {}),
           created_at: new Date(),
         };
       });
@@ -494,7 +501,7 @@ export function ChatContainer({
       if (msg.role === "tool" && msg.tool_call_id) {
         results.set(msg.tool_call_id, {
           content: msg.content,
-          is_error: false, // Could be enhanced to track errors
+          is_error: msg.is_error,
         });
       }
     }

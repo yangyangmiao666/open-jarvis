@@ -304,6 +304,30 @@ function getWindowsEnvKey(
   return Object.keys(env).find((candidate) => candidate.toUpperCase() === upperKey) ?? key;
 }
 
+function withProxyEnvAliases(env: Record<string, string>): Record<string, string> {
+  const nextEnv = { ...env };
+  const aliasGroups = [
+    ["HTTP_PROXY", "http_proxy"],
+    ["HTTPS_PROXY", "https_proxy"],
+    ["ALL_PROXY", "all_proxy"],
+    ["NO_PROXY", "no_proxy"],
+  ] as const;
+
+  for (const [upperKey, lowerKey] of aliasGroups) {
+    const value = nextEnv[upperKey] || nextEnv[lowerKey] || "";
+    if (value) {
+      nextEnv[upperKey] = value;
+      nextEnv[lowerKey] = value;
+    }
+  }
+
+  if (nextEnv.HTTP_PROXY || nextEnv.HTTPS_PROXY || nextEnv.ALL_PROXY) {
+    nextEnv.NODE_USE_ENV_PROXY = nextEnv.NODE_USE_ENV_PROXY || "1";
+  }
+
+  return nextEnv;
+}
+
 /**
  * Options for LocalSandbox configuration.
  */
@@ -364,7 +388,9 @@ export class LocalSandbox
     this.id = `local-sandbox-${randomUUID().slice(0, 8)}`;
     this.timeout = options.timeout ?? 120_000; // 2 minutes default
     this.maxOutputBytes = options.maxOutputBytes ?? 100_000; // ~100KB default
-    this.env = options.env ?? ({ ...process.env } as Record<string, string>);
+    this.env = withProxyEnvAliases(
+      options.env ?? ({ ...process.env } as Record<string, string>),
+    );
     this.workingDir = options.rootDir ?? process.cwd();
 
     logInfo("LocalSandbox", "Created sandbox", {
@@ -561,7 +587,7 @@ export class LocalSandbox
   ): WindowsRuntimeCommandPlan {
     const rewrittenCommand = rewriteWindowsCommand(command);
     const prelude: string[] = [];
-    const commandEnv = { ...this.env };
+    const commandEnv = withProxyEnvAliases(this.env);
     const pathKey = getWindowsEnvKey(commandEnv, "PATH");
     const pathExtKey = getWindowsEnvKey(commandEnv, "PATHEXT");
 
@@ -1158,7 +1184,7 @@ export class LocalSandbox
       ? this.buildWorkspaceRuntimeCommandForWindows(command)
       : null;
     const preparedCommand = windowsRuntimePlan?.command ?? this.buildWorkspaceRuntimeCommand(command);
-    const commandEnv = windowsRuntimePlan?.env ?? this.env;
+    const commandEnv = withProxyEnvAliases(windowsRuntimePlan?.env ?? this.env);
     const requiresWindowsPythonRuntime =
       isWindows && needsWindowsPythonBootstrap(command);
     logInfo("LocalSandbox", "Execute requested", {

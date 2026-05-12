@@ -794,6 +794,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                   tool_calls?: unknown[];
                   tool_call_id?: string;
                   name?: string;
+                  status?: string;
+                  is_error?: boolean;
                 }>;
                 todos?: Array<{
                   id?: string;
@@ -857,6 +859,10 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                   ...(role === "tool" &&
                     msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
                   ...(role === "tool" && msg.name && { name: msg.name }),
+                  ...(role === "tool" &&
+                  (msg.is_error === true || msg.status === "error")
+                    ? { is_error: true }
+                    : {}),
                   created_at: new Date(),
                 };
               },

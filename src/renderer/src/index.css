@@ -88,33 +88,33 @@ html.dark,
 :root {
   /* Foundation */
   --radius: 14px;
-  --background: #000000;
-  --background-elevated: #0a0a0a;
-  --background-interactive: #141414;
-  --foreground: #ffffff;
+  --background: #0f1115;
+  --background-elevated: #151922;
+  --background-interactive: #1c2230;
+  --foreground: #f5f7fb;
 
   /* Borders */
-  --border: #333333;
-  --border-emphasis: #4a4a4a;
-  --input: #0a0a0a;
-  --ring: #ffffff;
+  --border: #2d3442;
+  --border-emphasis: #424b5d;
+  --input: #151922;
+  --ring: #f5f7fb;
 
   /* Text hierarchy */
-  --muted: #141414;
-  --muted-foreground: #888888;
-  --tertiary-foreground: #666666;
+  --muted: #171d28;
+  --muted-foreground: #98a2b3;
+  --tertiary-foreground: #697386;
 
   /* Semantic mapping for shadcn compatibility */
-  --card: #0a0a0a;
-  --card-foreground: #ffffff;
-  --popover: #0a0a0a;
-  --popover-foreground: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #000000;
-  --secondary: #141414;
-  --secondary-foreground: #ffffff;
-  --accent: #1a1a1a;
-  --accent-foreground: #ffffff;
+  --card: #151922;
+  --card-foreground: #f5f7fb;
+  --popover: #171c26;
+  --popover-foreground: #f5f7fb;
+  --primary: #f5f7fb;
+  --primary-foreground: #10131a;
+  --secondary: #1a202c;
+  --secondary-foreground: #f5f7fb;
+  --accent: #20283a;
+  --accent-foreground: #f5f7fb;
   --destructive: #ff4d4f;
 
   /* Status colors */
@@ -125,14 +125,14 @@ html.dark,
   --status-accent: #8b5cf6;
 
   /* Sidebar */
-  --sidebar: #000000;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #0a0a0a;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #333333;
-  --sidebar-ring: #ffffff;
+  --sidebar: #10141c;
+  --sidebar-foreground: #f5f7fb;
+  --sidebar-primary: #f5f7fb;
+  --sidebar-primary-foreground: #10131a;
+  --sidebar-accent: #171d28;
+  --sidebar-accent-foreground: #f5f7fb;
+  --sidebar-border: #2d3442;
+  --sidebar-ring: #f5f7fb;
 }
 
 /* 亮色模式 */

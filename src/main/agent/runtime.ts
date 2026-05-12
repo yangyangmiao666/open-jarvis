@@ -336,28 +336,8 @@ function normalizeOpenAICompatibleMessages(request: unknown): {
     return normalized.message;
   });
 
-  let latestAssistantReasoningIndex = -1;
-  for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
-    const message = normalizedMessages[index];
-    if (!message || typeof message !== "object") {
-      continue;
-    }
-
-    const record = message as Record<string, unknown>;
-    if (record.role !== "assistant") {
-      continue;
-    }
-
-    const reasoning = extractReasoningFromRecord(record);
-    if (reasoning.length > 0) {
-      latestAssistantReasoningIndex = index;
-      break;
-    }
-  }
-
   let retainedReasoningCount = 0;
-  let prunedReasoningCount = 0;
-  const historyPrunedMessages = normalizedMessages.map((message, index) => {
+  const historyPrunedMessages = normalizedMessages.map((message) => {
     if (!message || typeof message !== "object") {
       return message;
     }
@@ -372,41 +352,11 @@ function normalizeOpenAICompatibleMessages(request: unknown): {
       return message;
     }
 
-    if (index === latestAssistantReasoningIndex) {
-      retainedReasoningCount += 1;
-      return {
-        ...record,
-        reasoning_content: reasoning,
-      };
-    }
-
-    prunedReasoningCount += 1;
-    const nextMessage = { ...record };
-    delete nextMessage.reasoning_content;
-    delete nextMessage.reasoning;
-    delete nextMessage.thinking;
-    delete nextMessage.think;
-
-    for (const containerKey of [
-      "additional_kwargs",
-      "kwargs",
-      "response_metadata",
-      "metadata",
-    ] as const) {
-      const container = nextMessage[containerKey];
-      if (!container || typeof container !== "object") {
-        continue;
-      }
-
-      const nextContainer = { ...(container as Record<string, unknown>) };
-      delete nextContainer.reasoning_content;
-      delete nextContainer.reasoning;
-      delete nextContainer.thinking;
-      delete nextContainer.think;
-      nextMessage[containerKey] = nextContainer;
-    }
-
-    return nextMessage;
+    retainedReasoningCount += 1;
+    return {
+      ...record,
+      reasoning_content: reasoning,
+    };
   });
 
   return {
@@ -416,7 +366,7 @@ function normalizeOpenAICompatibleMessages(request: unknown): {
     },
     normalizedCount,
     retainedReasoningCount,
-    prunedReasoningCount,
+    prunedReasoningCount: 0,
   };
 }
 

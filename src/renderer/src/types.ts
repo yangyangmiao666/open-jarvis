@@ -158,6 +158,8 @@ export interface Message {
   tool_call_id?: string;
   // For tool messages - the name of the tool
   name?: string;
+  // For tool messages - whether the tool execution failed
+  is_error?: boolean;
   created_at: Date;
 }
 

@@ -242,6 +242,9 @@ export interface Message {
   role: "user" | "assistant" | "system" | "tool";
   content: string | ContentBlock[];
   tool_calls?: ToolCall[];
+  tool_call_id?: string;
+  name?: string;
+  is_error?: boolean;
   created_at: Date;
 }
 

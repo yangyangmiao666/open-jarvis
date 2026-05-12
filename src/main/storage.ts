@@ -16,6 +16,33 @@ const LEGACY_OPENWORK_DIR = join(homedir(), ".openwork");
 const ENV_FILE = join(OPEN_JARVIS_DIR, ".env");
 const PROXY_ENV_KEYS = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] as const;
 
+function syncProxyEnvAliases(env: Record<string, string>): void {
+  const aliasGroups = [
+    ["HTTP_PROXY", "http_proxy"],
+    ["HTTPS_PROXY", "https_proxy"],
+    ["ALL_PROXY", "all_proxy"],
+    ["NO_PROXY", "no_proxy"],
+  ] as const;
+
+  for (const [upperKey, lowerKey] of aliasGroups) {
+    const upperValue = env[upperKey] ?? process.env[upperKey] ?? "";
+    const lowerValue = env[lowerKey] ?? process.env[lowerKey] ?? "";
+    const value = upperValue || lowerValue;
+
+    if (value) {
+      env[upperKey] = value;
+      env[lowerKey] = value;
+      process.env[upperKey] = value;
+      process.env[lowerKey] = value;
+    } else {
+      delete env[upperKey];
+      delete env[lowerKey];
+      delete process.env[upperKey];
+      delete process.env[lowerKey];
+    }
+  }
+}
+
 // Environment variable names for each provider
 const ENV_VAR_NAMES: Record<ProviderId, string> = {
   anthropic: "ANTHROPIC_API_KEY",
@@ -97,6 +124,7 @@ export function loadEnvFileToProcessEnv(): Record<string, string> {
   for (const [key, value] of Object.entries(env)) {
     process.env[key] = value;
   }
+  syncProxyEnvAliases(env);
   return env;
 }
 
@@ -141,6 +169,8 @@ export function setProxyConfig(config: ProxyConfig): ProxyConfig {
     delete env["NODE_USE_ENV_PROXY"];
     delete process.env["NODE_USE_ENV_PROXY"];
   }
+
+  syncProxyEnvAliases(env);
 
   writeEnvFile(env);
   return normalized;

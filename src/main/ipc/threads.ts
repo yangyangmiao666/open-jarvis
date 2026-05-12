@@ -36,6 +36,8 @@ function extractCheckpointMessages(checkpoint: unknown): Message[] {
           tool_calls?: unknown[];
           tool_call_id?: string;
           name?: string;
+          status?: string;
+          is_error?: boolean;
         }>;
       };
     };
@@ -67,6 +69,10 @@ function extractCheckpointMessages(checkpoint: unknown): Message[] {
       ...(role === "tool" &&
         msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
       ...(role === "tool" && msg.name && { name: msg.name }),
+      ...(role === "tool" &&
+      (msg.is_error === true || msg.status === "error")
+        ? { is_error: true }
+        : {}),
       created_at: new Date(),
     };
   });
