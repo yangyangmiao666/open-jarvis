@@ -296,7 +296,7 @@ export function SkillsDialog({
         <DialogContent className="flex max-h-[min(92vh,56rem)] w-[min(96vw,88rem)] max-w-[88rem] flex-col overflow-hidden p-0">
           <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
             <div className="flex items-center gap-3">
-              <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+              <div className="badge-green inline-flex shrink-0 items-center gap-2 rounded-full border border-status-nominal/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
                 <WandSparkles className="size-3.5" />
                 Skills Workspace
               </div>
@@ -310,7 +310,7 @@ export function SkillsDialog({
           <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,0.74fr)_minmax(0,1.46fr)]">
             <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
               <div className="flex items-start gap-3">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background-elevated/80 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                  <div className="icon-green flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 shadow-[0_8px_18px_color-mix(in_srgb,var(--status-nominal)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                   <LibraryBig className="size-5" />
                 </div>
                 <div className="min-w-0">
@@ -374,7 +374,7 @@ export function SkillsDialog({
             <section className="app-flat-surface flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-border/70 px-5 py-5">
               <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background-elevated/80 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                  <div className="icon-amber flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 shadow-[0_8px_18px_color-mix(in_srgb,var(--status-warning)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                     <FolderTree className="size-5" />
                   </div>
                   <div className="min-w-0">
@@ -555,7 +555,7 @@ export function SkillsDialog({
             <ScrollArea className="min-h-0 flex-1 rounded-[24px] border border-border/80 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_88%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))]">
               <div className="flex flex-col gap-4 p-4 sm:p-5">
                 <div className="flex items-start gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-[16px] border border-border/70 bg-background-elevated/85 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+                  <div className="icon-green flex size-10 shrink-0 items-center justify-center rounded-[16px] border border-border/70 shadow-[0_8px_18px_color-mix(in_srgb,var(--status-nominal)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                     <SquarePen className="size-4.5" />
                   </div>
                   <div className="min-w-0">

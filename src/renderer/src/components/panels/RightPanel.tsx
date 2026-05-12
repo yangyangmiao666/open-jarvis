@@ -44,7 +44,22 @@ interface SectionHeaderProps {
   badge?: number | string;
   isOpen: boolean;
   onToggle: () => void;
+  accent?: "blue" | "green" | "amber" | "purple";
 }
+
+const SECTION_ACCENT_ICON: Record<string, string> = {
+  blue: "icon-blue",
+  green: "icon-green",
+  amber: "icon-amber",
+  purple: "icon-purple",
+};
+
+const SECTION_ACCENT_BADGE: Record<string, string> = {
+  blue: "badge-blue",
+  green: "badge-green",
+  amber: "badge-amber",
+  purple: "badge-purple",
+};
 
 function SectionHeader({
   title,
@@ -52,7 +67,10 @@ function SectionHeader({
   badge,
   isOpen,
   onToggle,
+  accent,
 }: SectionHeaderProps): React.JSX.Element {
+  const iconClass = accent ? SECTION_ACCENT_ICON[accent] : "text-foreground/80";
+  const badgeClass = accent ? SECTION_ACCENT_BADGE[accent] : "";
   return (
     <button
       onClick={onToggle}
@@ -65,10 +83,10 @@ function SectionHeader({
           isOpen && "rotate-90",
         )}
       />
-      <Icon className="size-4 text-foreground/80" />
+      <Icon className={cn("size-4", iconClass)} />
       <span className="flex-1 text-left">{title}</span>
       {badge !== undefined && badge !== 0 && badge !== "" && (
-        <span className="rounded-full border border-border/70 bg-background/55 px-2 py-0.5 text-[10px] text-muted-foreground tabular-nums">
+        <span className={cn("rounded-full border border-border/70 px-2 py-0.5 text-[10px] tabular-nums", badgeClass ? `${badgeClass}` : "bg-background/55 text-muted-foreground")}>
           {badge}
         </span>
       )}
@@ -350,6 +368,7 @@ export function RightPanel(): React.JSX.Element {
           badge={todos.length}
           isOpen={tasksOpen}
           onToggle={() => setTasksOpen((prev) => !prev)}
+          accent="blue"
         />
         {tasksOpen && (
           <div className="animate-soft-fade overflow-auto" style={{ height: heights.tasks }}>
@@ -371,6 +390,7 @@ export function RightPanel(): React.JSX.Element {
           badge={workspaceFiles.length > 0 ? `${workspaceFiles.length}个文件` : undefined}
           isOpen={filesOpen}
           onToggle={() => setFilesOpen((prev) => !prev)}
+          accent="amber"
         />
         {filesOpen && (
           <div className="animate-soft-fade overflow-auto" style={{ height: heights.files }}>

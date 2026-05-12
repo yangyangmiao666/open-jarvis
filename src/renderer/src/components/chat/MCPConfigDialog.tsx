@@ -199,7 +199,7 @@ export function MCPConfigDialog({
         <DialogContent className="flex max-h-[min(92vh,54rem)] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0">
         <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
           <div className="flex items-center gap-3">
-            <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            <div className="badge-purple inline-flex shrink-0 items-center gap-2 rounded-full border border-status-accent/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
               <Cable className="size-3.5" />
               MCP Workspace
             </div>

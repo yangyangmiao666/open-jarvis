@@ -156,7 +156,7 @@ export function OpenAICompatibleDialog({
         <DialogContent className="flex max-h-[min(92vh,54rem)] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0">
         <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
           <div className="flex items-center gap-3">
-            <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            <div className="badge-blue inline-flex shrink-0 items-center gap-2 rounded-full border border-status-info/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
               <Boxes className="size-3.5" />
               Models Workspace
             </div>
@@ -253,7 +253,7 @@ export function OpenAICompatibleDialog({
 
           <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
             <div className="flex items-start gap-3">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 bg-background-elevated/80 text-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--primary)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
+              <div className="icon-blue flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 shadow-[0_8px_18px_color-mix(in_srgb,var(--status-info)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                 <Sparkles className="size-5" />
               </div>
               <div className="min-w-0">

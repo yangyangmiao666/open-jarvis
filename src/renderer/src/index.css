@@ -42,6 +42,7 @@
   --color-status-warning: var(--status-warning);
   --color-status-nominal: var(--status-nominal);
   --color-status-info: var(--status-info);
+  --color-status-accent: var(--status-accent);
 
   /* Chart colors - using status palette */
   --color-chart-1: var(--status-critical);
@@ -121,6 +122,7 @@ html.dark,
   --status-warning: #faad14;
   --status-nominal: #52c41a;
   --status-info: #1890ff;
+  --status-accent: #8b5cf6;
 
   /* Sidebar */
   --sidebar: #000000;
@@ -161,6 +163,7 @@ html.light {
   --status-warning: #faad14;
   --status-nominal: #52c41a;
   --status-info: #1890ff;
+  --status-accent: #7c3aed;
   --sidebar: #fafafa;
   --sidebar-foreground: #000000;
   --sidebar-primary: #000000;
@@ -230,6 +233,42 @@ html.light {
   html {
     scroll-behavior: smooth;
   }
+}
+
+/* ── Icon accent containers ── */
+.icon-blue {
+  color: var(--status-info);
+  background: color-mix(in srgb, var(--status-info) 10%, transparent);
+}
+.icon-green {
+  color: var(--status-nominal);
+  background: color-mix(in srgb, var(--status-nominal) 10%, transparent);
+}
+.icon-amber {
+  color: var(--status-warning);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+}
+.icon-purple {
+  color: var(--status-accent);
+  background: color-mix(in srgb, var(--status-accent) 10%, transparent);
+}
+
+/* ── Badge accent ── */
+.badge-blue {
+  color: var(--status-info);
+  background: color-mix(in srgb, var(--status-info) 15%, transparent);
+}
+.badge-green {
+  color: var(--status-nominal);
+  background: color-mix(in srgb, var(--status-nominal) 15%, transparent);
+}
+.badge-amber {
+  color: var(--status-warning);
+  background: color-mix(in srgb, var(--status-warning) 15%, transparent);
+}
+.badge-purple {
+  color: var(--status-accent);
+  background: color-mix(in srgb, var(--status-accent) 15%, transparent);
 }
 
 .app-shell {
@@ -373,6 +412,7 @@ html.light {
   color: var(--foreground);
   border-color: var(--foreground);
   background: var(--background-elevated);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--status-info) 50%, transparent);
 }
 
 .app-tab-close:hover {

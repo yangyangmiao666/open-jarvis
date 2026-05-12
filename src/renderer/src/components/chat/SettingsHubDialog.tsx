@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import { OpenAICompatibleDialog } from "./OpenAICompatibleDialog";
 import { MCPConfigDialog } from "./MCPConfigDialog";
 import { SkillsDialog } from "../panels/SkillsDialog";
@@ -27,7 +28,15 @@ interface SettingsCardProps {
   description: string;
   actionLabel: string;
   onAction: () => void;
+  accent?: "blue" | "green" | "amber" | "purple";
 }
+
+const ACCENT_MAP: Record<string, string> = {
+  blue: "icon-blue",
+  green: "icon-green",
+  amber: "icon-amber",
+  purple: "icon-purple",
+};
 
 function SettingsCard({
   icon: Icon,
@@ -36,11 +45,12 @@ function SettingsCard({
   description,
   actionLabel,
   onAction,
+  accent,
 }: SettingsCardProps): React.JSX.Element {
   return (
     <div className="app-premium-surface group flex h-full flex-col gap-4 overflow-visible rounded-[28px] px-5 py-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-[inset_0_0_0_1px_color-mix(in_srgb,#fff_8%,transparent),0_16px_34px_color-mix(in_srgb,#000_12%,transparent)]">
       <div className="flex items-center gap-3">
-        <div className="app-premium-pill flex size-10 shrink-0 items-center justify-center rounded-[16px] text-primary transition-transform duration-200 group-hover:scale-[1.03]">
+        <div className={cn("app-premium-pill flex size-10 shrink-0 items-center justify-center rounded-[16px] transition-transform duration-200 group-hover:scale-[1.03]", accent ? ACCENT_MAP[accent] : "text-primary")}>
           <Icon className="size-4.5" />
         </div>
         <div className="min-w-0">
@@ -106,6 +116,7 @@ export function SettingsHubDialog({
                 description="管理 OpenAI 兼容接口、私有网关和本地部署模型，保存后模型列表会自动刷新。"
                 actionLabel="打开模型配置"
                 onAction={() => setOpenAICompatibleOpen(true)}
+                accent="blue"
               />
               <SettingsCard
                 icon={Network}
@@ -114,6 +125,7 @@ export function SettingsHubDialog({
                 description="配置 HTTP、HTTPS 或 SOCKS 代理。保存后会立即更新主进程网络请求，不再依赖手改 .env。"
                 actionLabel="打开代理配置"
                 onAction={() => setProxyOpen(true)}
+                accent="amber"
               />
               <SettingsCard
                 icon={Wrench}
@@ -122,6 +134,7 @@ export function SettingsHubDialog({
                 description="维护全局技能源以及当前工作区中的 .deepagents/skills 目录，统一处理导入、新建和编辑。全局默认目录为 ~/.open-jarvis/skills。"
                 actionLabel="打开技能配置"
                 onAction={() => setSkillsOpen(true)}
+                accent="green"
               />
               <SettingsCard
                 icon={Cable}
@@ -130,6 +143,7 @@ export function SettingsHubDialog({
                 description="管理 MCP Server 列表，并配置所有会话默认启用的工具能力。"
                 actionLabel="打开 MCP 配置"
                 onAction={() => setMcpOpen(true)}
+                accent="purple"
               />
             </div>
           </div>

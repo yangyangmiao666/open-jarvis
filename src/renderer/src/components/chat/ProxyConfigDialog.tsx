@@ -72,7 +72,7 @@ export function ProxyConfigDialog({
       <DialogContent className="flex max-h-[min(92vh,48rem)] w-[min(96vw,42rem)] max-w-2xl flex-col overflow-hidden p-0">
         <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
           <div className="flex items-center gap-3">
-            <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            <div className="badge-amber inline-flex shrink-0 items-center gap-2 rounded-full border border-status-warning/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
               <Network className="size-3.5" />
               Proxy
             </div>

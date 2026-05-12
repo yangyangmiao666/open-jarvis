@@ -53,7 +53,7 @@ export function TabBar({
             : "",
         )}
       >
-        <Bot className={cn("size-4", activeTab === "agent" ? "text-primary" : "text-muted-foreground")} />
+        <Bot className={cn("size-4", activeTab === "agent" ? "text-status-accent" : "text-muted-foreground")} />
         <span>智能体</span>
       </button>
 

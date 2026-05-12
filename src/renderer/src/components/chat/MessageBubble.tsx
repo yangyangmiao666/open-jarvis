@@ -142,14 +142,14 @@ export function MessageBubble({
         <div className="w-10 shrink-0 pt-0.5">
           {isUser ? (
             <div
-              className="flex size-9 items-center justify-center rounded-2xl border border-border bg-background-elevated text-foreground"
+              className="icon-blue flex size-9 items-center justify-center rounded-2xl border border-status-info/20"
               title="你"
             >
               <User className="size-4" />
             </div>
           ) : (
             <div
-              className="flex size-9 items-center justify-center rounded-2xl border border-border bg-background-elevated text-foreground"
+              className="icon-purple flex size-9 items-center justify-center rounded-2xl border border-status-accent/20"
               title="Jarvis"
             >
               <JarvisMark className="size-[16px]" />
@@ -221,7 +221,7 @@ export function MessageBubble({
               <div
                 className={cn(
                   isUser
-                    ? "ml-auto w-fit max-w-full rounded-2xl border border-border/60 bg-slate-100 px-4 py-3.5 text-foreground dark:border-border/70 dark:bg-slate-800"
+                    ? "ml-auto w-fit max-w-full rounded-2xl border-l-2 border-l-status-info/25 border border-border/60 bg-slate-100 px-4 py-3.5 text-foreground dark:border-border/70 dark:bg-slate-800"
                     : "w-fit max-w-full",
                 )}
               >

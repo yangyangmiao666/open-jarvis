@@ -93,7 +93,7 @@ function ThreadListItem({
           className={cn(
             "group app-elevated-hover flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5",
             isSelected
-              ? "app-premium-surface border-transparent text-sidebar-accent-foreground shadow-none"
+              ? "app-premium-surface border-l-2 border-l-status-info/50 border-transparent text-sidebar-accent-foreground shadow-none"
               : "border-transparent hover:border-sidebar-border/80 hover:bg-sidebar-accent/70",
           )}
           onClick={() => {
@@ -269,7 +269,7 @@ export function ThreadSidebar({
       {/* 品牌区：紧贴标题栏下缘，在「红绿灯区域以下 ~ 本区分割线」之间垂直居中 */}
       <div className="app-sidebar-brand app-hairline flex min-h-[5.4rem] shrink-0 items-center gap-3 px-3 py-4">
         <div
-          className="app-premium-surface flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.45rem] text-primary shadow-none"
+          className="icon-purple app-premium-surface flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.45rem] shadow-none"
           aria-hidden
         >
           <JarvisMark className="size-[24px]" />
@@ -279,7 +279,7 @@ export function ThreadSidebar({
             Open Jarvis
           </p>
           <div className="mt-1 flex items-center gap-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/85">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-status-accent/85">
               Workspace Agent
             </p>
             <p className="font-mono text-[10px] text-muted-foreground/90">
