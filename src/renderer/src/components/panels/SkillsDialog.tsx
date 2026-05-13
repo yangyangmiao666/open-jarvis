@@ -31,7 +31,6 @@ type EditorMode = "create" | "edit";
 
 type SkillsDeleteConfirmState =
   | { type: "folders" }
-  | { type: "source"; value: string }
   | null;
 
 const PAGE_SIZE = 12;
@@ -42,7 +41,6 @@ export function SkillsDialog({
 }: SkillsDialogProps): React.JSX.Element {
   const workspaceSkillTarget = undefined;
   const [sources, setSources] = useState<string[]>([]);
-  const [newSource, setNewSource] = useState("");
   const [folders, setFolders] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -117,37 +115,8 @@ export function SkillsDialog({
     return filteredFolders.slice(start, start + PAGE_SIZE);
   }, [filteredFolders, currentPage, totalPages]);
 
-  const addSource = (): void => {
-    const target = newSource.trim();
-    if (!target) return;
-    const normalized = target;
-    if (sources.includes(normalized)) {
-      setNewSource("");
-      return;
-    }
-
-    const nextSources = [...sources, normalized];
-    setSources(nextSources);
-    setNewSource("");
-    toast.success("已添加技能来源路径");
-    void window.api.skills.setSources(nextSources);
-  };
-
-  const removeSource = (target: string): void => {
-    const nextSources = sources.filter((source) => source !== target);
-    setSources(nextSources);
-    toast.success("已移除技能来源路径");
-    void window.api.skills.setSources(nextSources);
-  };
-
   const handleConfirmDelete = async (): Promise<void> => {
     if (!deleteConfirm) return;
-
-    if (deleteConfirm.type === "source") {
-      removeSource(deleteConfirm.value);
-      setDeleteConfirm(null);
-      return;
-    }
 
     await handleDeleteFolders();
   };
@@ -319,7 +288,7 @@ export function SkillsDialog({
                     全局技能来源
                   </div>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    添加或移除全局技能来源路径。路径相对于工作区根目录，建议使用 POSIX 风格。
+                    技能来源已固定为全局目录，仅使用 ~/.open-jarvis/skills。
                   </p>
                 </div>
               </div>
@@ -328,7 +297,7 @@ export function SkillsDialog({
                 <div className="space-y-2 p-3">
                   {sources.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-border/70 px-3 py-8 text-center text-xs text-muted-foreground">
-                      暂无额外路径，当前仅使用默认技能来源。
+                      当前仅使用默认全局技能来源。
                     </div>
                   )}
                   {sources.map((source) => (
@@ -337,38 +306,10 @@ export function SkillsDialog({
                       className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_86%,transparent),color-mix(in_srgb,var(--background-elevated)_74%,transparent))] px-3 py-2 text-xs font-mono"
                     >
                       <span className="truncate">{source}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 rounded-xl px-2 text-[11px]"
-                        onClick={() =>
-                          setDeleteConfirm({ type: "source", value: source })
-                        }
-                      >
-                        移除
-                      </Button>
                     </div>
                   ))}
                 </div>
               </ScrollArea>
-
-              <div className="flex gap-2">
-                <Input
-                  value={newSource}
-                  onChange={(event) => setNewSource(event.target.value)}
-                  placeholder="例如：~/.open-jarvis/skills"
-                  className="text-xs"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-10 shrink-0 rounded-2xl px-4"
-                  onClick={addSource}
-                >
-                  添加
-                </Button>
-              </div>
             </section>
 
             <section className="app-flat-surface flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-border/70 px-5 py-5">
@@ -378,7 +319,7 @@ export function SkillsDialog({
                     <FolderTree className="size-5" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-section-header">Workspace</div>
+                    <div className="text-section-header">Global</div>
                     <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
                       技能目录（卡片分页）
                     </div>
@@ -460,7 +401,7 @@ export function SkillsDialog({
                   </div>
                 ) : folders.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
-                    当前工作区还没有技能目录。
+                    当前全局目录还没有技能目录。
                   </div>
                 ) : filteredFolders.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
@@ -625,16 +566,10 @@ export function SkillsDialog({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {deleteConfirm?.type === "source"
-                ? "确认移除技能来源？"
-                : "确认删除技能？"}
-            </DialogTitle>
+            <DialogTitle>确认删除技能？</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            {deleteConfirm?.type === "source"
-              ? `将移除技能来源路径“${deleteConfirm.value}”。移除后将不再从该路径加载技能。`
-              : `将永久删除所选的 ${selectedCount} 个技能目录及其中的文件，此操作不可恢复。`}
+            {`将永久删除所选的 ${selectedCount} 个技能目录及其中的文件，此操作不可恢复。`}
           </p>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
@@ -646,12 +581,10 @@ export function SkillsDialog({
             </Button>
             <Button
               type="button"
-              variant={
-                deleteConfirm?.type === "source" ? "secondary" : "destructive"
-              }
+              variant="destructive"
               onClick={() => void handleConfirmDelete()}
             >
-              {deleteConfirm?.type === "source" ? "移除" : "删除"}
+              删除
             </Button>
           </DialogFooter>
         </DialogContent>

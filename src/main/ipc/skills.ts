@@ -1,16 +1,9 @@
 import { IpcMain, dialog } from "electron";
-import Store from "electron-store";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { getThread } from "../db";
 import { getSkillSources, setSkillSources } from "../skill-config";
 import { getOpenworkDir } from "../storage";
 import { decodeTextBuffer } from "../text-encoding";
-
-const store = new Store({
-  name: "settings",
-  cwd: getOpenworkDir(),
-});
 
 function validateSkillFolderSegment(name: string): boolean {
   return (
@@ -34,27 +27,9 @@ function getGlobalSkillsRoot(): string {
   return path.join(getOpenworkDir(), "skills");
 }
 
-function getWorkspacePath(threadId?: string): string | null {
-  if (!threadId) {
-    return (store.get("workspacePath", null) as string | null) ?? null;
-  }
-
-  const thread = getThread(threadId);
-  if (!thread?.metadata) return null;
-  const meta = JSON.parse(thread.metadata) as { workspacePath?: string };
-  return meta.workspacePath ?? null;
-}
-
 function resolveSkillsRoot(threadId?: string): string | null {
-  if (!threadId) {
-    return getGlobalSkillsRoot();
-  }
-
-  const workspacePath = getWorkspacePath(threadId);
-  if (!workspacePath) {
-    return null;
-  }
-  return path.join(workspacePath, ".deepagents", "skills");
+  void threadId;
+  return getGlobalSkillsRoot();
 }
 
 export function registerSkillHandlers(ipcMain: IpcMain): void {

@@ -168,8 +168,7 @@ open-jarvis/
   - 配置存储在 electron-store `settings.json`。
 
 - **`src/main/skill-config.ts`**（91 行）
-  - 解析全局与工作区 skill 源目录。
-  - 工作区技能目录：`.deepagents/skills`。
+  - 解析全局 skill 源目录（固定目录）。
   - 全局技能目录：`~/.open-jarvis/skills/`。
 
 - **`src/main/openai-compatible-profiles.ts`**（74 行）

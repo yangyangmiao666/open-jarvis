@@ -54,8 +54,8 @@
 
 ### 技能系统
 
-- 工作区级技能目录 `.deepagents/skills/`
 - 全局技能目录 `~/.open-jarvis/skills/`
+- 不再使用工作区级技能目录
 - 支持 Markdown + YAML frontmatter 格式
 - 技能导入、创建、编辑、重命名
 
@@ -258,7 +258,6 @@ open-jarvis/
 | 审批规则 | `{workspace}/.open-jarvis/approval-rules.json` |
 | MCP 配置 | electron-store `settings.json` |
 | 技能（全局） | `~/.open-jarvis/skills/` |
-| 技能（工作区） | `{workspace}/.deepagents/skills/` |
 
 > 注：应用会自动从旧路径 `~/.openwork` 迁移数据到 `~/.open-jarvis`。
 

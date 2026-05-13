@@ -131,7 +131,7 @@ export function SettingsHubDialog({
                 icon={Wrench}
                 eyebrow="Skills"
                 title="技能配置"
-                description="维护全局技能源以及当前工作区中的 .deepagents/skills 目录，统一处理导入、新建和编辑。全局默认目录为 ~/.open-jarvis/skills。"
+                description="维护全局技能目录，统一处理导入、新建和编辑。固定目录为 ~/.open-jarvis/skills。"
                 actionLabel="打开技能配置"
                 onAction={() => setSkillsOpen(true)}
                 accent="green"
