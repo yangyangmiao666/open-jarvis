@@ -4,6 +4,37 @@
 
 ---
 
+## 界面预览
+
+<table>
+  <tr>
+    <td align="center"><b>主界面 - 亮色</b></td>
+    <td align="center"><b>主界面 - 深色</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/主界面-亮色.png" alt="主界面-亮色" width="480" /></td>
+    <td><img src="docs/主界面-深色.png" alt="主界面-深色" width="480" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>设置中枢 - 亮色</b></td>
+    <td align="center"><b>设置中枢 - 深色</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/设置中枢-亮色.png" alt="设置中枢-亮色" width="480" /></td>
+    <td><img src="docs/设置中枢-深色.png" alt="设置中枢-深色" width="480" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>多任务总览 - 亮色</b></td>
+    <td align="center"><b>多任务总览 - 深色</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/多任务总览-亮色.png" alt="多任务总览-亮色" width="480" /></td>
+    <td><img src="docs/多任务总览-深色.png" alt="多任务总览-深色" width="480" /></td>
+  </tr>
+</table>
+
+---
+
 ## 功能概览
 
 ### 多模型支持
