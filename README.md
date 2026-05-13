@@ -1,205 +1,296 @@
-# Open-Jarvis
+# Open Jarvis
 
-[![License: MIT][license-badge]][license-url]
+**桌面端 AI 编程助手** — 基于 Electron + React + LangGraph 构建的全栈智能体应用，支持多模型、MCP 工具扩展、HITL 审批、嵌入式工具链，以及完整的本地沙箱执行环境。
 
-[license-badge]: https://img.shields.io/badge/License-MIT-yellow.svg
-[license-url]: https://opensource.org/licenses/MIT
-
-基于 [deepagents](https://github.com/langchain-ai/deepagentsjs) 的 **Electron 桌面客户端**：在本地工作区内与智能体对话，支持文件系统工具、子代理、人机协同审批（HITL）、MCP 工具接入以及可配置的 Skills。界面中助手品牌为 **Jarvis**。
-
-> 本项目由 [openwork](https://github.com/langchain-ai/openwork) 一脉演进；包名与二进制入口见 `package.json` 的 `bin`。
-
-> [!CAUTION]
-> 智能体可访问你选定的工作区文件并执行 shell 命令。请在信任的工作区内使用，并在批准工具调用前仔细核对。
-
-## 界面预览
-
-<table>
-  <tr>
-    <td align="center"><b>主界面 - 亮色</b></td>
-    <td align="center"><b>主界面 - 深色</b></td>
-  </tr>
-  <tr>
-    <td><img src="docs/主界面-亮色.png" alt="主界面-亮色" /></td>
-    <td><img src="docs/主界面-深色.png" alt="主界面-深色" /></td>
-  </tr>
-  <tr>
-    <td align="center"><b>设置中枢 - 亮色</b></td>
-    <td align="center"><b>设置中枢 - 深色</b></td>
-  </tr>
-  <tr>
-    <td><img src="docs/设置中枢-亮色.png" alt="设置中枢-亮色" /></td>
-    <td><img src="docs/设置中枢-深色.png" alt="设置中枢-深色" /></td>
-  </tr>
-  <tr>
-    <td align="center"><b>多任务总览 - 亮色</b></td>
-    <td align="center"><b>多任务总览 - 深色</b></td>
-  </tr>
-  <tr>
-    <td><img src="docs/多任务总览-亮色.png" alt="多任务总览-亮色" /></td>
-    <td><img src="docs/多任务总览-深色.png" alt="多任务总览-深色" /></td>
-  </tr>
-</table>
+---
 
 ## 功能概览
 
-- **会话与历史**：多会话、侧栏管理；新建会话可继承当前会话的**模型**、**工作区路径**与**审批模式**；会话与检查点持久化（sql.js）；删除最后一个会话时会自动补一个新线程，避免工作区上下文丢失。
-- **工作区**：按会话绑定本地文件夹；树形 / 列表视图（可调整列宽，时间列含年份）；`@` 引用工作区路径；文件变更监听。
-- **模型**：Anthropic / OpenAI / Google 等；API Key 与 OpenAI 兼容配置存于本地；默认模型可切换；支持自定义 OpenAI-compatible base URL 与模型档案。
-- **Agent 运行时**：主进程内 `createDeepAgent` + LangGraph；`LocalSandbox` 扩展文件读写（含 **UTF-8 / GB18030** 文本解码，避免中文乱码）与命令执行。
-- **审批（HITL）**：支持线程级 `manual` / `auto` 审批模式；工具调用可批准、拒绝或编辑参数；工作区级记忆规则保存在 `.open-jarvis/approval-rules.json`，可对稳定命令自动放行。
-- **MCP**：支持全局 MCP server 配置、导入导出 JSON、线程级启用状态；传输方式覆盖 `stdio`、`streamable_http` 与 `sse`，远程服务支持自定义 HTTP headers。
-- **Skills**：`.deepagents/skills` 目录列表、导入、创建（含 Markdown）、编辑 `SKILL.md`、重命名与删除（带确认）。
-- **对话 UI**：流式 Markdown、工具调用卡片、待办、上下文用量；单条气泡与整会话 **导出 Markdown**；`@` 补全在深色模式下有高对比选中态；内置上下文窗口指示器可查看输入 / 输出 / 缓存 token 使用量。
-- **看板与子智能体**：支持 Kanban 总览全部线程状态；右侧面板展示 todo、工作区文件与子智能体生命周期，便于并行任务追踪。
-- **文件预览**：代码使用 **Shiki**（多语言含 MATLAB `.m` 等）；大 **CSV/TSV** 为纯文本截断预览以防卡顿；**PDF** 内嵌预览占满中间栏可用区域。
+### 多模型支持
 
-## 环境要求
+- **Anthropic Claude** — Claude Opus / Sonnet / Haiku 全系列
+- **OpenAI** — GPT-5 / GPT-4.1 / GPT-4o / O1 / O3 / O4 系列
+- **Google Gemini** — Gemini 3 Pro / 2.5 Pro / 1.5 Pro 等
+- **OpenAI 兼容模型** — 支持 DeepSeek、Qwen、GLM、Minimax 等任意兼容 OpenAI API 的模型，可自定义 API 格式（openai / anthropic）、思考模式与上下文窗口
 
-- [Bun](https://bun.sh)（推荐 **1.3+**，与 `package.json` 中 `packageManager` 一致）
-- Node.js **18+**（Electron / 工具链兼容所需）
+### 智能体运行时
 
-## 从源码运行
+- 基于 `deepagents` + LangGraph 的智能体循环，支持工具调用、子代理委派、任务管理
+- 每线程独立检查点（SQLite），支持消息回滚与历史重放
+- 流式输出，实时 token 级展示
+- 自定义系统提示，可针对工作区定制行为
+
+### 本地沙箱执行
+
+- 嵌入式工具链：自带 bun 1.3.13、uv 0.11.7、Python 3.12.13，无需系统预装
+- 自动拦截 `python/pip/node/npm` 等直接调用，引导使用嵌入式运行时
+- 跨平台支持：macOS 使用 shell 函数覆盖，Windows 使用 `.cmd` shim 文件
+- 自动创建 `.venv` 虚拟环境
+- 命令超时 120s，输出截断 100KB
+- 文本编码兼容：UTF-8 优先 + GB18030 回退
+
+### HITL 审批（Human-in-the-Loop）
+
+- 工具执行前可中断等待用户审批
+- 支持手动 / 自动两种审批模式
+- "记住此决定"功能：将审批规则持久化到工作区 `.open-jarvis/approval-rules.json`
+- 审批签名归一化，避免命令细节波动导致规则失配
+
+### MCP 工具扩展
+
+- 支持 Model Context Protocol，可连接任意 MCP 服务器
+- 三种传输方式：stdio / streamable_http / sse
+- 远程连接支持自定义 headers
+- 每线程可独立启用/禁用 MCP 服务器
+- 配置导入/导出
+
+### 工作区管理
+
+- 关联本地项目目录作为工作区
+- 实时文件变更监听与同步
+- 文件树/列表双视图
+- 内置文件预览：代码（Shiki 高亮，35+ 语言）、图片、PDF、音视频
+- 多标签页浏览
+
+### 技能系统
+
+- 工作区级技能目录 `.deepagents/skills/`
+- 全局技能目录 `~/.open-jarvis/skills/`
+- 支持 Markdown + YAML frontmatter 格式
+- 技能导入、创建、编辑、重命名
+
+### 代理支持
+
+- 支持 HTTP / HTTPS / ALL_PROXY 代理配置
+- 自动设置大小写环境变量别名
+- 全局 undici ProxyAgent 分发器
+
+### 其他
+
+- 看板视图：按线程状态分列展示
+- 上下文窗口监控：实时显示 token 使用量与模型上下文占比
+- 对话导出 Markdown
+- 亮色 / 深色主题切换
+- macOS 自定义标题栏
+
+---
+
+## 技术栈
+
+| 层级 | 技术 |
+|------|------|
+| Shell | Electron 42 + electron-vite 5 |
+| 主进程 | TypeScript, Node.js 24+ |
+| 渲染层 | React 19 + Tailwind CSS 4 + Radix UI + Zustand 5 |
+| 智能体 | deepagents + LangGraph |
+| 模型集成 | @langchain/anthropic, @langchain/openai, @langchain/google-genai |
+| MCP | @modelcontextprotocol/sdk |
+| 检查点 | sql.js（每线程独立 SQLite） |
+| 代码高亮 | Shiki |
+| Markdown | react-markdown + remark-gfm + remark-math + rehype-katex |
+| 包管理 | Bun |
+| 构建 | Vite 8 + electron-builder 26 |
+
+---
+
+## 快速开始
+
+### 环境要求
+
+- [Bun](https://bun.sh/) >= 1.0
+- Node.js >= 20（开发时需要，运行时由 Electron 提供）
+
+### 安装依赖
 
 ```bash
-git clone <your-repo-url> open-jarvis
-cd open-jarvis
 bun install
+```
+
+### 开发模式
+
+```bash
 bun run dev
 ```
 
-如果启动时报错 `Error: Electron uninstall`（通常是网络原因导致 Electron 二进制未下载完成），可使用镜像重装：
+启动后自动打开 Electron 窗口，主进程与渲染进程均支持热更新。
 
-- macOS / Linux：
+### 构建与打包
 
 ```bash
-ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ node node_modules/electron/install.js
+# 类型检查 + 构建
+bun run build
+
+# 打包为本机可运行目录
+bun run package:dir
+
+# 生成发行包
+bun run dist
 ```
 
-- Windows PowerShell：
+### 嵌入式工具链准备
 
-```powershell
-$env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
-node node_modules/electron/install.js
+开发模式下工具链从仓库 `resources/tooling/` 读取。如需重新准备：
+
+```bash
+# 当前平台
+bun run prepare:tooling
+
+# 指定平台
+bun run prepare:tooling:darwin:arm64   # macOS Apple Silicon
+bun run prepare:tooling:darwin:x64     # macOS Intel
+bun run prepare:tooling:win:x64        # Windows x64
+bun run prepare:tooling:linux:x64      # Linux x64
 ```
 
-- Windows CMD：
+---
 
-```bat
-set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
-node node_modules\electron\install.js
-```
-
-如果 Windows 上 `Invoke-WebRequest` 可访问镜像（如返回 200），但 `node -e "fetch(...)"` 仍报 `UND_ERR_CONNECT_TIMEOUT` 或 `fetch failed`，通常是 Node 进程没有正确走代理或 DNS/IPv6 路由导致。可在 PowerShell 中执行：
-
-```powershell
-$env:NODE_USE_ENV_PROXY = "1"
-$env:NODE_OPTIONS = "--dns-result-order=ipv4first"
-
-# 如你本机使用了代理工具（例如 Clash），按实际端口设置：
-$env:HTTP_PROXY = "http://127.0.0.1:7890"
-$env:HTTPS_PROXY = "http://127.0.0.1:7890"
-$env:ALL_PROXY = "http://127.0.0.1:7890"
-
-$env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
-node -e "fetch('https://npmmirror.com/mirrors/electron/').then(r=>console.log('node fetch status:',r.status)).catch(e=>{console.error(e); process.exit(1);})"
-node node_modules/electron/install.js
-```
-
-若你没有代理工具，请只设置 `NODE_USE_ENV_PROXY` 与 `NODE_OPTIONS` 后重试。
-
-若 Windows 打包时出现 `winCodeSign` 解压失败（`Cannot create symbolic link`），通常是自动签名阶段触发了系统符号链接权限限制。可关闭自动证书发现后再打包：
-
-```powershell
-$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
-bun run dist:win:x64
-```
-
-仓库内 `dist:win*` 脚本已默认带上该环境变量，适用于 unsigned 本地打包。
-如果你在修改前已经失败过，建议先清理缓存后重试：
-
-```powershell
-Remove-Item "$env:LOCALAPPDATA\electron-builder\Cache\winCodeSign" -Recurse -Force -ErrorAction SilentlyContinue
-bun run dist:win:x64
-```
-
-其他常用命令：
-
-| 命令                  | 说明                       |
-|---------------------|--------------------------|
-| `bun run dev`       | electron-vite 开发模式（热更新）  |
-| `bun run build`     | 类型检查 + 打包到 `out/`        |
-| `bun run package:dir` | 生成本机可运行应用目录到 `release/` |
-| `bun run dist`      | 生成发行包；macOS 默认输出 `.dmg` 安装包 |
-| `bun run start`     | 预览已构建产物                  |
-| `bun run typecheck` | 主进程 + 渲染进程 TypeScript 检查 |
-| `bun run lint`      | ESLint                   |
-
-安装包构建说明：
-
-- `bun run package:dir`：生成未安装版应用，便于本机直接验包。
-- `bun run dist`：按当前平台生成发行包；在 macOS 上会输出 `.dmg` 与 `.zip` 到 `release/`。
-- `bun run dist:mac`、`bun run dist:win`、`bun run dist:linux`：分别生成各平台目标。
-- `bun run dist:mac:x64` / `bun run package:mac:x64`：生成 macOS Intel（x64）安装包 / 目录包。
-- `bun run dist:mac:arm64` / `bun run package:mac:arm64`：生成 macOS Apple Silicon（arm64）安装包 / 目录包。
-- `bun run dist:win:x64`：生成 Windows x64 的 NSIS 安装包。
-- `bun run dist:win:arm64`：生成 Windows arm64 的 NSIS 安装包。
-- 如需预先准备指定目标的嵌入式工具链，可执行 `bun run prepare:tooling:darwin:x64`、`bun run prepare:tooling:win:arm64` 等命令。
-- 打包前会联网下载并嵌入固定版本的 `uv 0.11.7`、`bun 1.3.13` 与内置 Python 运行时，终端用户机器无需预装这些环境即可由智能体在工作区创建 `.venv` 并执行 Python / JS 命令。
-- `scripts/prepare-embedded-tooling.mjs` 会在打包前把 Python 安装中的符号链接改写为 bundle 内相对路径，避免 macOS 签名 / notarization 因绝对链接失效。
-- 当前脚本默认关闭了本地自动签名发现，方便先完成 unsigned 本地打包；如需正式签名与 notarization，可在 CI 或发布机上按证书环境变量覆盖。
-
-## 文档
-
-- [docs/源码导览.md](docs/源码导览.md)：面向开发者的人类版源码地图，说明主进程、preload、渲染层、审批、MCP、技能和嵌入式工具链的实际控制点。
-- [AGENTS.md](AGENTS.md)：面向代码代理 / 协作者的修改入口说明，强调桥接层、真实决策点与最小验证动作。
-
-## 项目结构（精简）
+## 项目结构
 
 ```
-src/
-  main/                 # Electron 主进程
-    index.ts            # 窗口、IPC 注册、数据库初始化
-    approval-settings.ts# 审批模式与工作区规则
-    agent/              # DeepAgent 运行时、LocalSandbox、system prompt
-    ipc/                # approval / agent / threads / models+workspace / mcp / skills
-    db/, storage.ts     # 会话与密钥等持久化
-    text-encoding.ts    # 文本文件解码（UTF-8 与 GB18030 回退）
-  preload/              # contextBridge → window.api
-  renderer/src/         # React 19 + Tailwind 4
-    App.tsx             # 三栏布局（侧栏与标题栏/标签行对齐）、看板总览
-    components/         # 聊天、侧栏、右侧面板、看板等
-    lib/                # store、thread-context、shiki-highlighter、chat-markdown 等
-electron.vite.config.ts # main / preload / renderer 构建
-AGENTS.md               # 给 AI / 协作者的架构与修改入口说明
+open-jarvis/
+├── src/
+│   ├── main/                    # Electron 主进程
+│   │   ├── index.ts             # 应用入口，窗口创建，IPC 注册
+│   │   ├── agent/               # 智能体运行时
+│   │   │   ├── runtime.ts       # 核心：模型路由、运行时组装
+│   │   │   ├── system-prompt.ts # Agent 系统提示
+│   │   │   ├── local-sandbox.ts # 本地沙箱（文件读写、命令执行）
+│   │   │   ├── mcp-runtime.ts   # MCP 连接管理
+│   │   │   └── types.ts         # Agent 类型定义
+│   │   ├── ipc/                 # IPC 处理器
+│   │   │   ├── agent.ts         # 对话流、HITL、取消
+│   │   │   ├── threads.ts       # 线程 CRUD、历史、回滚
+│   │   │   ├── models.ts        # 模型列表、API Key、工作区操作
+│   │   │   ├── approval.ts      # 审批模式
+│   │   │   ├── mcp.ts           # MCP 配置
+│   │   │   ├── skills.ts        # 技能管理
+│   │   │   └── settings.ts      # 代理配置
+│   │   ├── checkpointer/        # 检查点存储
+│   │   │   └── sqljs-saver.ts   # 每线程 SQLite 检查点
+│   │   ├── db/                  # 持久化数据库
+│   │   │   └── index.ts         # 线程、运行、助手 CRUD
+│   │   ├── services/            # 辅助服务
+│   │   │   ├── title-generator.ts
+│   │   │   └── workspace-watcher.ts
+│   │   ├── storage.ts           # ~/.open-jarvis 目录与 .env 管理
+│   │   ├── approval-settings.ts # 审批规则与工作区规则
+│   │   ├── mcp-config.ts        # MCP 配置 CRUD
+│   │   ├── skill-config.ts      # 技能源目录解析
+│   │   ├── openai-compatible-profiles.ts  # 自定义模型配置
+│   │   ├── tooling.ts           # 嵌入式工具链定位
+│   │   ├── text-encoding.ts     # UTF-8 / GB18030 解码
+│   │   ├── proxy-config.ts      # 代理配置与全局分发器
+│   │   ├── logger.ts            # 日志
+│   │   └── types.ts             # 主进程共享类型
+│   ├── preload/                 # contextBridge 桥接层
+│   │   ├── index.ts             # window.api 暴露
+│   │   └── index.d.ts           # 类型契约
+│   ├── renderer/src/            # React 渲染层
+│   │   ├── App.tsx              # 三栏布局
+│   │   ├── lib/                 # 状态与工具
+│   │   │   ├── store.ts         # 全局 Zustand store
+│   │   │   ├── thread-context.tsx  # 线程状态 + 流订阅
+│   │   │   ├── electron-transport.ts  # IPC → LangGraph Transport
+│   │   │   └── ...
+│   │   └── components/          # UI 组件
+│   │       ├── chat/            # 对话区
+│   │       ├── panels/          # 右侧面板
+│   │       ├── tabs/            # 标签页与文件预览
+│   │       ├── sidebar/         # 左侧会话栏
+│   │       ├── kanban/          # 看板视图
+│   │       └── ui/              # 基础组件（Radix UI）
+│   ├── model-context.ts         # 模型上下文窗口配置
+│   └── types.ts                 # 渲染层共享类型
+├── resources/tooling/           # 嵌入式工具链（按平台）
+├── scripts/
+│   └── prepare-embedded-tooling.mjs  # 工具链准备脚本
+├── bin/cli.js                   # CLI 入口
+└── release/                     # 打包产物
 ```
 
-## 架构要点
+---
 
-- **IPC**：`approval:*`、`agent:*`、`threads:*`、`models:*`、`workspace:*`、`mcp:*`、`skills:*` 等在 [`src/main`](src/main) 注册，[`src/preload`](src/preload) 暴露给渲染进程。
-- **流式对话**：渲染进程通过 LangGraph SDK 订阅流事件；主进程执行 `agent:invoke` / `agent:resume` / `agent:interrupt` 等。
-- **审批链路**：线程 metadata 决定默认审批模式，工作区规则用于自动批准已记忆的工具签名；渲染层在工具卡片与底部固定栏展示审批态。
-- **Token 统计**：token usage 通过流事件进入渲染层，在每个线程内持久化到 localStorage，并由上下文窗口指示器展示。
-- **工作区路径**：保存在线程 metadata 中；工具侧使用**绝对路径**（见 `runtime.ts` 中的 system prompt）。
+## 架构概览
 
-## 命令行入口（可选）
+```
+┌──────────────────────────────────────────────────────────────┐
+│                     渲染进程 (Renderer)                       │
+│   React 19 + Zustand + Tailwind CSS 4                        │
+│   ThreadProvider → useStream → ElectronIPCTransport          │
+├──────────────────────────┬───────────────────────────────────┤
+│       window.api         │       window.electron              │
+│   (contextBridge 桥接)   │   (原始 IPC 访问)                  │
+├──────────────────────────┴───────────────────────────────────┤
+│                      Preload 层                              │
+│   8 个命名空间: agent / threads / approval / models /        │
+│   workspace / mcp / skills / settings                        │
+├──────────────────────────────────────────────────────────────┤
+│                      主进程 (Main)                           │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│   │ Agent    │  │ MCP      │  │ DB       │  │ Storage  │   │
+│   │ Runtime  │  │ Runtime  │  │ (SQLite) │  │ (.env)   │   │
+│   └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
+│   │ Local    │  │ Tooling  │  │ Proxy    │                  │
+│   │ Sandbox  │  │ (嵌入式) │  │ (undici) │                  │
+│   └──────────┘  └──────────┘  └──────────┘                  │
+└──────────────────────────────────────────────────────────────┘
+```
 
-`package.json` 中 `bin` 指向 `bin/cli.js`（与上游 openwork CLI 兼容时可全局安装后启动；具体以仓库内 `bin/cli.js` 为准）。
+### 核心数据流
 
-## 支持的模型（与上游能力一致）
+1. **消息发送**：用户输入 → `ChatContainer` → `ElectronIPCTransport` → IPC `agent:invoke` → `AgentRuntime.stream()` → 流式事件回推 → `ThreadContext` 更新 → React 重渲染
 
-| 提供商    | 示例           |
-| --------- | -------------- |
-| Anthropic | Claude 系列    |
-| OpenAI    | GPT / o 系列等 |
-| Google    | Gemini 系列    |
+2. **HITL 审批**：Agent 执行工具 → `interruptOn` 中断 → 主进程推送中断事件 → 渲染层展示审批 UI → 用户决策 → `agent:resume` → Agent 继续执行
 
-具体列表以应用内模型配置为准。
+3. **工作区同步**：用户选择目录 → `workspace:select` → 文件列表加载 → `workspace-watcher` 监听变更 → `workspace:files-changed` 通知渲染层
 
-## 贡献与协议
+---
 
-欢迎贡献！协议：**MIT**。
+## 数据存储
 
-## 协作者与自动化
+| 数据 | 位置 |
+|------|------|
+| 应用数据 | `~/.open-jarvis/` |
+| 主数据库 | `~/.open-jarvis/openwork.sqlite` |
+| 线程检查点 | `~/.open-jarvis/threads/{threadId}.sqlite` |
+| API Keys | `~/.open-jarvis/.env` |
+| 审批规则 | `{workspace}/.open-jarvis/approval-rules.json` |
+| MCP 配置 | electron-store `settings.json` |
+| 技能（全局） | `~/.open-jarvis/skills/` |
+| 技能（工作区） | `{workspace}/.deepagents/skills/` |
 
-修改代码前建议阅读根目录 [**AGENTS.md**](AGENTS.md)（技术栈、目录地图、IPC 与质量检查命令）。
+> 注：应用会自动从旧路径 `~/.openwork` 迁移数据到 `~/.open-jarvis`。
+
+---
+
+## 开发指南
+
+### 代码检查
+
+```bash
+bun run typecheck       # 全量 TypeScript 检查
+bun run typecheck:node  # 主进程 + preload
+bun run typecheck:web   # 渲染进程
+bun run lint            # ESLint
+bun run format          # Prettier 格式化
+```
+
+### 新增 IPC 能力
+
+1. 在 `src/main/ipc/*.ts` 注册 handler
+2. 在 `src/main/index.ts` 调用 `register*Handlers(ipcMain)`
+3. 在 `src/preload/index.ts` 暴露到 `window.api`
+4. 在 `src/preload/index.d.ts` 补类型声明
+
+### 新增模型支持
+
+1. 在 `src/main/agent/runtime.ts` 的 `createAgentRuntime` 中添加模型路由
+2. 在 `src/model-context.ts` 中添加上下文窗口配置
+3. 在 `src/main/types.ts` 中补充类型（如需要）
+
+---
+
+## 许可证
+
+私有项目，未公开许可证。
