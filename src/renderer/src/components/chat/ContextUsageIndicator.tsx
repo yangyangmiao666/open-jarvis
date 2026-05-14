@@ -5,7 +5,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import type { TokenUsage } from "@/lib/thread-context";
+import type { PromptTokenEstimate, TokenUsage } from "@/lib/thread-context";
+import type { CustomModelApiFormat, Message, ProviderId } from "@/types";
 import { getContextWindowForModel } from "../../../../model-context";
 
 function formatTokenCount(tokens: number): string {
@@ -24,21 +25,100 @@ function formatTokenCountFull(tokens: number): string {
 
 interface ContextUsageIndicatorProps {
   tokenUsage: TokenUsage | null;
+  promptTokenEstimate?: PromptTokenEstimate | null;
+  messages?: Message[];
+  provider?: ProviderId;
+  apiFormat?: CustomModelApiFormat;
   modelId: string;
   contextWindow?: number;
   className?: string;
 }
 
+function extractMessageText(message: Message): string {
+  const content = message.content;
+  if (typeof content === "string") {
+    return content;
+  }
+
+  const contentText = content
+    .map((block) => block.text ?? block.content ?? "")
+    .filter((value) => value.length > 0)
+    .join("\n");
+  const toolCallText = message.tool_calls?.length
+    ? JSON.stringify(message.tool_calls)
+    : "";
+
+  return [contentText, toolCallText].filter((value) => value.length > 0).join("\n");
+}
+
+function estimateMessageTokens(message: Message): number {
+  const text = extractMessageText(message);
+  if (text.trim().length === 0) {
+    return 0;
+  }
+
+  // Conservative UI fallback: about 4 chars per token plus a small per-message overhead.
+  return Math.max(1, Math.ceil(text.length / 4) + 6);
+}
+
 export function ContextUsageIndicator({
   tokenUsage,
+  promptTokenEstimate,
+  messages = [],
+  provider,
+  apiFormat,
   modelId,
   contextWindow,
   className,
 }: ContextUsageIndicatorProps): React.JSX.Element {
-  const hasUsage = Boolean(tokenUsage);
+  const visibleMessageTokens = messages.reduce(
+    (sum, message) => sum + estimateMessageTokens(message),
+    0,
+  );
+  const hiddenPromptTokens = promptTokenEstimate?.hiddenPromptTokens ?? 0;
+  const summarizationMessageTokens =
+    promptTokenEstimate?.summarizationMessageTokens ?? 0;
+  const estimatedInputTokens =
+    visibleMessageTokens + hiddenPromptTokens + summarizationMessageTokens;
+  const shouldPreferEstimatedInput =
+    provider === "openai_compatible" &&
+    apiFormat === "anthropic" &&
+    estimatedInputTokens > 0 &&
+    (!tokenUsage || estimatedInputTokens < tokenUsage.inputTokens);
+  const hasEstimatedUsage = shouldPreferEstimatedInput;
+  const hasUsage = Boolean(tokenUsage) || estimatedInputTokens > 0;
+
+  const effectiveUsage = hasEstimatedUsage
+    ? {
+        inputTokens: estimatedInputTokens,
+        outputTokens: tokenUsage?.outputTokens ?? 0,
+        totalTokens: estimatedInputTokens + (tokenUsage?.outputTokens ?? 0),
+        cacheReadTokens: tokenUsage?.cacheReadTokens,
+        cacheCreationTokens: tokenUsage?.cacheCreationTokens,
+      }
+    : tokenUsage
+      ? {
+          inputTokens: tokenUsage.inputTokens,
+          outputTokens: tokenUsage.outputTokens,
+          totalTokens: tokenUsage.totalTokens,
+          cacheReadTokens: tokenUsage.cacheReadTokens,
+          cacheCreationTokens: tokenUsage.cacheCreationTokens,
+        }
+      : estimatedInputTokens > 0
+        ? {
+            inputTokens: estimatedInputTokens,
+            outputTokens: 0,
+            totalTokens: estimatedInputTokens,
+            cacheReadTokens: undefined,
+            cacheCreationTokens: undefined,
+          }
+        : null;
+  const effectiveLastUpdated = hasEstimatedUsage
+    ? promptTokenEstimate?.lastUpdated ?? tokenUsage?.lastUpdated ?? null
+    : tokenUsage?.lastUpdated ?? promptTokenEstimate?.lastUpdated ?? null;
 
   const contextLimit = getContextWindowForModel(modelId, contextWindow);
-  const usedTokens = tokenUsage?.inputTokens ?? 0;
+  const usedTokens = effectiveUsage?.inputTokens ?? 0;
   const usagePercent = Math.min((usedTokens / contextLimit) * 100, 100);
 
   // Determine color based on usage
@@ -65,14 +145,19 @@ export function ContextUsageIndicator({
   }
 
   const hasCacheData =
-    (tokenUsage?.cacheReadTokens ?? 0) > 0 ||
-    (tokenUsage?.cacheCreationTokens ?? 0) > 0;
+    (effectiveUsage?.cacheReadTokens ?? 0) > 0 ||
+    (effectiveUsage?.cacheCreationTokens ?? 0) > 0;
 
   if (!hasUsage) {
     colorClass = "text-muted-foreground";
     bgColorClass = "bg-muted/70";
     barColorClass = "bg-muted-foreground/40";
     statusText = "等待中";
+  } else if (hasEstimatedUsage) {
+    colorClass = "text-status-info";
+    bgColorClass = "bg-status-info/10";
+    barColorClass = "bg-status-info";
+    statusText = "估算";
   }
 
   return (
@@ -89,7 +174,7 @@ export function ContextUsageIndicator({
           <CircleGauge className="size-3.5" />
           <span className="font-mono">
             {hasUsage
-              ? `${formatTokenCount(usedTokens)} / ${formatTokenCount(contextLimit)}`
+              ? `${hasEstimatedUsage ? "~" : ""}${formatTokenCount(usedTokens)} / ${formatTokenCount(contextLimit)}`
               : "上下文窗口"}
           </span>
           {hasUsage ? (
@@ -135,7 +220,7 @@ export function ContextUsageIndicator({
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>
                 {hasUsage
-                  ? `${formatTokenCountFull(usedTokens)} tokens`
+                  ? `${hasEstimatedUsage ? "约 " : ""}${formatTokenCountFull(usedTokens)} tokens`
                   : "等待首条响应后显示"}
               </span>
               <span>{formatTokenCountFull(contextLimit)} max</span>
@@ -148,7 +233,45 @@ export function ContextUsageIndicator({
               Token 使用详情
             </div>
 
+            {hasEstimatedUsage && (
+              <div className="rounded-xl border border-status-info/20 bg-status-info/8 px-2.5 py-2 text-[11px] leading-5 text-muted-foreground">
+                当前输入 token 采用实时估算值，已把可见消息和隐藏 prompt 一并算入；这可以在会话压缩后更快反映最新上下文占用。
+              </div>
+            )}
+
             <div className="space-y-1">
+              {hasEstimatedUsage && (
+                <>
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <ArrowUp className="size-3" />
+                      <span>可见消息估算</span>
+                    </div>
+                    <span className="font-mono">
+                      {formatTokenCountFull(visibleMessageTokens)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <ArrowUp className="size-3" />
+                      <span>隐藏 Prompt 估算</span>
+                    </div>
+                    <span className="font-mono">
+                      {formatTokenCountFull(hiddenPromptTokens)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <ArrowUp className="size-3" />
+                      <span>压缩摘要估算</span>
+                    </div>
+                    <span className="font-mono">
+                      {formatTokenCountFull(summarizationMessageTokens)}
+                    </span>
+                  </div>
+                </>
+              )}
+
               {/* Input tokens */}
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -156,9 +279,45 @@ export function ContextUsageIndicator({
                   <span>输入</span>
                 </div>
                 <span className="font-mono">
-                  {formatTokenCountFull(tokenUsage?.inputTokens ?? 0)}
+                  {formatTokenCountFull(effectiveUsage?.inputTokens ?? 0)}
                 </span>
               </div>
+
+              {hasEstimatedUsage &&
+              (hiddenPromptTokens > 0 || summarizationMessageTokens > 0) ? (
+                <div className="space-y-1 rounded-xl border border-border/60 bg-muted/20 px-2.5 py-2 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">system prompt</span>
+                    <span className="font-mono">
+                      {formatTokenCountFull(
+                        promptTokenEstimate?.systemPromptTokens ?? 0,
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">filesystem prompt</span>
+                    <span className="font-mono">
+                      {formatTokenCountFull(
+                        promptTokenEstimate?.filesystemPromptTokens ?? 0,
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">引用路径补充</span>
+                    <span className="font-mono">
+                      {formatTokenCountFull(
+                        promptTokenEstimate?.referencedPathsTokens ?? 0,
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">压缩摘要</span>
+                    <span className="font-mono">
+                      {formatTokenCountFull(summarizationMessageTokens)}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
 
               {/* Output tokens */}
               <div className="flex items-center justify-between text-xs">
@@ -167,7 +326,7 @@ export function ContextUsageIndicator({
                   <span>输出</span>
                 </div>
                 <span className="font-mono">
-                  {formatTokenCountFull(tokenUsage?.outputTokens ?? 0)}
+                  {formatTokenCountFull(effectiveUsage?.outputTokens ?? 0)}
                 </span>
               </div>
 
@@ -178,7 +337,7 @@ export function ContextUsageIndicator({
                   <span>总计</span>
                 </div>
                 <span className="font-mono">
-                  {formatTokenCountFull(tokenUsage?.totalTokens ?? 0)}
+                  {formatTokenCountFull(effectiveUsage?.totalTokens ?? 0)}
                 </span>
               </div>
             </div>
@@ -193,28 +352,28 @@ export function ContextUsageIndicator({
             <div className="space-y-1">
               {hasCacheData ? (
                 <>
-                  {tokenUsage?.cacheReadTokens !== undefined &&
-                    tokenUsage.cacheReadTokens > 0 && (
+                  {effectiveUsage?.cacheReadTokens !== undefined &&
+                    effectiveUsage.cacheReadTokens > 0 && (
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 text-status-nominal">
                           <Database className="size-3" />
                           <span>缓存命中</span>
                         </div>
                         <span className="font-mono text-status-nominal">
-                          {formatTokenCountFull(tokenUsage.cacheReadTokens)}
+                          {formatTokenCountFull(effectiveUsage.cacheReadTokens)}
                         </span>
                       </div>
                     )}
 
-                  {tokenUsage?.cacheCreationTokens !== undefined &&
-                    tokenUsage.cacheCreationTokens > 0 && (
+                  {effectiveUsage?.cacheCreationTokens !== undefined &&
+                    effectiveUsage.cacheCreationTokens > 0 && (
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 text-status-info">
                           <Database className="size-3" />
                           <span>缓存创建</span>
                         </div>
                         <span className="font-mono text-status-info">
-                          {formatTokenCountFull(tokenUsage.cacheCreationTokens)}
+                          {formatTokenCountFull(effectiveUsage.cacheCreationTokens)}
                         </span>
                       </div>
                     )}
@@ -230,9 +389,9 @@ export function ContextUsageIndicator({
             <div className="text-[10px] text-muted-foreground">
               最后更新：
               {hasUsage
-                ? tokenUsage?.lastUpdated.toLocaleTimeString("zh-CN", {
+                ? effectiveLastUpdated?.toLocaleTimeString("zh-CN", {
                     hour12: false,
-                  })
+                  }) ?? "等待首条响应"
                 : "等待首条响应"}
             </div>
           </div>

@@ -44,8 +44,11 @@ export interface ThreadUpdateParams {
 
 export interface ThreadRewindParams {
   threadId: string;
-  userMessageOrdinal: number;
+  targetMessageId: string;
+  targetMessageIndex: number;
+  targetMessageRole: Message["role"];
   messageText: string;
+  toolCallNames?: string[];
 }
 
 // Workspace IPC
@@ -184,6 +187,11 @@ export type CustomModelThinkingEffort =
   | "xhigh"
   | "max";
 
+export type CustomModelReasoningContentMode =
+  | "auto"
+  | "enabled"
+  | "disabled";
+
 export interface Provider {
   id: ProviderId;
   name: string;
@@ -200,6 +208,7 @@ export interface OpenAICompatibleProfile {
   apiFormat?: CustomModelApiFormat;
   thinkingType?: CustomModelThinkingType;
   thinkingEffort?: CustomModelThinkingEffort;
+  reasoningContent?: CustomModelReasoningContentMode;
   contextWindow?: number;
 }
 
@@ -209,6 +218,7 @@ export interface ModelConfig {
   name: string;
   provider: ProviderId;
   model: string;
+  apiFormat?: CustomModelApiFormat;
   contextWindow?: number;
   description?: string;
   available: boolean;

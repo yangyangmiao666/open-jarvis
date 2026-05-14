@@ -56,6 +56,11 @@ export interface IPCStreamEvent {
   data: unknown;
 }
 
+export interface IPCCustomEvent {
+  type: "custom";
+  data: Record<string, unknown>;
+}
+
 export interface IPCDoneEvent {
   type: "done";
 }
@@ -70,5 +75,6 @@ export type IPCEvent =
   | IPCTokenEvent
   | IPCToolCallEvent
   | IPCStreamEvent
+  | IPCCustomEvent
   | IPCDoneEvent
   | IPCErrorEvent;

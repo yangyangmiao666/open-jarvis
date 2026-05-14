@@ -20,6 +20,7 @@ import type {
   FileInfo,
   Subagent,
   HITLRequest,
+  ThreadMetadata,
 } from "@/types";
 import type { DeepAgent } from "../../../main/agent/types";
 
@@ -39,6 +40,15 @@ export interface TokenUsage {
   lastUpdated: Date;
 }
 
+export interface PromptTokenEstimate {
+  hiddenPromptTokens: number;
+  systemPromptTokens: number;
+  filesystemPromptTokens: number;
+  referencedPathsTokens: number;
+  summarizationMessageTokens: number;
+  lastUpdated: Date;
+}
+
 // Per-thread state (persisted/restored from checkpoints)
 export interface ThreadState {
   messages: Message[];
@@ -55,6 +65,7 @@ export interface ThreadState {
   activeTab: "agent" | string;
   fileContents: Record<string, string>;
   tokenUsage: TokenUsage | null;
+  promptTokenEstimate: PromptTokenEstimate | null;
   draftInput: string;
   approvalMode: ApprovalMode;
 }
@@ -128,6 +139,7 @@ const createDefaultThreadState = (): ThreadState => ({
   activeTab: "agent",
   fileContents: {},
   tokenUsage: null,
+  promptTokenEstimate: null,
   draftInput: "",
   approvalMode: "manual",
 });
@@ -208,6 +220,13 @@ interface CustomEventData {
     cacheReadTokens?: number;
     cacheCreationTokens?: number;
   };
+  estimate?: {
+    hiddenPromptTokens?: number;
+    systemPromptTokens?: number;
+    filesystemPromptTokens?: number;
+    referencedPathsTokens?: number;
+  };
+  summarizationTokens?: number;
 }
 
 // Component that holds a stream and notifies subscribers
@@ -568,28 +587,58 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
               outputTokens: data.usage.outputTokens,
               totalTokens: data.usage.totalTokens,
             });
-            updateThreadState(threadId, (prev) => {
-              // Keep the higher of previous or new input tokens
-              // This ensures we don't lose accumulated context during tool calls
-              const newInputTokens = data.usage!.inputTokens || 0;
-              const prevInputTokens = prev.tokenUsage?.inputTokens || 0;
-
-              // Always update if new value is higher, or if this is first update
-              if (newInputTokens >= prevInputTokens || !prev.tokenUsage) {
-                return {
-                  tokenUsage: {
-                    inputTokens: newInputTokens,
-                    outputTokens: data.usage!.outputTokens || 0,
-                    totalTokens: data.usage!.totalTokens || 0,
-                    cacheReadTokens: data.usage!.cacheReadTokens,
-                    cacheCreationTokens: data.usage!.cacheCreationTokens,
-                    lastUpdated: new Date(),
-                  },
-                };
-              }
-              // Keep existing token usage if new value is lower
-              return {};
-            });
+            updateThreadState(threadId, () => ({
+              tokenUsage: {
+                inputTokens: data.usage!.inputTokens || 0,
+                outputTokens: data.usage!.outputTokens || 0,
+                totalTokens: data.usage!.totalTokens || 0,
+                cacheReadTokens: data.usage!.cacheReadTokens,
+                cacheCreationTokens: data.usage!.cacheCreationTokens,
+                lastUpdated: new Date(),
+              },
+            }));
+          }
+          break;
+        case "prompt_token_estimate":
+          if (typeof data.estimate?.hiddenPromptTokens === "number") {
+            const estimate = data.estimate;
+            const hiddenPromptTokens = data.estimate.hiddenPromptTokens;
+            if (hiddenPromptTokens <= 0) {
+              break;
+            }
+            updateThreadState(threadId, (currentState) => ({
+              promptTokenEstimate: {
+                hiddenPromptTokens,
+                systemPromptTokens: estimate.systemPromptTokens ?? 0,
+                filesystemPromptTokens:
+                  estimate.filesystemPromptTokens ?? 0,
+                referencedPathsTokens:
+                  estimate.referencedPathsTokens ?? 0,
+                summarizationMessageTokens:
+                  currentState.promptTokenEstimate?.summarizationMessageTokens ??
+                  0,
+                lastUpdated: new Date(),
+              },
+            }));
+          }
+          break;
+        case "summarization_token_estimate":
+          if (typeof data.summarizationTokens === "number") {
+            const summarizationTokens = data.summarizationTokens;
+            updateThreadState(threadId, (currentState) => ({
+              promptTokenEstimate: {
+                hiddenPromptTokens:
+                  currentState.promptTokenEstimate?.hiddenPromptTokens ?? 0,
+                systemPromptTokens:
+                  currentState.promptTokenEstimate?.systemPromptTokens ?? 0,
+                filesystemPromptTokens:
+                  currentState.promptTokenEstimate?.filesystemPromptTokens ?? 0,
+                referencedPathsTokens:
+                  currentState.promptTokenEstimate?.referencedPathsTokens ?? 0,
+                summarizationMessageTokens: summarizationTokens,
+                lastUpdated: new Date(),
+              },
+            }));
           }
           break;
       }
@@ -668,6 +717,23 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         setCurrentModel: (modelId: string) => {
           updateThreadState(threadId, () => ({ currentModel: modelId }));
           void window.api.models.setDefault(modelId);
+          void (async () => {
+            try {
+              const thread = await window.api.threads.get(threadId);
+              const metadata = (thread?.metadata ?? {}) as ThreadMetadata;
+              await window.api.threads.update(threadId, {
+                metadata: {
+                  ...metadata,
+                  model: modelId,
+                },
+              });
+            } catch (error) {
+              console.error(
+                "[ThreadContext] Failed to persist current model:",
+                error,
+              );
+            }
+          })();
         },
         openFile: (path: string, name: string) => {
           updateThreadState(threadId, (state) => {
@@ -754,13 +820,20 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
 
       // Load global settings and mirror them into the current thread view.
       try {
-        const [workspacePath, currentModel, enabledMcpServerIds, approvalMode] =
+        const [thread, workspacePath, defaultModel, enabledMcpServerIds, approvalMode] =
           await Promise.all([
-            window.api.workspace.get(),
+            window.api.threads.get(threadId),
+            window.api.workspace.get(threadId),
             window.api.models.getDefault(),
-            window.api.mcp.getEnabledForThread(),
+            window.api.mcp.getEnabledForThread(threadId),
             window.api.approval.getMode(threadId),
           ]);
+
+        const metadata = (thread?.metadata ?? {}) as ThreadMetadata;
+        const currentModel =
+          typeof metadata.model === "string" && metadata.model.length > 0
+            ? metadata.model
+            : defaultModel;
 
         if (workspacePath) {
           updateThreadState(threadId, () => ({ workspacePath }));

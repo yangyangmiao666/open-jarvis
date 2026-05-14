@@ -83,6 +83,11 @@ export type CustomModelThinkingEffort =
   | "xhigh"
   | "max";
 
+export type CustomModelReasoningContentMode =
+  | "auto"
+  | "enabled"
+  | "disabled";
+
 export interface SettingsOpenRequest {
   panel?: "models";
   profileId?: string;
@@ -98,6 +103,7 @@ export interface OpenAICompatibleProfile {
   apiFormat?: CustomModelApiFormat;
   thinkingType?: CustomModelThinkingType;
   thinkingEffort?: CustomModelThinkingEffort;
+  reasoningContent?: CustomModelReasoningContentMode;
   contextWindow?: number;
 }
 
@@ -118,6 +124,7 @@ export interface ModelConfig {
   name: string;
   provider: ProviderId;
   model: string;
+  apiFormat?: CustomModelApiFormat;
   contextWindow?: number;
   description?: string;
   available: boolean;

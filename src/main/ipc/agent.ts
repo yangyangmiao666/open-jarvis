@@ -3,7 +3,11 @@ import Store from "electron-store";
 import { HumanMessage } from "@langchain/core/messages";
 import { Command } from "@langchain/langgraph";
 import type { StreamMode } from "@langchain/langgraph";
-import { createAgentRuntime } from "../agent/runtime";
+import {
+  buildReferencedPathsPrompt,
+  createAgentRuntime,
+  estimateHiddenPromptTokens,
+} from "../agent/runtime";
 import { rememberWorkspaceApproval } from "../approval-settings";
 import { getThread } from "../db";
 import { getOpenworkDir } from "../storage";
@@ -288,6 +292,17 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           return;
         }
 
+        window.webContents.send(channel, {
+          type: "custom",
+          data: {
+            type: "prompt_token_estimate",
+            estimate: estimateHiddenPromptTokens({
+              workspacePath,
+              referencedPaths,
+            }),
+          },
+        });
+
         const agent = await createAgentRuntime({
           threadId,
           workspacePath,
@@ -298,9 +313,9 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           elapsedMs: Date.now() - requestStartedAt,
         });
         let text = message;
-        if (referencedPaths && referencedPaths.length > 0) {
-          const lines = referencedPaths.map((p) => `- ${p}`).join("\n");
-          text = `The user referenced the following workspace paths (pay attention to these files/folders):\n${lines}\n\n---\n\n${message}`;
+        const referencedPathsPrompt = buildReferencedPathsPrompt(referencedPaths);
+        if (referencedPathsPrompt.length > 0) {
+          text = `${referencedPathsPrompt}${message}`;
         }
         const humanMessage = new HumanMessage(text);
 
@@ -435,6 +450,14 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         });
         return;
       }
+
+      window.webContents.send(channel, {
+        type: "custom",
+        data: {
+          type: "prompt_token_estimate",
+          estimate: estimateHiddenPromptTokens({ workspacePath }),
+        },
+      });
 
       // Abort any existing stream before resuming
       const existingController = activeRuns.get(threadId);

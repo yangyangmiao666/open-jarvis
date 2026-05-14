@@ -26,6 +26,19 @@ function normalizeThinkingEffort(
   }
 }
 
+function normalizeReasoningContentMode(
+  mode?: OpenAICompatibleProfile["reasoningContent"],
+): NonNullable<OpenAICompatibleProfile["reasoningContent"]> {
+  switch (mode) {
+    case "enabled":
+    case "disabled":
+      return mode;
+    case "auto":
+    default:
+      return "auto";
+  }
+}
+
 export function getOpenAICompatibleProfiles(): OpenAICompatibleProfile[] {
   const raw = store.get(KEY, []) as OpenAICompatibleProfile[];
   return Array.isArray(raw) ? raw : [];
@@ -56,6 +69,7 @@ export function upsertOpenAICompatibleProfile(
     thinkingType:
       profile.thinkingType === "enabled" ? "enabled" : "disabled",
     thinkingEffort: normalizeThinkingEffort(profile.thinkingEffort),
+    reasoningContent: normalizeReasoningContentMode(profile.reasoningContent),
     contextWindow: getConfiguredContextWindow(profile.contextWindow),
   };
   const idx = profiles.findIndex((p) => p.id === id);

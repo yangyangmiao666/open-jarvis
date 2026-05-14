@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { User, Copy, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
+import { User, Copy, RotateCcw, Trash2, PencilLine, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Message, HITLRequest } from "@/types";
 import { singleMessageToMarkdown } from "@/lib/chat-markdown";
@@ -18,10 +18,20 @@ interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
   canResend?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  isEditing?: boolean;
+  editDraft?: string;
+  isSubmittingEdit?: boolean;
   toolResults?: Map<string, ToolResultInfo>;
   pendingApprovals?: HITLRequest[];
   pendingApproval?: HITLRequest | null;
   onResend?: (message: Message) => void | Promise<void>;
+  onEdit?: (message: Message) => void | Promise<void>;
+  onEditDraftChange?: (message: Message, value: string) => void;
+  onEditCancel?: (message: Message) => void;
+  onEditSubmit?: (message: Message) => void | Promise<void>;
+  onDelete?: (message: Message) => void | Promise<void>;
   onApprovalDecision?: (
     decision: "approve" | "reject" | "edit",
     options?: { rememberForWorkspace?: boolean },
@@ -32,14 +42,25 @@ export function MessageBubble({
   message,
   isStreaming,
   canResend,
+  canEdit,
+  canDelete,
+  isEditing,
+  editDraft,
+  isSubmittingEdit,
   toolResults,
   pendingApprovals,
   pendingApproval,
   onResend,
+  onEdit,
+  onEditDraftChange,
+  onEditCancel,
+  onEditSubmit,
+  onDelete,
   onApprovalDecision,
 }: MessageBubbleProps): React.JSX.Element | null {
   const isUser = message.role === "user";
   const isTool = message.role === "tool";
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const copyAsMarkdown = useCallback(async (): Promise<void> => {
     const md = singleMessageToMarkdown(message, toolResults);
@@ -107,6 +128,23 @@ export function MessageBubble({
     return renderedBlocks.length > 0 ? renderedBlocks : null;
   };
 
+  useEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+
+    const textarea = editTextareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > 220 ? "auto" : "hidden";
+  }, [isEditing]);
+
   const content = renderContent();
   const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
   const pendingApprovalIds = new Set(
@@ -123,6 +161,72 @@ export function MessageBubble({
   if (!content && !hasToolCalls) {
     return null;
   }
+
+  const renderEditableComposer = (): React.ReactNode => {
+    if (!isUser || !isEditing) {
+      return null;
+    }
+
+    return (
+      <div className="ml-auto w-full max-w-full rounded-2xl border border-status-info/25 bg-slate-100 p-3 dark:bg-slate-800">
+        <textarea
+          ref={editTextareaRef}
+          value={editDraft ?? ""}
+          rows={3}
+          className="min-h-[5.5rem] w-full resize-none rounded-2xl border border-border/70 bg-background px-3.5 py-3 text-sm text-foreground outline-none transition focus:border-status-info/45 focus:ring-2 focus:ring-status-info/20"
+          placeholder="编辑这条消息后重新发送"
+          onChange={(event) => {
+            const textarea = event.currentTarget;
+            textarea.style.height = "auto";
+            textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`;
+            textarea.style.overflowY = textarea.scrollHeight > 220 ? "auto" : "hidden";
+            onEditDraftChange?.(message, textarea.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              onEditCancel?.(message);
+              return;
+            }
+
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              void onEditSubmit?.(message);
+            }
+          }}
+        />
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-xs text-muted-foreground">
+            取消不会删除后续对话。按 Cmd/Ctrl + Enter 可直接发送。
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="rounded-full"
+              onClick={() => onEditCancel?.(message)}
+              disabled={isSubmittingEdit}
+            >
+              <X className="size-3.5" />
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              className="rounded-full"
+              disabled={!editDraft?.trim() || isSubmittingEdit}
+              onClick={() => void onEditSubmit?.(message)}
+            >
+              <Send className="size-3.5" />
+              发送
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -166,7 +270,29 @@ export function MessageBubble({
           >
             {isUser ? (
               <>
-                <div className="flex w-0 items-center justify-end gap-1 overflow-hidden opacity-0 transition-all duration-200 group-hover/msg:w-[3.75rem] group-hover/msg:opacity-100">
+                <div className="flex w-0 items-center justify-end gap-1 overflow-hidden opacity-0 transition-all duration-200 group-hover/msg:w-[7.75rem] group-hover/msg:opacity-100">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-foreground"
+                    title="编辑并重新发送"
+                    disabled={!canEdit}
+                    onClick={() => void onEdit?.(message)}
+                  >
+                    <PencilLine className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-destructive"
+                    title="删除此条消息"
+                    disabled={!canDelete}
+                    onClick={() => void onDelete?.(message)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -202,21 +328,36 @@ export function MessageBubble({
                     </span>
                   )}
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-all group-hover/msg:opacity-100 hover:translate-y-0 hover:text-foreground"
-                  title="复制此条为 Markdown"
-                  onClick={() => void copyAsMarkdown()}
-                >
-                  <Copy className="size-3.5" />
-                </Button>
+                <div className="flex items-center gap-1 opacity-0 transition-all group-hover/msg:opacity-100">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-destructive"
+                    title="删除此条消息"
+                    disabled={!canDelete}
+                    onClick={() => void onDelete?.(message)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-foreground"
+                    title="复制此条为 Markdown"
+                    onClick={() => void copyAsMarkdown()}
+                  >
+                    <Copy className="size-3.5" />
+                  </Button>
+                </div>
               </>
             )}
           </div>
 
-          {content && (
+          {isEditing && isUser ? (
+            renderEditableComposer()
+          ) : content && (
             <div className="space-y-2">
               <div
                 className={cn(

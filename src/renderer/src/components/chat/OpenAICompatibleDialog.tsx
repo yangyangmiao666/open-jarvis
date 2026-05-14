@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Pencil, Boxes, Sparkles, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, Boxes, Sparkles, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ const emptyForm = (): Omit<OpenAICompatibleProfile, "id"> & {
   apiFormat: "openai",
   thinkingType: "disabled",
   thinkingEffort: "high",
+  reasoningContent: "auto",
   contextWindow: undefined,
 });
 
@@ -62,6 +63,44 @@ function formatThinkingEffort(
     default:
       return "high";
   }
+}
+
+function normalizeReasoningContentMode(
+  mode?: string,
+): NonNullable<OpenAICompatibleProfile["reasoningContent"]> {
+  switch (mode) {
+    case "enabled":
+    case "disabled":
+      return mode;
+    case "auto":
+    default:
+      return "auto";
+  }
+}
+
+function formatReasoningContentMode(
+  mode?: OpenAICompatibleProfile["reasoningContent"],
+): string {
+  switch (mode) {
+    case "enabled":
+      return "总是回传";
+    case "disabled":
+      return "关闭";
+    case "auto":
+    default:
+      return "自动";
+  }
+}
+
+function buildDuplicateProfile(
+  profile: OpenAICompatibleProfile,
+): Omit<OpenAICompatibleProfile, "id"> & { id?: string } {
+  const baseName = profile.name?.trim() || profile.model.trim() || "自定义模型";
+  return {
+    ...profile,
+    id: undefined,
+    name: `${baseName} 副本`,
+  };
 }
 
 export function OpenAICompatibleDialog({
@@ -150,6 +189,12 @@ export function OpenAICompatibleDialog({
     }
   };
 
+  const handleDuplicate = (profile: OpenAICompatibleProfile): void => {
+    setShowApiKey(false);
+    setEditing(buildDuplicateProfile(profile));
+    toast.success("已复制为新配置草稿，保存后生效");
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,8 +212,8 @@ export function OpenAICompatibleDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 sm:px-7">
-        <div className="grid min-h-0 gap-4 lg:grid-cols-[1.05fr_1.2fr]">
-          <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
+        <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(18rem,0.92fr)_minmax(24rem,1.08fr)]">
+          <section className="app-flat-surface flex min-h-0 min-w-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="text-section-header">Profiles</div>
@@ -221,6 +266,9 @@ export function OpenAICompatibleDialog({
                           : "关闭"}
                       </div>
                       <div className="text-muted-foreground truncate font-mono">
+                        推理回传：{formatReasoningContentMode(p.reasoningContent)}
+                      </div>
+                      <div className="text-muted-foreground truncate font-mono">
                         上下文：
                         {typeof p.contextWindow === "number"
                           ? p.contextWindow.toLocaleString()
@@ -232,6 +280,17 @@ export function OpenAICompatibleDialog({
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0 rounded-xl"
+                      title="复制配置"
+                      onClick={() => handleDuplicate(p)}
+                    >
+                      <Copy className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0 rounded-xl"
+                      title="编辑配置"
                       onClick={() => setEditing({ ...p })}
                     >
                       <Pencil className="size-3.5" />
@@ -241,6 +300,7 @@ export function OpenAICompatibleDialog({
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0 rounded-xl text-destructive"
+                      title="删除配置"
                       onClick={() => setDeleteTarget(p)}
                     >
                       <Trash2 className="size-3.5" />
@@ -251,7 +311,7 @@ export function OpenAICompatibleDialog({
             </ScrollArea>
           </section>
 
-          <section className="app-flat-surface flex min-h-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
+          <section className="app-flat-surface flex min-h-0 min-w-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
             <div className="flex items-start gap-3">
               <div className="icon-blue flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 shadow-[0_8px_18px_color-mix(in_srgb,var(--status-info)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                 <Sparkles className="size-5" />
@@ -289,7 +349,7 @@ export function OpenAICompatibleDialog({
                   <option value="anthropic">Anthropic</option>
                 </select>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  选择你的网关兼容的请求体格式。OpenAI 格式会发送 `thinking` 和 `reasoning_effort`，Anthropic 格式会发送 `thinking` 和 `output_config.effort`。
+                  选择你的网关兼容的请求体格式。OpenAI 格式会发送 `thinking` 和 `reasoning_effort`；Anthropic 格式会发送 `thinking` 和 `output_config.effort`，其历史 thinking/signature 由官方 SDK 作为内容块自动保留。
                 </p>
               </div>
               <div className="space-y-1">
@@ -414,6 +474,35 @@ export function OpenAICompatibleDialog({
               <p className="text-xs leading-5 text-muted-foreground">
                 会保留 low、medium、high、xhigh/max 这几个编辑档位。发送到兼容网关时，low/medium/high 会归一化到 high，xhigh/max 会归一化到 max。
               </p>
+              <div className="space-y-1">
+                <label
+                  htmlFor="oac-reasoning-content"
+                  className="text-sm font-medium"
+                >
+                  reasoning_content 回传
+                </label>
+                <select
+                  id="oac-reasoning-content"
+                  value={editing?.reasoningContent ?? "auto"}
+                  onChange={(e) =>
+                    setEditing({
+                      ...(editing ?? emptyForm()),
+                      reasoningContent: normalizeReasoningContentMode(e.target.value),
+                    })
+                  }
+                  disabled={(editing?.apiFormat ?? "openai") === "anthropic"}
+                  className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                >
+                  <option value="auto">自动</option>
+                  <option value="enabled">总是回传</option>
+                  <option value="disabled">关闭</option>
+                </select>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {editing?.apiFormat === "anthropic"
+                    ? "Anthropic 模式下官方 SDK 会把历史 thinking/signature 内容块原样回传，这个开关当前不额外介入。"
+                    : "自动模式会在检测到历史工具调用且思考模式开启时回传 assistant.reasoning_content，适合 MiMo 这类要求多轮补回推理内容的 OpenAI 兼容模型。"}
+                </p>
+              </div>
               <div className="space-y-1">
                 <label
                   htmlFor="oac-context-window"

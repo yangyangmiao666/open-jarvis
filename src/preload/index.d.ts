@@ -58,8 +58,11 @@ interface CustomAPI {
     getHistory: (threadId: string) => Promise<unknown[]>;
     rewindToMessage: (
       threadId: string,
-      userMessageOrdinal: number,
+      targetMessageId: string,
+      targetMessageIndex: number,
+      targetMessageRole: Message["role"],
       messageText: string,
+      toolCallNames?: string[],
     ) => Promise<{ success: boolean; checkpointId: string | null }>;
     generateTitle: (message: string) => Promise<string>;
   };

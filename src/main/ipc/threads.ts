@@ -24,6 +24,43 @@ function extractMessageText(message: Message): string {
     .join("\n\n");
 }
 
+function extractToolCallNames(message: Message): string[] {
+  return (message.tool_calls ?? [])
+    .map((toolCall) => toolCall?.name)
+    .filter((name): name is string => Boolean(name));
+}
+
+function matchesTargetMessage(
+  message: Message,
+  params: {
+    id: string;
+    role: Message["role"];
+    text: string;
+    toolCallNames: string[];
+  },
+): boolean {
+  if (message.id === params.id) {
+    return true;
+  }
+
+  if (message.role !== params.role) {
+    return false;
+  }
+
+  if (extractMessageText(message) !== params.text) {
+    return false;
+  }
+
+  const candidateToolCallNames = extractToolCallNames(message);
+  if (candidateToolCallNames.length !== params.toolCallNames.length) {
+    return false;
+  }
+
+  return candidateToolCallNames.every(
+    (name, index) => name === params.toolCallNames[index],
+  );
+}
+
 function extractCheckpointMessages(checkpoint: unknown): Message[] {
   const channelValues = (checkpoint as {
     checkpoint?: {
@@ -217,7 +254,17 @@ export function registerThreadHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(
     "threads:rewindToMessage",
-    async (_event, { threadId, userMessageOrdinal, messageText }: ThreadRewindParams) => {
+    async (
+      _event,
+      {
+        threadId,
+        targetMessageId,
+        targetMessageIndex,
+        targetMessageRole,
+        messageText,
+        toolCallNames,
+      }: ThreadRewindParams,
+    ) => {
       const checkpointer = await getCheckpointer(threadId);
 
       const checkpoints: Array<{
@@ -237,16 +284,27 @@ export function registerThreadHandlers(ipcMain: IpcMain): void {
 
       let keepCheckpointId: string | null = null;
       let foundTarget = false;
+      const normalizedTargetId = targetMessageId.trim();
       const normalizedTargetText = messageText.trim();
+      const normalizedToolCallNames = Array.isArray(toolCallNames)
+        ? toolCallNames.filter((name): name is string => Boolean(name))
+        : [];
 
       for (const checkpoint of checkpoints.reverse()) {
         const messages = extractCheckpointMessages(checkpoint);
-        const userMessages = messages.filter((message) => message.role === "user");
-        const candidate = userMessages[userMessageOrdinal];
+        const candidateById = normalizedTargetId
+          ? messages.find((message) => message.id === normalizedTargetId)
+          : null;
+        const candidate = candidateById ?? messages[targetMessageIndex];
 
         if (
           candidate &&
-          extractMessageText(candidate) === normalizedTargetText
+          matchesTargetMessage(candidate, {
+            id: normalizedTargetId,
+            role: targetMessageRole,
+            text: normalizedTargetText,
+            toolCallNames: normalizedToolCallNames,
+          })
         ) {
           foundTarget = true;
           break;

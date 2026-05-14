@@ -27,6 +27,22 @@ interface UsageMetadata {
   };
 }
 
+interface NormalizedTokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+}
+
+function estimateTextTokens(text: string): number {
+  if (text.trim().length === 0) {
+    return 0;
+  }
+
+  return Math.max(1, Math.ceil(text.length / 4) + 6);
+}
+
 /**
  * Serialized LangGraph message chunk.
  * LangChain uses a special serialization format:
@@ -117,6 +133,165 @@ interface HitlActionRequest {
 export class ElectronIPCTransport implements UseStreamTransport {
   // Track current message ID for grouping tokens across chunks
   private currentMessageId: string | null = null;
+
+  private normalizeTokenUsage(
+    usage: Record<string, unknown> | UsageMetadata | undefined,
+  ): NormalizedTokenUsage | null {
+    if (!usage || typeof usage !== "object") {
+      return null;
+    }
+
+    const raw = usage as Record<string, unknown>;
+    const inputTokens =
+      typeof raw.input_tokens === "number"
+        ? raw.input_tokens
+        : typeof raw.promptTokens === "number"
+          ? raw.promptTokens
+          : typeof raw.prompt_tokens === "number"
+            ? raw.prompt_tokens
+            : 0;
+    const outputTokens =
+      typeof raw.output_tokens === "number"
+        ? raw.output_tokens
+        : typeof raw.completionTokens === "number"
+          ? raw.completionTokens
+          : typeof raw.completion_tokens === "number"
+            ? raw.completion_tokens
+            : 0;
+    const totalTokens =
+      typeof raw.total_tokens === "number"
+        ? raw.total_tokens
+        : typeof raw.totalTokens === "number"
+          ? raw.totalTokens
+          : inputTokens + outputTokens;
+
+    const inputTokenDetails =
+      raw.input_token_details && typeof raw.input_token_details === "object"
+        ? (raw.input_token_details as Record<string, unknown>)
+        : undefined;
+
+    const cacheReadTokens =
+      typeof inputTokenDetails?.cache_read === "number"
+        ? inputTokenDetails.cache_read
+        : typeof raw.cache_read_input_tokens === "number"
+          ? raw.cache_read_input_tokens
+          : undefined;
+    const cacheCreationTokens =
+      typeof inputTokenDetails?.cache_creation === "number"
+        ? inputTokenDetails.cache_creation
+        : typeof raw.cache_creation_input_tokens === "number"
+          ? raw.cache_creation_input_tokens
+          : undefined;
+
+    if (inputTokens <= 0 && outputTokens <= 0 && totalTokens <= 0) {
+      return null;
+    }
+
+    return {
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      cacheReadTokens,
+      cacheCreationTokens,
+    };
+  }
+
+  private extractTokenUsage(
+    kwargs: SerializedMessageChunk["kwargs"] | Record<string, unknown>,
+  ): NormalizedTokenUsage | null {
+    const messageRecord = kwargs as Record<string, unknown>;
+
+    const usageCandidates: Array<Record<string, unknown> | UsageMetadata | undefined> = [
+      messageRecord.usage_metadata as UsageMetadata | undefined,
+      (messageRecord.response_metadata as { usage?: Record<string, unknown> } | undefined)
+        ?.usage,
+      (messageRecord.response_metadata as { tokenUsage?: Record<string, unknown> } | undefined)
+        ?.tokenUsage,
+      (messageRecord.additional_kwargs as { usage?: Record<string, unknown> } | undefined)
+        ?.usage,
+    ];
+
+    for (const candidate of usageCandidates) {
+      const normalized = this.normalizeTokenUsage(candidate);
+      if (normalized) {
+        return normalized;
+      }
+    }
+
+    return null;
+  }
+
+  private buildTokenUsageEvent(
+    usage: NormalizedTokenUsage,
+  ): StreamEvent {
+    return {
+      event: "custom",
+      data: {
+        type: "token_usage",
+        usage,
+      },
+    };
+  }
+
+  private extractSerializedContentText(
+    content: NonNullable<SerializedMessageChunk["kwargs"]>["content"],
+  ): string {
+    if (typeof content === "string") {
+      return content;
+    }
+
+    if (!Array.isArray(content)) {
+      return "";
+    }
+
+    return content
+      .map((part) => {
+        if (!part || typeof part !== "object") {
+          return "";
+        }
+
+        return (
+          part.text ??
+          part.content ??
+          part.input_text ??
+          part.output_text ??
+          part.reasoning_content ??
+          part.reasoning ??
+          part.thinking ??
+          part.think ??
+          ""
+        );
+      })
+      .filter((value) => value.length > 0)
+      .join("\n");
+  }
+
+  private extractSummarizationMessageTokens(
+    messages: SerializedMessageChunk[] | undefined,
+  ): number {
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return 0;
+    }
+
+    for (const msg of messages) {
+      const kwargs = msg.kwargs || {};
+      const classId = Array.isArray(msg.id) ? msg.id : [];
+      const className = classId[classId.length - 1] || "";
+      const additionalKwargs =
+        kwargs.additional_kwargs && typeof kwargs.additional_kwargs === "object"
+          ? (kwargs.additional_kwargs as Record<string, unknown>)
+          : undefined;
+
+      if (
+        className.includes("Human") &&
+        additionalKwargs?.lc_source === "summarization"
+      ) {
+        return estimateTextTokens(this.extractSerializedContentText(kwargs.content));
+      }
+    }
+
+    return 0;
+  }
 
   // Track active subagents by their tool_call_id
   private activeSubagents: Map<string, Subagent> = new Map();
@@ -343,6 +518,13 @@ export class ElectronIPCTransport implements UseStreamTransport {
         });
         break;
 
+      case "custom":
+        events.push({
+          event: "custom",
+          data: event.data,
+        });
+        break;
+
       // Legacy: Full state values
       case "values": {
         const { todos, files, workspacePath, subagents, interrupt } =
@@ -565,36 +747,20 @@ export class ElectronIPCTransport implements UseStreamTransport {
 
         // Extract usage_metadata for context window tracking
         // Usage metadata is present on completed AI messages (not streaming chunks)
-        const usageMetadata =
-          kwargs.usage_metadata || kwargs.response_metadata?.usage;
-        if (usageMetadata) {
+        const usage = this.extractTokenUsage(kwargs);
+        if (usage) {
           console.log("[ElectronTransport] Found usage_metadata:", {
-            input_tokens: usageMetadata.input_tokens,
-            output_tokens: usageMetadata.output_tokens,
-            total_tokens: usageMetadata.total_tokens,
-            has_cache_details: !!usageMetadata.input_token_details,
+            input_tokens: usage.inputTokens,
+            output_tokens: usage.outputTokens,
+            total_tokens: usage.totalTokens,
+            has_cache_details:
+              usage.cacheReadTokens !== undefined ||
+              usage.cacheCreationTokens !== undefined,
           });
 
           // Only emit if we have actual token counts (not on every chunk)
-          if (
-            usageMetadata.input_tokens !== undefined &&
-            usageMetadata.input_tokens > 0
-          ) {
-            events.push({
-              event: "custom",
-              data: {
-                type: "token_usage",
-                usage: {
-                  inputTokens: usageMetadata.input_tokens,
-                  outputTokens: usageMetadata.output_tokens,
-                  totalTokens: usageMetadata.total_tokens,
-                  cacheReadTokens:
-                    usageMetadata.input_token_details?.cache_read,
-                  cacheCreationTokens:
-                    usageMetadata.input_token_details?.cache_creation,
-                },
-              },
-            });
+          if (usage.inputTokens > 0) {
+            events.push(this.buildTokenUsageEvent(usage));
           }
         }
       }
@@ -658,12 +824,21 @@ export class ElectronIPCTransport implements UseStreamTransport {
         }>;
       };
 
+      let latestUsage: NormalizedTokenUsage | null = null;
+
       // Process messages in values mode to extract subagents
       if (state.messages) {
         for (const msg of state.messages) {
           const kwargs = msg.kwargs || {};
           const classId = Array.isArray(msg.id) ? msg.id : [];
           const className = classId[classId.length - 1] || "";
+
+          if (className.includes("AI")) {
+            const usage = this.extractTokenUsage(kwargs);
+            if (usage) {
+              latestUsage = usage;
+            }
+          }
 
           // Check for task tool calls in AI messages
           if (kwargs.tool_calls?.length) {
@@ -761,6 +936,20 @@ export class ElectronIPCTransport implements UseStreamTransport {
           event: "values",
           data: valuesData,
         });
+      }
+
+      events.push({
+        event: "custom",
+        data: {
+          type: "summarization_token_estimate",
+          summarizationTokens: this.extractSummarizationMessageTokens(
+            state.messages,
+          ),
+        },
+      });
+
+      if (latestUsage && latestUsage.inputTokens > 0) {
+        events.push(this.buildTokenUsageEvent(latestUsage));
       }
 
       // Emit files/workspace

@@ -5,6 +5,7 @@ import {
   AlertCircle,
   X,
   Copy,
+  PencilLine,
   ShieldAlert,
   Shield,
   ShieldCheck,
@@ -20,6 +21,14 @@ import { WorkspacePicker } from "./WorkspacePicker";
 import { selectWorkspaceFolder } from "@/lib/workspace-utils";
 import { ChatTodos } from "./ChatTodos";
 import { ContextUsageIndicator } from "./ContextUsageIndicator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { ApprovalMode, Message, SettingsOpenRequest } from "@/types";
 import { cn, truncate } from "@/lib/utils";
 import { messagesToMarkdown } from "@/lib/chat-markdown";
@@ -144,6 +153,12 @@ export function ChatContainer({
   const [streamTipTick, setStreamTipTick] = useState(0);
   const [overlayInset, setOverlayInset] = useState(176);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState("");
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<Message | null>(
+    null,
+  );
 
   const { threads, models, loadThreads, generateTitleForFirstMessage } =
     useAppStore();
@@ -157,6 +172,7 @@ export function ChatContainer({
     error: threadError,
     workspacePath,
     tokenUsage,
+    promptTokenEstimate,
     currentModel,
     draftInput: input,
     workspaceFiles,
@@ -612,6 +628,12 @@ export function ChatContainer({
       .join("\n\n");
   }, []);
 
+  const extractToolCallNames = useCallback((message: Message): string[] => {
+    return (message.tool_calls ?? [])
+      .map((toolCall) => toolCall.name)
+      .filter((name): name is string => Boolean(name));
+  }, []);
+
   const submitUserMessage = useCallback(
     async (messageText: string): Promise<void> => {
       if (!messageText.trim() || isLoading || !stream) return;
@@ -694,6 +716,33 @@ export function ChatContainer({
     clearError();
   };
 
+  const rewindThreadToMessage = useCallback(
+    async (message: Message): Promise<number> => {
+      const rewindIndex = threadMessages.findIndex((item) => item.id === message.id);
+      if (rewindIndex === -1) {
+        throw new Error("MESSAGE_NOT_FOUND");
+      }
+
+      const messageText = extractMessageText(message);
+      const hasToolCalls = Boolean(message.tool_calls && message.tool_calls.length > 0);
+      if (!messageText && !hasToolCalls) {
+        throw new Error("MESSAGE_EMPTY");
+      }
+
+      await window.api.threads.rewindToMessage(
+        threadId,
+        message.id,
+        rewindIndex,
+        message.role,
+        messageText,
+        extractToolCallNames(message),
+      );
+
+      return rewindIndex;
+    },
+    [extractMessageText, extractToolCallNames, threadId, threadMessages],
+  );
+
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     await submitUserMessage(input.trim());
@@ -706,37 +755,21 @@ export function ChatContainer({
       const messageText = extractMessageText(message);
       if (!messageText) return;
 
-      const rewindIndex = threadMessages.findIndex(
-        (item) => item.id === message.id,
-      );
-      if (rewindIndex === -1) {
-        setError("未找到要重发的消息。请切换会话后重试。");
-        return;
-      }
-
-      const userMessageOrdinal =
-        threadMessages
-          .slice(0, rewindIndex + 1)
-          .filter((item) => item.role === "user").length - 1;
-
-      if (userMessageOrdinal < 0) {
-        setError("未找到可回滚的用户消息。请稍后重试。");
-        return;
-      }
-
       try {
-        await window.api.threads.rewindToMessage(
-          threadId,
-          userMessageOrdinal,
-          messageText,
-        );
+        const rewindIndex = await rewindThreadToMessage(message);
         setMessages(threadMessages.slice(0, rewindIndex));
         setReferencedPaths([]);
+        setPendingApprovals([]);
         setPendingApproval(null);
+        setTodos([]);
         clearError();
         await submitUserMessage(messageText);
       } catch (error) {
         console.error("[ChatContainer] Failed to resend message:", error);
+        if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
+          setError("未找到要重发的消息。请切换会话后重试。");
+          return;
+        }
         setError("重发消息失败，请稍后再试。");
       }
     },
@@ -747,11 +780,132 @@ export function ChatContainer({
       setError,
       setMessages,
       setPendingApproval,
+      setPendingApprovals,
+      setTodos,
       submitUserMessage,
-      threadId,
+      threadMessages,
+      rewindThreadToMessage,
+    ],
+  );
+
+  const handleEditMessage = useCallback(
+    async (message: Message): Promise<void> => {
+      if (message.role !== "user" || isLoading) return;
+
+      const messageText = extractMessageText(message);
+      if (!messageText) return;
+
+      clearError();
+      setEditingMessageId(message.id);
+      setEditingDraft(messageText);
+    },
+    [clearError, extractMessageText, isLoading],
+  );
+
+  const handleEditDraftChange = useCallback(
+    (_message: Message, value: string): void => {
+      setEditingDraft(value);
+    },
+    [],
+  );
+
+  const handleCancelEditing = useCallback((): void => {
+    setEditingMessageId(null);
+    setEditingDraft("");
+    setIsSubmittingEdit(false);
+  }, []);
+
+  const handleSubmitEditedMessage = useCallback(
+    async (message: Message): Promise<void> => {
+      if (message.role !== "user" || isLoading || isSubmittingEdit) return;
+
+      const nextMessageText = editingDraft.trim();
+      if (!nextMessageText) {
+        return;
+      }
+
+      try {
+        setIsSubmittingEdit(true);
+        const rewindIndex = await rewindThreadToMessage(message);
+        setMessages(threadMessages.slice(0, rewindIndex));
+        setReferencedPaths([]);
+        setPendingApprovals([]);
+        setPendingApproval(null);
+        setTodos([]);
+        clearError();
+        setEditingMessageId(null);
+        setEditingDraft("");
+        await submitUserMessage(nextMessageText);
+      } catch (error) {
+        console.error("[ChatContainer] Failed to submit edited message:", error);
+        if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
+          setError("未找到要编辑的消息。请切换会话后重试。");
+        } else {
+          setError("编辑后发送失败，请稍后再试。");
+        }
+      } finally {
+        setIsSubmittingEdit(false);
+      }
+    },
+    [
+      clearError,
+      editingDraft,
+      isLoading,
+      isSubmittingEdit,
+      rewindThreadToMessage,
+      setError,
+      setMessages,
+      setPendingApproval,
+      setPendingApprovals,
+      setTodos,
+      submitUserMessage,
       threadMessages,
     ],
   );
+
+  const handleDeleteMessage = useCallback(
+    async (message: Message): Promise<void> => {
+      if ((message.role !== "user" && message.role !== "assistant") || isLoading) return;
+
+      setDeleteConfirmMessage(message);
+    },
+    [isLoading],
+  );
+
+  const executeConfirmedDelete = useCallback(async (): Promise<void> => {
+    const message = deleteConfirmMessage;
+    if (!message) return;
+
+    try {
+      const rewindIndex = await rewindThreadToMessage(message);
+      setMessages(threadMessages.slice(0, rewindIndex));
+      setTodos([]);
+      setPendingApprovals([]);
+      setPendingApproval(null);
+      setReferencedPaths([]);
+      clearError();
+      setDeleteConfirmMessage(null);
+      toast.success("消息已删除");
+    } catch (error) {
+      console.error("[ChatContainer] Failed to delete message:", error);
+      setDeleteConfirmMessage(null);
+      if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
+        setError("未找到要删除的消息。请切换会话后重试。");
+        return;
+      }
+      setError("删除消息失败，请稍后再试。");
+    }
+  }, [
+    clearError,
+    deleteConfirmMessage,
+    rewindThreadToMessage,
+    setError,
+    setMessages,
+    setPendingApproval,
+    setPendingApprovals,
+    setTodos,
+    threadMessages,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (mentionOpen && mentionCandidates.length > 0) {
@@ -899,10 +1053,20 @@ export function ChatContainer({
                 message={message}
                 isStreaming={streamingAssistantIds.has(message.id)}
                 canResend={!isLoading && message.role === "user"}
+                canEdit={!isLoading && message.role === "user"}
+                canDelete={!isLoading && (message.role === "user" || message.role === "assistant")}
+                isEditing={editingMessageId === message.id}
+                editDraft={editingMessageId === message.id ? editingDraft : undefined}
+                isSubmittingEdit={isSubmittingEdit && editingMessageId === message.id}
                 toolResults={toolResults}
                 pendingApprovals={pendingApprovals}
                 pendingApproval={pendingApproval}
                 onResend={handleResendMessage}
+                onEdit={handleEditMessage}
+                onEditDraftChange={handleEditDraftChange}
+                onEditCancel={handleCancelEditing}
+                onEditSubmit={handleSubmitEditedMessage}
+                onDelete={handleDeleteMessage}
                 onApprovalDecision={handleApprovalDecision}
               />
             ))}
@@ -1182,6 +1346,10 @@ export function ChatContainer({
                 <div className="h-4 w-px shrink-0 bg-border" />
                 <ContextUsageIndicator
                   tokenUsage={tokenUsage}
+                  promptTokenEstimate={promptTokenEstimate}
+                  messages={displayMessages}
+                  provider={currentModelConfig?.provider}
+                  apiFormat={currentModelConfig?.apiFormat}
                   modelId={currentModel}
                   contextWindow={currentModelConfig?.contextWindow}
                   className="shrink-0 rounded-full border border-border bg-background-elevated px-3 py-1"
@@ -1201,6 +1369,61 @@ export function ChatContainer({
           </div>
         </form>
       </div>
+
+      <Dialog
+        open={deleteConfirmMessage !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirmMessage(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>确认删除消息？</DialogTitle>
+            <DialogDescription>
+              将删除这条{deleteConfirmMessage?.role === "user" ? "用户" : "助手"}
+              消息及其后续对话记录，此操作不可恢复。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-2xl border border-border/60 bg-background-elevated px-4 py-3 text-sm text-muted-foreground">
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-foreground/70">
+              <PencilLine className="size-3.5" />
+              目标消息
+            </div>
+            <p className="whitespace-pre-wrap break-words text-foreground/85">
+              {truncate(
+                extractMessageText(deleteConfirmMessage ?? {
+                  id: "",
+                  role: "assistant",
+                  content: "",
+                  created_at: new Date(),
+                }) ||
+                  (deleteConfirmMessage?.tool_calls?.length
+                    ? "这是一条包含工具调用的消息。"
+                    : "这条消息没有可展示的文本内容。"),
+                160,
+              )}
+            </p>
+          </div>
+          <DialogFooter className="gap-3 sm:gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setDeleteConfirmMessage(null)}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void executeConfirmedDelete()}
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { createDeepAgent } from "deepagents";
+import { AsyncLocalStorage } from "node:async_hooks";
 import Store from "electron-store";
 import { createMiddleware } from "langchain";
 import { getThread } from "../db";
@@ -6,9 +7,9 @@ import { getDefaultModel } from "../ipc/models";
 import { getMCPServerById } from "../mcp-config";
 import { getOpenAICompatibleProfileByModelId } from "../openai-compatible-profiles";
 import { getApiKey, getOpenworkDir, getThreadCheckpointPath } from "../storage";
-import { ToolMessage } from "@langchain/core/messages";
+import { AIMessage, ToolMessage } from "@langchain/core/messages";
 import { ChatAnthropic } from "@langchain/anthropic";
-import { ChatOpenAI, ChatOpenAICompletions } from "@langchain/openai";
+import { ChatOpenAI } from "@langchain/openai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { SqlJsSaver } from "../checkpointer/sqljs-saver";
 import { LocalSandbox } from "./local-sandbox";
@@ -18,6 +19,7 @@ import { BASE_SYSTEM_PROMPT } from "./system-prompt";
 import { resolveSkillSourcesForWorkspace } from "../skill-config";
 import type {
   CustomModelApiFormat,
+  CustomModelReasoningContentMode,
   CustomModelThinkingType,
   OpenAICompatibleProfile,
   ThreadMetadata,
@@ -30,9 +32,123 @@ import { logInfo, logWarn } from "../logger";
 
 const MODEL_REQUEST_TIMEOUT_MS = 30_000;
 
+type OpenAICompatibleRequestBody = Record<string, unknown>;
+type OpenAICompatibleReasoningReplay = unknown[];
+
+const openAICompatibleReasoningReplayStorage =
+  new AsyncLocalStorage<OpenAICompatibleReasoningReplay>();
+
 interface ApprovalAliasTool {
   name?: string;
   __approvalAliases?: string[];
+}
+
+export interface PromptTokenEstimate {
+  hiddenPromptTokens: number;
+  systemPromptTokens: number;
+  filesystemPromptTokens: number;
+  referencedPathsTokens: number;
+}
+
+type TodoStatus = "pending" | "in_progress" | "completed";
+
+function normalizeTodoStatus(status: unknown): TodoStatus {
+  switch (status) {
+    case "completed":
+      return "completed";
+    case "in_progress":
+    case "in-progress":
+      return "in_progress";
+    case "pending":
+    default:
+      return "pending";
+  }
+}
+
+function normalizeWriteTodosArgs(args: unknown): unknown {
+  if (!args || typeof args !== "object") {
+    return args;
+  }
+
+  const record = args as Record<string, unknown>;
+  const rawTodos = record["todos"];
+
+  let parsedTodos = rawTodos;
+  if (typeof rawTodos === "string") {
+    try {
+      parsedTodos = JSON.parse(rawTodos) as unknown;
+    } catch {
+      return args;
+    }
+  }
+
+  if (!Array.isArray(parsedTodos)) {
+    return args;
+  }
+
+  const normalizedTodos = parsedTodos.flatMap((todo) => {
+    if (typeof todo === "string") {
+      const content = todo.trim();
+      return content.length > 0
+        ? [{ content, status: "pending" as const }]
+        : [];
+    }
+
+    if (!todo || typeof todo !== "object") {
+      return [];
+    }
+
+    const todoRecord = todo as Record<string, unknown>;
+    const content =
+      typeof todoRecord["content"] === "string"
+        ? todoRecord["content"].trim()
+        : "";
+
+    if (content.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        content,
+        status: normalizeTodoStatus(todoRecord["status"]),
+      },
+    ];
+  });
+
+  return {
+    ...record,
+    todos: normalizedTodos,
+  };
+}
+
+function normalizeToolCallRequestArgs<TRequest extends { toolCall: { name?: string; args?: unknown } }>(
+  request: TRequest,
+): TRequest {
+  if (request.toolCall.name !== "write_todos") {
+    return request;
+  }
+
+  const normalizedArgs = normalizeWriteTodosArgs(request.toolCall.args);
+  if (normalizedArgs === request.toolCall.args) {
+    return request;
+  }
+
+  logInfo("Runtime", "Normalized write_todos arguments", {
+    originalType: typeof request.toolCall.args,
+    normalizedTodoCount:
+      Array.isArray((normalizedArgs as { todos?: unknown }).todos)
+        ? ((normalizedArgs as { todos: unknown[] }).todos.length ?? 0)
+        : 0,
+  });
+
+  return {
+    ...request,
+    toolCall: {
+      ...request.toolCall,
+      args: normalizedArgs,
+    },
+  };
 }
 
 function toToolErrorText(error: unknown): string {
@@ -50,7 +166,7 @@ const runtimeToolErrorMiddleware = createMiddleware({
   name: "RuntimeToolErrorMiddleware",
   wrapToolCall: async (request, handler) => {
     try {
-      return await handler(request);
+      return await handler(normalizeToolCallRequestArgs(request));
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         throw error;
@@ -89,311 +205,64 @@ function getSystemPrompt(workspacePath: string): string {
   return workingDirSection + BASE_SYSTEM_PROMPT;
 }
 
+function getFilesystemSystemPrompt(workspacePath: string): string {
+  return `You have access to a filesystem. All file paths use fully qualified absolute system paths.
+
+- ls: list files in a directory (e.g., ls("${workspacePath}"))
+- read_file: read a file from the filesystem
+- write_file: write to a file in the filesystem
+- edit_file: edit a file in the filesystem
+- glob: find files matching a pattern (e.g., "**/*.py")
+- grep: search for text within files
+
+The workspace root is: ${workspacePath}`;
+}
+
+export function buildReferencedPathsPrompt(referencedPaths?: string[]): string {
+  if (!referencedPaths || referencedPaths.length === 0) {
+    return "";
+  }
+
+  const lines = referencedPaths.map((filePath) => `- ${filePath}`).join("\n");
+  return `The user referenced the following workspace paths (pay attention to these files/folders):\n${lines}\n\n---\n\n`;
+}
+
+function estimateTextTokens(text: string): number {
+  if (text.trim().length === 0) {
+    return 0;
+  }
+
+  return Math.max(1, Math.ceil(text.length / 4) + 6);
+}
+
+export function estimateHiddenPromptTokens(options: {
+  workspacePath: string;
+  referencedPaths?: string[];
+}): PromptTokenEstimate {
+  const { workspacePath, referencedPaths } = options;
+  const systemPromptTokens = estimateTextTokens(getSystemPrompt(workspacePath));
+  const filesystemPromptTokens = estimateTextTokens(
+    getFilesystemSystemPrompt(workspacePath),
+  );
+  const referencedPathsTokens = estimateTextTokens(
+    buildReferencedPathsPrompt(referencedPaths),
+  );
+
+  return {
+    hiddenPromptTokens:
+      systemPromptTokens + filesystemPromptTokens + referencedPathsTokens,
+    systemPromptTokens,
+    filesystemPromptTokens,
+    referencedPathsTokens,
+  };
+}
+
 // Per-thread checkpointer cache
 const checkpointers = new Map<string, SqlJsSaver>();
 const settingsStore = new Store({
   name: "settings",
   cwd: getOpenworkDir(),
 });
-
-function sanitizeModelText(value: string): string {
-  if (typeof value.toWellFormed === "function") {
-    return value.toWellFormed();
-  }
-  return value.replace(
-    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,
-    "\uFFFD",
-  );
-}
-
-function stringifyOpenAICompatibleContentPart(part: unknown): string {
-  if (typeof part === "string") return sanitizeModelText(part);
-  if (part == null) return "";
-  if (typeof part !== "object") return String(part);
-
-  const record = part as Record<string, unknown>;
-  if (typeof record.text === "string") return sanitizeModelText(record.text);
-  if (typeof record.input_text === "string")
-    return sanitizeModelText(record.input_text);
-  if (typeof record.output_text === "string")
-    return sanitizeModelText(record.output_text);
-  if (typeof record.refusal === "string")
-    return sanitizeModelText(record.refusal);
-  if (typeof record.content === "string")
-    return sanitizeModelText(record.content);
-
-  const type = typeof record.type === "string" ? record.type : "";
-  const mimeType =
-    typeof record.mimeType === "string"
-      ? record.mimeType
-      : "application/octet-stream";
-  if (type.includes("image")) return `[image content omitted: ${mimeType}]`;
-  if (type.includes("audio")) return `[audio content omitted: ${mimeType}]`;
-  if (type.includes("video")) return `[video content omitted: ${mimeType}]`;
-  if (type.includes("file")) return `[file content omitted: ${mimeType}]`;
-
-  return `[unsupported content block${type ? `: ${type}` : ""}]`;
-}
-
-function extractOpenAICompatibleReasoningPart(part: unknown): string {
-  if (!part || typeof part !== "object") return "";
-  const record = part as Record<string, unknown>;
-  const type = typeof record.type === "string" ? record.type : "";
-
-  if (typeof record.reasoning_content === "string") {
-    return sanitizeModelText(record.reasoning_content);
-  }
-  if (typeof record.reasoning === "string") {
-    return sanitizeModelText(record.reasoning);
-  }
-  if (typeof record.thinking === "string") {
-    return sanitizeModelText(record.thinking);
-  }
-  if (typeof record.think === "string") {
-    return sanitizeModelText(record.think);
-  }
-
-  if (type.includes("reasoning") || type.includes("thinking")) {
-    if (typeof record.text === "string") {
-      return sanitizeModelText(record.text);
-    }
-    if (typeof record.content === "string") {
-      return sanitizeModelText(record.content);
-    }
-  }
-
-  return "";
-}
-
-function extractReasoningFromRecord(record: Record<string, unknown>): string {
-  const directCandidates: unknown[] = [
-    record.reasoning_content,
-    record.reasoning,
-    record.thinking,
-    record.think,
-  ];
-
-  for (const candidate of directCandidates) {
-    if (typeof candidate === "string" && candidate.trim().length > 0) {
-      return sanitizeModelText(candidate);
-    }
-  }
-
-  const nestedContainers: unknown[] = [
-    record.additional_kwargs,
-    record.kwargs,
-    record.response_metadata,
-    record.metadata,
-  ];
-
-  for (const container of nestedContainers) {
-    if (!container || typeof container !== "object") continue;
-    const nested = container as Record<string, unknown>;
-    const nestedCandidate =
-      nested.reasoning_content ?? nested.reasoning ?? nested.thinking;
-    if (
-      typeof nestedCandidate === "string" &&
-      nestedCandidate.trim().length > 0
-    ) {
-      return sanitizeModelText(nestedCandidate);
-    }
-  }
-
-  return "";
-}
-
-function fallbackReasoningForAssistantMessage(
-  message: Record<string, unknown>,
-  textParts: string[],
-): string {
-  if (textParts.length > 0) {
-    return textParts.join("\n");
-  }
-
-  const content = message.content;
-  if (typeof content === "string" && content.trim().length > 0) {
-    return sanitizeModelText(content);
-  }
-
-  const toolCalls =
-    (Array.isArray(message.tool_calls) ? message.tool_calls : null) ??
-    (Array.isArray((message.additional_kwargs as { tool_calls?: unknown })?.tool_calls)
-      ? ((message.additional_kwargs as { tool_calls?: unknown }).tool_calls as unknown[])
-      : null);
-
-  if (toolCalls && toolCalls.length > 0) {
-    const names = toolCalls
-      .map((call) => {
-        if (!call || typeof call !== "object") return "tool";
-        const record = call as Record<string, unknown>;
-        const fn = record.function;
-        if (fn && typeof fn === "object") {
-          const name = (fn as { name?: unknown }).name;
-          if (typeof name === "string" && name.trim().length > 0) {
-            return name;
-          }
-        }
-        const name = record.name;
-        if (typeof name === "string" && name.trim().length > 0) {
-          return name;
-        }
-        return "tool";
-      })
-      .join(", ");
-    return `tool-calls: ${names}`;
-  }
-
-  // DeepSeek thinking mode requires reasoning_content on assistant turns.
-  return "assistant-response";
-}
-
-function normalizeOpenAICompatibleMessage(
-  message: unknown,
-): { message: unknown; normalized: boolean } {
-  if (!message || typeof message !== "object") {
-    return { message, normalized: false };
-  }
-
-  const role =
-    typeof (message as { role?: unknown }).role === "string"
-      ? ((message as { role?: string }).role ?? "")
-      : "";
-  const content = (message as { content?: unknown }).content;
-  const messageRecord = message as Record<string, unknown>;
-  const existingReasoning = extractReasoningFromRecord(messageRecord);
-
-  // Compatibility path for already-stringified assistant history messages.
-  if (!Array.isArray(content)) {
-    if (
-      role === "assistant" &&
-      (typeof content === "string" || content == null || typeof content === "object")
-    ) {
-      const fallbackReasoning =
-        existingReasoning || fallbackReasoningForAssistantMessage(messageRecord, []);
-      return {
-        message: {
-          ...messageRecord,
-          reasoning_content: fallbackReasoning,
-        },
-        normalized: true,
-      };
-    }
-
-    return { message, normalized: false };
-  }
-
-  const textParts = content
-    .map(stringifyOpenAICompatibleContentPart)
-    .filter((value) => value.length > 0);
-  const normalizedMessage: Record<string, unknown> = {
-    ...messageRecord,
-    content: textParts.join("\n"),
-  };
-
-  if (role === "assistant") {
-    const reasoningParts = content
-      .map(extractOpenAICompatibleReasoningPart)
-      .filter((value) => value.length > 0);
-    if (reasoningParts.length > 0) {
-      normalizedMessage.reasoning_content = reasoningParts.join("\n");
-    } else {
-      normalizedMessage.reasoning_content =
-        existingReasoning ||
-        fallbackReasoningForAssistantMessage(messageRecord, textParts);
-    }
-  }
-
-  return { message: normalizedMessage, normalized: true };
-}
-
-function normalizeOpenAICompatibleMessages(request: unknown): {
-  request: unknown;
-  normalizedCount: number;
-  retainedReasoningCount: number;
-  prunedReasoningCount: number;
-} {
-  if (!request || typeof request !== "object")
-    return {
-      request,
-      normalizedCount: 0,
-      retainedReasoningCount: 0,
-      prunedReasoningCount: 0,
-    };
-  const messages = (request as { messages?: unknown }).messages;
-  if (!Array.isArray(messages)) {
-    return {
-      request,
-      normalizedCount: 0,
-      retainedReasoningCount: 0,
-      prunedReasoningCount: 0,
-    };
-  }
-
-  let normalizedCount = 0;
-  const normalizedMessages = messages.map((message) => {
-    const normalized = normalizeOpenAICompatibleMessage(message);
-    if (normalized.normalized) normalizedCount += 1;
-    return normalized.message;
-  });
-
-  let retainedReasoningCount = 0;
-  const historyPrunedMessages = normalizedMessages.map((message) => {
-    if (!message || typeof message !== "object") {
-      return message;
-    }
-
-    const record = message as Record<string, unknown>;
-    if (record.role !== "assistant") {
-      return message;
-    }
-
-    const reasoning = extractReasoningFromRecord(record);
-    if (reasoning.length === 0) {
-      return message;
-    }
-
-    retainedReasoningCount += 1;
-    return {
-      ...record,
-      reasoning_content: reasoning,
-    };
-  });
-
-  return {
-    request: {
-      ...(request as Record<string, unknown>),
-      messages: historyPrunedMessages,
-    },
-    normalizedCount,
-    retainedReasoningCount,
-    prunedReasoningCount: 0,
-  };
-}
-
-class OpenAICompatibleChatCompletions extends ChatOpenAICompletions {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  override async completionWithRetry(request: any, requestOptions?: any) {
-    const {
-      request: normalizedRequest,
-      normalizedCount,
-      retainedReasoningCount,
-      prunedReasoningCount,
-    } =
-      normalizeOpenAICompatibleMessages(request);
-    if (normalizedCount > 0 || prunedReasoningCount > 0) {
-      console.log(
-        `[Runtime] Normalized ${normalizedCount} array-format message(s) and retained ${retainedReasoningCount} latest reasoning block(s) while pruning ${prunedReasoningCount} historical reasoning block(s) for OpenAI-compatible API`,
-      );
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (ChatOpenAICompletions.prototype.completionWithRetry as any).call(
-      this,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      normalizedRequest as any,
-      requestOptions,
-    );
-  }
-}
 
 function applyContextWindowProfile<T extends object>(
   model: T,
@@ -435,10 +304,490 @@ function normalizeCustomModelThinkingType(
 
 function normalizeCustomModelThinkingEffort(
   profile: Pick<OpenAICompatibleProfile, "thinkingEffort">,
-): "high" | "max" {
-  return profile.thinkingEffort === "xhigh" || profile.thinkingEffort === "max"
-    ? "max"
-    : "high";
+): NonNullable<OpenAICompatibleProfile["thinkingEffort"]> {
+  switch (profile.thinkingEffort) {
+    case "low":
+    case "medium":
+    case "high":
+    case "xhigh":
+    case "max":
+      return profile.thinkingEffort;
+    default:
+      return "high";
+  }
+}
+
+function normalizeOpenAIReasoningEffort(
+  profile: Pick<OpenAICompatibleProfile, "thinkingEffort">,
+): "low" | "medium" | "high" {
+  switch (profile.thinkingEffort) {
+    case "low":
+    case "medium":
+    case "high":
+      return profile.thinkingEffort;
+    case "xhigh":
+    case "max":
+    default:
+      return "high";
+  }
+}
+
+function normalizeReasoningContentMode(
+  profile: Pick<OpenAICompatibleProfile, "reasoningContent">,
+): CustomModelReasoningContentMode {
+  switch (profile.reasoningContent) {
+    case "enabled":
+    case "disabled":
+      return profile.reasoningContent;
+    case "auto":
+    default:
+      return "auto";
+  }
+}
+
+function tryParseOpenAICompatibleBody(
+  body: BodyInit | null | undefined,
+): OpenAICompatibleRequestBody | null {
+  if (typeof body !== "string") {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(body) as unknown;
+    return parsed && typeof parsed === "object"
+      ? (parsed as OpenAICompatibleRequestBody)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeOpenAICompatibleRequestBody(
+  body: OpenAICompatibleRequestBody,
+  mode: "default" | "fallback",
+): OpenAICompatibleRequestBody {
+  const sanitized: OpenAICompatibleRequestBody = { ...body };
+
+  // Common OpenAI-compatible gateways reject these optional fields even though
+  // the official API accepts them.
+  delete sanitized["parallel_tool_calls"];
+
+  if (sanitized["tool_choice"] === "auto") {
+    delete sanitized["tool_choice"];
+  }
+
+  if (mode === "fallback") {
+    delete sanitized["user"];
+    delete sanitized["seed"];
+    delete sanitized["response_format"];
+  }
+
+  return sanitized;
+}
+
+function getAIMessageReasoningContent(message: AIMessage): unknown {
+  const additionalKwargs =
+    typeof message.additional_kwargs === "object" &&
+    message.additional_kwargs !== null
+      ? (message.additional_kwargs as Record<string, unknown>)
+      : null;
+
+  if (additionalKwargs?.["reasoning_content"] !== undefined) {
+    return additionalKwargs["reasoning_content"];
+  }
+
+  const rawResponse = additionalKwargs?.["__raw_response"];
+  if (typeof rawResponse !== "object" || rawResponse === null) {
+    return undefined;
+  }
+
+  const choices = (rawResponse as { choices?: unknown }).choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
+    return undefined;
+  }
+
+  const firstChoice = choices[0];
+  if (typeof firstChoice !== "object" || firstChoice === null) {
+    return undefined;
+  }
+
+  const rawMessage = (firstChoice as { message?: unknown }).message;
+  if (typeof rawMessage !== "object" || rawMessage === null) {
+    return undefined;
+  }
+
+  return (rawMessage as Record<string, unknown>)["reasoning_content"];
+}
+
+function hasOpenAICompatibleToolHistory(body: OpenAICompatibleRequestBody): boolean {
+  const messages = body["messages"];
+  if (!Array.isArray(messages)) {
+    return false;
+  }
+
+  return messages.some((rawMessage) => {
+    if (typeof rawMessage !== "object" || rawMessage === null) {
+      return false;
+    }
+
+    const message = rawMessage as Record<string, unknown>;
+    if (message["role"] === "tool") {
+      return true;
+    }
+
+    return (
+      message["role"] === "assistant" &&
+      Array.isArray(message["tool_calls"]) &&
+      message["tool_calls"].length > 0
+    );
+  });
+}
+
+function shouldReplayOpenAICompatibleReasoningContent(
+  profile: OpenAICompatibleProfile,
+  body: OpenAICompatibleRequestBody,
+): boolean {
+  if (normalizeCustomModelThinkingType(profile) !== "enabled") {
+    return false;
+  }
+
+  switch (normalizeReasoningContentMode(profile)) {
+    case "enabled":
+      return true;
+    case "disabled":
+      return false;
+    case "auto":
+    default:
+      return hasOpenAICompatibleToolHistory(body);
+  }
+}
+
+function extractOpenAICompatibleReasoningReplay(
+  messages: unknown[],
+): OpenAICompatibleReasoningReplay {
+  return messages.flatMap((message) => {
+    if (!AIMessage.isInstance(message)) {
+      return [];
+    }
+
+    return [getAIMessageReasoningContent(message)];
+  });
+}
+
+function applyOpenAICompatibleReasoningReplay(
+  body: OpenAICompatibleRequestBody,
+  reasoningReplay: OpenAICompatibleReasoningReplay | undefined,
+): {
+  body: OpenAICompatibleRequestBody;
+  replayedAssistantMessages: number;
+  assistantMessages: number;
+} {
+  const messages = body["messages"];
+  if (!Array.isArray(messages) || !Array.isArray(reasoningReplay)) {
+    return {
+      body,
+      replayedAssistantMessages: 0,
+      assistantMessages: 0,
+    };
+  }
+
+  let assistantIndex = 0;
+  let replayedAssistantMessages = 0;
+  const nextMessages = messages.map((rawMessage) => {
+    if (typeof rawMessage !== "object" || rawMessage === null) {
+      return rawMessage;
+    }
+
+    const message = { ...(rawMessage as Record<string, unknown>) };
+    if (message["role"] !== "assistant") {
+      return message;
+    }
+
+    const reasoningContent = reasoningReplay[assistantIndex];
+    assistantIndex += 1;
+
+    if (
+      reasoningContent !== undefined &&
+      message["reasoning_content"] === undefined
+    ) {
+      message["reasoning_content"] = reasoningContent;
+      replayedAssistantMessages += 1;
+    }
+
+    return message;
+  });
+
+  if (replayedAssistantMessages === 0) {
+    return {
+      body,
+      replayedAssistantMessages,
+      assistantMessages: assistantIndex,
+    };
+  }
+
+  return {
+    body: {
+      ...body,
+      messages: nextMessages,
+    },
+    replayedAssistantMessages,
+    assistantMessages: assistantIndex,
+  };
+}
+
+function summarizeOpenAICompatibleRequestBody(
+  body: OpenAICompatibleRequestBody,
+): Record<string, unknown> {
+  return {
+    keys: Object.keys(body).sort(),
+    stream: body["stream"] === true,
+    toolCount: Array.isArray(body["tools"]) ? body["tools"].length : 0,
+    hasToolChoice: body["tool_choice"] !== undefined,
+    hasParallelToolCalls: body["parallel_tool_calls"] !== undefined,
+    hasResponseFormat: body["response_format"] !== undefined,
+    hasUser: body["user"] !== undefined,
+    hasSeed: body["seed"] !== undefined,
+    model: typeof body["model"] === "string" ? body["model"] : null,
+  };
+}
+
+function summarizeOpenAICompatibleMessages(
+  body: OpenAICompatibleRequestBody,
+): Record<string, number> {
+  const messages = body["messages"];
+  if (!Array.isArray(messages)) {
+    return {
+      totalMessages: 0,
+      assistantMessages: 0,
+      assistantMessagesWithReasoning: 0,
+      toolMessages: 0,
+      assistantMessagesWithToolCalls: 0,
+    };
+  }
+
+  let assistantMessages = 0;
+  let assistantMessagesWithReasoning = 0;
+  let toolMessages = 0;
+  let assistantMessagesWithToolCalls = 0;
+  let assistantMessagesWithArrayContent = 0;
+
+  for (const rawMessage of messages) {
+    if (typeof rawMessage !== "object" || rawMessage === null) {
+      continue;
+    }
+
+    const message = rawMessage as Record<string, unknown>;
+    if (message["role"] === "assistant") {
+      assistantMessages += 1;
+      if (typeof message["reasoning_content"] === "string") {
+        assistantMessagesWithReasoning += 1;
+      }
+      if (Array.isArray(message["content"])) {
+        assistantMessagesWithArrayContent += 1;
+      }
+      if (
+        Array.isArray(message["tool_calls"]) &&
+        message["tool_calls"].length > 0
+      ) {
+        assistantMessagesWithToolCalls += 1;
+      }
+      continue;
+    }
+
+    if (message["role"] === "tool") {
+      toolMessages += 1;
+    }
+  }
+
+  return {
+    totalMessages: messages.length,
+    assistantMessages,
+    assistantMessagesWithReasoning,
+    toolMessages,
+    assistantMessagesWithToolCalls,
+    assistantMessagesWithArrayContent,
+  };
+}
+
+function normalizeOpenAICompatibleMessageContent(
+  body: OpenAICompatibleRequestBody,
+): {
+  body: OpenAICompatibleRequestBody;
+  normalizedAssistantToolCallMessages: number;
+} {
+  const messages = body["messages"];
+  if (!Array.isArray(messages)) {
+    return {
+      body,
+      normalizedAssistantToolCallMessages: 0,
+    };
+  }
+
+  let normalizedAssistantToolCallMessages = 0;
+  const nextMessages = messages.map((rawMessage) => {
+    if (typeof rawMessage !== "object" || rawMessage === null) {
+      return rawMessage;
+    }
+
+    const message = rawMessage as Record<string, unknown>;
+    const isAssistantToolCallMessage =
+      message["role"] === "assistant" &&
+      Array.isArray(message["tool_calls"]) &&
+      message["tool_calls"].length > 0;
+
+    if (!isAssistantToolCallMessage || !Array.isArray(message["content"])) {
+      return rawMessage;
+    }
+
+    if (message["content"].length > 0) {
+      return rawMessage;
+    }
+
+    normalizedAssistantToolCallMessages += 1;
+    return {
+      ...message,
+      content: "",
+    };
+  });
+
+  if (normalizedAssistantToolCallMessages === 0) {
+    return {
+      body,
+      normalizedAssistantToolCallMessages,
+    };
+  }
+
+  return {
+    body: {
+      ...body,
+      messages: nextMessages,
+    },
+    normalizedAssistantToolCallMessages,
+  };
+}
+
+function createOpenAICompatibleFetch(
+  modelId: string,
+  profile: OpenAICompatibleProfile,
+): typeof fetch {
+  const baseFetch = globalThis.fetch.bind(globalThis);
+
+  return async (input, init) => {
+    const parsedBody = tryParseOpenAICompatibleBody(init?.body);
+    if (!parsedBody) {
+      return baseFetch(input, init);
+    }
+
+    const shouldReplayReasoningContent =
+      shouldReplayOpenAICompatibleReasoningContent(profile, parsedBody);
+    const reasoningReplay = shouldReplayReasoningContent
+      ? openAICompatibleReasoningReplayStorage.getStore()
+      : undefined;
+    const replayedBody = applyOpenAICompatibleReasoningReplay(
+      parsedBody,
+      reasoningReplay,
+    );
+
+    const normalizedBody = normalizeOpenAICompatibleMessageContent(
+      replayedBody.body,
+    );
+
+    const sanitizedBody = sanitizeOpenAICompatibleRequestBody(
+      normalizedBody.body,
+      "default",
+    );
+    logInfo("Runtime", "OpenAI-compatible request summary", {
+      modelId,
+      profileModel: profile.model,
+      baseUrl: profile.baseUrl,
+      reasoningContentMode: normalizeReasoningContentMode(profile),
+      reasoningReplay: {
+        shouldReplayReasoningContent,
+        assistantMessages: replayedBody.assistantMessages,
+        replayedAssistantMessages: replayedBody.replayedAssistantMessages,
+      },
+      normalizedAssistantToolCallMessages:
+        normalizedBody.normalizedAssistantToolCallMessages,
+      messageSummary: summarizeOpenAICompatibleMessages(sanitizedBody),
+      request: summarizeOpenAICompatibleRequestBody(sanitizedBody),
+    });
+
+    const firstResponse = await baseFetch(input, {
+      ...init,
+      body: JSON.stringify(sanitizedBody),
+    });
+
+    if (firstResponse.status !== 400) {
+      return firstResponse;
+    }
+
+    const firstBodyText = await firstResponse.clone().text();
+    logWarn("Runtime", "OpenAI-compatible request rejected", {
+      modelId,
+      status: firstResponse.status,
+      body: firstBodyText.slice(0, 500),
+      reasoningContentMode: normalizeReasoningContentMode(profile),
+      reasoningReplay: {
+        shouldReplayReasoningContent,
+        assistantMessages: replayedBody.assistantMessages,
+        replayedAssistantMessages: replayedBody.replayedAssistantMessages,
+      },
+      normalizedAssistantToolCallMessages:
+        normalizedBody.normalizedAssistantToolCallMessages,
+      messageSummary: summarizeOpenAICompatibleMessages(sanitizedBody),
+      request: summarizeOpenAICompatibleRequestBody(sanitizedBody),
+    });
+
+    const fallbackBody = sanitizeOpenAICompatibleRequestBody(
+      normalizedBody.body,
+      "fallback",
+    );
+    if (JSON.stringify(fallbackBody) === JSON.stringify(sanitizedBody)) {
+      return firstResponse;
+    }
+
+    logWarn("Runtime", "Retrying OpenAI-compatible request with stricter body", {
+      modelId,
+      request: summarizeOpenAICompatibleRequestBody(fallbackBody),
+    });
+
+    return baseFetch(input, {
+      ...init,
+      body: JSON.stringify(fallbackBody),
+    });
+  };
+}
+
+function attachOpenAICompatibleReasoningReplay(chatModel: ChatOpenAI): void {
+  const modelWithInternals = chatModel as ChatOpenAI & {
+    _generate: (
+      messages: unknown[],
+      options: unknown,
+      runManager?: unknown,
+    ) => Promise<unknown>;
+    _streamResponseChunks: (
+      messages: unknown[],
+      options: unknown,
+      runManager?: unknown,
+    ) => AsyncGenerator<unknown>;
+  };
+
+  const originalGenerate = modelWithInternals._generate.bind(chatModel);
+  modelWithInternals._generate = (messages, options, runManager) => {
+    const reasoningReplay = extractOpenAICompatibleReasoningReplay(messages);
+    return openAICompatibleReasoningReplayStorage.run(reasoningReplay, () =>
+      originalGenerate(messages, options, runManager),
+    );
+  };
+
+  const originalStreamResponseChunks =
+    modelWithInternals._streamResponseChunks.bind(chatModel);
+  modelWithInternals._streamResponseChunks = (messages, options, runManager) => {
+    const reasoningReplay = extractOpenAICompatibleReasoningReplay(messages);
+    return openAICompatibleReasoningReplayStorage.run(reasoningReplay, () =>
+      originalStreamResponseChunks(messages, options, runManager),
+    );
+  };
 }
 
 function createCustomOpenAIChatModel(
@@ -452,13 +801,13 @@ function createCustomOpenAIChatModel(
 
   const key = profile.apiKey?.trim() ?? "";
   const thinkingType = normalizeCustomModelThinkingType(profile);
-  const thinkingEffort = normalizeCustomModelThinkingEffort(profile);
-  const modelKwargs: Record<string, unknown> = {
-    thinking: { type: thinkingType },
-  };
-  if (thinkingType === "enabled") {
-    modelKwargs.reasoning_effort = thinkingEffort;
-  }
+  const thinkingEffort = normalizeOpenAIReasoningEffort(profile);
+  const reasoningContentMode = normalizeReasoningContentMode(profile);
+  const modelKwargs = {
+    thinking: {
+      type: thinkingType,
+    },
+  } as const;
 
   logInfo("Runtime", "Configuring OpenAI-format custom model", {
     modelId,
@@ -466,6 +815,8 @@ function createCustomOpenAIChatModel(
     profileModel: profile.model,
     thinkingType,
     thinkingEffort: thinkingType === "enabled" ? thinkingEffort : null,
+    reasoningContentMode,
+    modelKwargs,
     timeoutMs: MODEL_REQUEST_TIMEOUT_MS,
     proxyEnv: {
       NODE_USE_ENV_PROXY: process.env["NODE_USE_ENV_PROXY"] ?? null,
@@ -478,20 +829,18 @@ function createCustomOpenAIChatModel(
   const chatModel = new ChatOpenAI({
     model: profile.model,
     apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
-    configuration: { baseURL },
+    configuration: {
+      baseURL,
+      fetch: createOpenAICompatibleFetch(modelId, profile),
+    },
+    modelKwargs,
     useResponsesApi: false,
+    streamUsage: false,
     timeout: MODEL_REQUEST_TIMEOUT_MS,
     maxRetries: 1,
-    modelKwargs,
-    completions: new OpenAICompatibleChatCompletions({
-      model: profile.model,
-      apiKey: key.length > 0 ? key : "sk-placeholder-no-key",
-      configuration: { baseURL },
-      timeout: MODEL_REQUEST_TIMEOUT_MS,
-      maxRetries: 1,
-      modelKwargs,
-    }),
   });
+
+  attachOpenAICompatibleReasoningReplay(chatModel);
 
   return applyContextWindowProfile(
     chatModel,
@@ -528,10 +877,9 @@ function createCustomAnthropicChatModel(
     model: profile.model,
     anthropicApiKey: key.length > 0 ? key : "sk-placeholder-no-key",
     anthropicApiUrl: apiUrl,
-    thinking: { type: "disabled" } as const,
-    invocationKwargs,
-    outputConfig,
     maxRetries: 1,
+    ...(outputConfig ? { outputConfig } : {}),
+    ...(invocationKwargs ? { invocationKwargs } : {}),
   });
 
   return applyContextWindowProfile(
@@ -683,16 +1031,7 @@ export async function createAgentRuntime(
   const systemPrompt = getSystemPrompt(workspacePath);
 
   // Custom filesystem prompt for absolute paths (matches virtualMode: false)
-  const filesystemSystemPrompt = `You have access to a filesystem. All file paths use fully qualified absolute system paths.
-
-- ls: list files in a directory (e.g., ls("${workspacePath}"))
-- read_file: read a file from the filesystem
-- write_file: write to a file in the filesystem
-- edit_file: edit a file in the filesystem
-- glob: find files matching a pattern (e.g., "**/*.py")
-- grep: search for text within files
-
-The workspace root is: ${workspacePath}`;
+  const filesystemSystemPrompt = getFilesystemSystemPrompt(workspacePath);
 
   const skills = resolveSkillSourcesForWorkspace(workspacePath);
   const thread = getThread(threadId);

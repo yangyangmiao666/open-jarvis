@@ -5,6 +5,7 @@ import type {
   ModelConfig,
   Provider,
   StreamEvent,
+  Message,
   HITLRequest,
   HITLDecision,
   MCPImportResult,
@@ -148,13 +149,19 @@ const api = {
     },
     rewindToMessage: (
       threadId: string,
-      userMessageOrdinal: number,
+      targetMessageId: string,
+      targetMessageIndex: number,
+      targetMessageRole: Message["role"],
       messageText: string,
+      toolCallNames?: string[],
     ): Promise<{ success: boolean; checkpointId: string | null }> => {
       return ipcRenderer.invoke("threads:rewindToMessage", {
         threadId,
-        userMessageOrdinal,
+        targetMessageId,
+        targetMessageIndex,
+        targetMessageRole,
         messageText,
+        toolCallNames,
       });
     },
     generateTitle: (message: string): Promise<string> => {

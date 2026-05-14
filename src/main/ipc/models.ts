@@ -47,6 +47,7 @@ function profileToModelConfig(p: OpenAICompatibleProfile): ModelConfig {
     name: p.name || `自定义 (${p.model})`,
     provider: "openai_compatible",
     model: p.model,
+    apiFormat: p.apiFormat === "anthropic" ? "anthropic" : "openai",
     contextWindow: getContextWindowForModel(p.model, p.contextWindow),
     description: "",
     available: p.baseUrl.trim().length > 0 && p.model.trim().length > 0,
