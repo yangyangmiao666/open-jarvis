@@ -926,7 +926,7 @@ export function ChatContainer({
         );
         return;
       }
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey && !composingRef.current) {
         e.preventDefault();
         const f = mentionCandidates[mentionActiveIndex];
         if (f) pickMention(f.path);
@@ -937,7 +937,7 @@ export function ChatContainer({
       setMentionOpen(false);
       return;
     }
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !composingRef.current) {
       e.preventDefault();
       void handleSubmit(e);
     }
