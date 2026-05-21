@@ -128,7 +128,10 @@ export function registerThreadHandlers(ipcMain: IpcMain): void {
       thread_values: row.thread_values
         ? JSON.parse(row.thread_values)
         : undefined,
-      title: row.title,
+      title:
+        row.title ||
+        (row.metadata ? (JSON.parse(row.metadata) as Record<string, unknown>).title : undefined) ||
+        undefined,
     }));
   });
 
@@ -145,7 +148,10 @@ export function registerThreadHandlers(ipcMain: IpcMain): void {
       thread_values: row.thread_values
         ? JSON.parse(row.thread_values)
         : undefined,
-      title: row.title,
+      title:
+        row.title ||
+        (row.metadata ? (JSON.parse(row.metadata) as Record<string, unknown>).title : undefined) ||
+        undefined,
     };
   });
 

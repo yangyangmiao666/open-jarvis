@@ -6,8 +6,10 @@ import { singleMessageToMarkdown } from "@/lib/chat-markdown";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { JarvisMark } from "@/components/branding/JarvisMark";
+import { getFileType } from "@/lib/file-types";
 import { ToolCallRenderer } from "./ToolCallRenderer";
 import { ThinkAwareMarkdown } from "./ThinkAwareMarkdown";
+import { InlineImagePreview } from "./InlineImagePreview";
 
 interface ToolResultInfo {
   content: string | unknown;
@@ -16,6 +18,8 @@ interface ToolResultInfo {
 
 interface MessageBubbleProps {
   message: Message;
+  threadId: string;
+  onOpenFile?: (path: string, name: string) => void;
   isStreaming?: boolean;
   canResend?: boolean;
   canEdit?: boolean;
@@ -40,6 +44,8 @@ interface MessageBubbleProps {
 
 export function MessageBubble({
   message,
+  threadId,
+  onOpenFile,
   isStreaming,
   canResend,
   canEdit,
@@ -97,7 +103,7 @@ export function MessageBubble({
         );
       }
       return (
-        <ThinkAwareMarkdown isStreaming={isStreaming}>
+        <ThinkAwareMarkdown isStreaming={isStreaming} threadId={threadId} onOpenFile={onOpenFile}>
           {message.content}
         </ThinkAwareMarkdown>
       );
@@ -107,7 +113,6 @@ export function MessageBubble({
     const renderedBlocks = message.content
       .map((block, index) => {
         if (block.type === "text" && block.text) {
-          // Use streaming markdown for assistant text blocks
           if (isUser) {
             return (
               <div key={index} className="whitespace-pre-wrap text-sm">
@@ -116,9 +121,27 @@ export function MessageBubble({
             );
           }
           return (
-            <ThinkAwareMarkdown key={index} isStreaming={isStreaming}>
+            <ThinkAwareMarkdown
+              key={index}
+              isStreaming={isStreaming}
+              threadId={threadId}
+              onOpenFile={onOpenFile}
+            >
               {block.text}
             </ThinkAwareMarkdown>
+          );
+        }
+        if (block.type === "image" && block.content) {
+          const fileName = block.name || "image";
+          const mimeType = block.mimeType || "image/png";
+          return (
+            <InlineImagePreview
+              key={index}
+              threadId={threadId}
+              filePath={fileName}
+              mimeType={mimeType}
+              onClick={() => onOpenFile?.(fileName, fileName)}
+            />
           );
         }
         return null;
@@ -395,6 +418,8 @@ export function MessageBubble({
                     onApprovalDecision={
                       needsApproval ? onApprovalDecision : undefined
                     }
+                    threadId={threadId}
+                    onOpenFile={onOpenFile}
                   />
                 );
               })}

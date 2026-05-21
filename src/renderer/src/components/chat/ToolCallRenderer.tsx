@@ -19,7 +19,11 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ToolCall, Todo } from "@/types";
+import { getFileType } from "@/lib/file-types";
+import type { FileType } from "@/lib/file-types";
 import { ShikiCodePreview } from "./ShikiCodePreview";
+import { InlineMediaPreview } from "./InlineMediaPreview";
+import { InlineFileThumbnail } from "./InlineFileThumbnail";
 
 interface ToolCallRendererProps {
   toolCall: ToolCall;
@@ -32,6 +36,8 @@ interface ToolCallRendererProps {
     decision: "approve" | "reject" | "edit",
     options?: { rememberForWorkspace?: boolean },
   ) => void;
+  threadId: string;
+  onOpenFile?: (path: string, name: string) => void;
 }
 
 const TOOL_ICONS: Record<
@@ -312,6 +318,8 @@ export function ToolCallRenderer({
   needsApproval,
   showInlineApprovalActions = true,
   onApprovalDecision,
+  threadId,
+  onOpenFile,
 }: ToolCallRendererProps): React.JSX.Element | null {
   // Defensive: ensure args is always an object
   const args = toolCall?.args || {};
@@ -407,10 +415,31 @@ export function ToolCallRenderer({
 
     switch (toolCall.name) {
       case "read_file": {
-        const content = toDisplayText(result);
-        const lines = content.split("\n").length;
         const previewPath =
           ((args.path || args.file_path) as string | undefined) || "file.txt";
+        const fileName = getFileName(previewPath);
+        const fileTypeInfo = getFileType(fileName);
+
+        if (["image", "video", "audio"].includes(fileTypeInfo.type)) {
+          return (
+            <div className="space-y-2">
+              <div className="text-xs text-status-nominal flex items-center gap-1.5">
+                <CheckCircle2 className="size-3" />
+                <span>已读取媒体文件</span>
+              </div>
+              <InlineMediaPreview
+                threadId={threadId}
+                filePath={previewPath}
+                fileType={fileTypeInfo.type}
+                mimeType={fileTypeInfo.mimeType}
+                onClick={() => onOpenFile?.(previewPath, fileName)}
+              />
+            </div>
+          );
+        }
+
+        const content = toDisplayText(result);
+        const lines = content.split("\n").length;
         return (
           <div className="space-y-2">
             <div className="text-xs text-status-nominal flex items-center gap-1.5">
@@ -442,7 +471,7 @@ export function ToolCallRenderer({
                   {dirs > 0 ? `，${dirs} 个文件夹` : ""}
                 </span>
               </div>
-              <FileListDisplay files={result} />
+              <FileListDisplay files={result} threadId={threadId} onOpenFile={onOpenFile} />
             </div>
           );
         }
@@ -457,7 +486,7 @@ export function ToolCallRenderer({
                 <CheckCircle2 className="size-3" />
                 <span>找到 {result.length} 项匹配</span>
               </div>
-              <FileListDisplay files={result} isGlob />
+              <FileListDisplay files={result} threadId={threadId} onOpenFile={onOpenFile} />
             </div>
           );
         }
@@ -524,19 +553,27 @@ export function ToolCallRenderer({
 
       case "write_file":
       case "edit_file": {
-        // Show confirmation message for file operations
-        if (typeof result === "string" && result.trim()) {
-          return (
+        const filePath = (args.path || args.file_path) as string;
+        const fileName = getFileName(filePath);
+        const fileTypeInfo = getFileType(fileName);
+        const isMedia = ["image", "video", "audio", "pdf"].includes(fileTypeInfo.type);
+        const resultText = typeof result === "string" && result.trim() ? result : "文件已保存";
+
+        return (
+          <div className="space-y-2">
             <div className="text-xs text-status-nominal flex items-center gap-1.5">
               <CheckCircle2 className="size-3" />
-              <span>{result}</span>
+              <span>{resultText}</span>
             </div>
-          );
-        }
-        return (
-          <div className="text-xs text-status-nominal flex items-center gap-1.5">
-            <CheckCircle2 className="size-3" />
-            <span>文件已保存</span>
+            {isMedia && (
+              <InlineMediaPreview
+                threadId={threadId}
+                filePath={filePath}
+                fileType={fileTypeInfo.type}
+                mimeType={fileTypeInfo.mimeType}
+                onClick={() => onOpenFile?.(filePath, fileName)}
+              />
+            )}
           </div>
         );
       }

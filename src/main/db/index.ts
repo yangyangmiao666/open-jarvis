@@ -187,10 +187,12 @@ export function createThread(
   const database = getDb();
   const now = Date.now();
 
+  const title = (metadata?.title as string) ?? null;
+
   database.run(
-    `INSERT INTO threads (thread_id, created_at, updated_at, metadata, status)
-     VALUES (?, ?, ?, ?, ?)`,
-    [threadId, now, now, metadata ? JSON.stringify(metadata) : null, "idle"],
+    `INSERT INTO threads (thread_id, created_at, updated_at, metadata, status, title)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [threadId, now, now, metadata ? JSON.stringify(metadata) : null, "idle", title],
   );
 
   saveToDisk();
@@ -202,7 +204,7 @@ export function createThread(
     metadata: metadata ? JSON.stringify(metadata) : null,
     status: "idle",
     thread_values: null,
-    title: null,
+    title,
   };
 }
 

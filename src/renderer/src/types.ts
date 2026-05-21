@@ -199,6 +199,7 @@ export interface Message {
 export interface ContentBlock {
   type: "text" | "image" | "tool_use" | "tool_result";
   text?: string;
+  mimeType?: string;
   tool_use_id?: string;
   name?: string;
   input?: unknown;

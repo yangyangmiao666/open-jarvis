@@ -361,16 +361,30 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
       }
 
       try {
-        // Convert virtual path to full disk path
-        const relativePath = filePath.startsWith("/")
-          ? filePath.slice(1)
-          : filePath;
-        const fullPath = path.join(workspacePath, relativePath);
+        // Resolve the full disk path
+        const resolvedWorkspace = path.resolve(workspacePath);
+        let resolvedPath: string;
+
+        if (path.isAbsolute(filePath)) {
+          resolvedPath = path.resolve(filePath);
+          // If the absolute path doesn't exist or is outside workspace,
+          // treat it as relative to workspace (agent may return "/file.png" meaning "file.png" in workspace)
+          if (!resolvedPath.startsWith(resolvedWorkspace)) {
+            resolvedPath = path.resolve(workspacePath, filePath.slice(1));
+          }
+        } else {
+          resolvedPath = path.resolve(workspacePath, filePath);
+        }
 
         // Security check: ensure the resolved path is within the workspace
-        const resolvedPath = path.resolve(fullPath);
-        const resolvedWorkspace = path.resolve(workspacePath);
-        if (!resolvedPath.startsWith(resolvedWorkspace)) {
+        // Must match exactly or be a subdirectory (add separator to prevent prefix collision)
+        const workspaceWithSep = resolvedWorkspace.endsWith(path.sep)
+          ? resolvedWorkspace
+          : resolvedWorkspace + path.sep;
+        if (
+          resolvedPath !== resolvedWorkspace &&
+          !resolvedPath.startsWith(workspaceWithSep)
+        ) {
           return {
             success: false,
             error: "Access denied: path outside workspace",
@@ -378,13 +392,13 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
         }
 
         // Check if file exists
-        const stat = await fs.stat(fullPath);
+        const stat = await fs.stat(resolvedPath);
         if (stat.isDirectory()) {
           return { success: false, error: "Cannot read directory as file" };
         }
 
         // Read file as bytes, then decode (UTF-8 with GB18030 fallback for legacy encodings)
-        const raw = await fs.readFile(fullPath);
+        const raw = await fs.readFile(resolvedPath);
         const content = decodeTextBuffer(raw);
 
         return {
@@ -406,10 +420,11 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     "workspace:readBinaryFile",
     async (_event, { threadId, filePath }: WorkspaceFileParams) => {
-      // Get workspace path from thread metadata
       const thread = getThread(threadId);
       const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {};
-      const workspacePath = metadata.workspacePath as string | null;
+      const workspacePath =
+        (metadata.workspacePath as string | null) ||
+        (store.get("workspacePath", null) as string | null);
 
       if (!workspacePath) {
         return {
@@ -419,16 +434,29 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
       }
 
       try {
-        // Convert virtual path to full disk path
-        const relativePath = filePath.startsWith("/")
-          ? filePath.slice(1)
-          : filePath;
-        const fullPath = path.join(workspacePath, relativePath);
+        // Resolve the full disk path
+        const resolvedWorkspace = path.resolve(workspacePath);
+        let resolvedPath: string;
+
+        if (path.isAbsolute(filePath)) {
+          resolvedPath = path.resolve(filePath);
+          // If the absolute path doesn't exist or is outside workspace,
+          // treat it as relative to workspace (agent may return "/file.png" meaning "file.png" in workspace)
+          if (!resolvedPath.startsWith(resolvedWorkspace)) {
+            resolvedPath = path.resolve(workspacePath, filePath.slice(1));
+          }
+        } else {
+          resolvedPath = path.resolve(workspacePath, filePath);
+        }
 
         // Security check: ensure the resolved path is within the workspace
-        const resolvedPath = path.resolve(fullPath);
-        const resolvedWorkspace = path.resolve(workspacePath);
-        if (!resolvedPath.startsWith(resolvedWorkspace)) {
+        const workspaceWithSep = resolvedWorkspace.endsWith(path.sep)
+          ? resolvedWorkspace
+          : resolvedWorkspace + path.sep;
+        if (
+          resolvedPath !== resolvedWorkspace &&
+          !resolvedPath.startsWith(workspaceWithSep)
+        ) {
           return {
             success: false,
             error: "Access denied: path outside workspace",
@@ -436,13 +464,13 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
         }
 
         // Check if file exists
-        const stat = await fs.stat(fullPath);
+        const stat = await fs.stat(resolvedPath);
         if (stat.isDirectory()) {
           return { success: false, error: "Cannot read directory as file" };
         }
 
         // Read file as binary and convert to base64
-        const buffer = await fs.readFile(fullPath);
+        const buffer = await fs.readFile(resolvedPath);
         const base64 = buffer.toString("base64");
 
         return {

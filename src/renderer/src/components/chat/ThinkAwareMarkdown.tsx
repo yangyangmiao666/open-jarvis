@@ -6,6 +6,8 @@ import { StreamingMarkdown } from "./StreamingMarkdown";
 interface ThinkAwareMarkdownProps {
   children: string;
   isStreaming?: boolean;
+  threadId?: string;
+  onOpenFile?: (path: string, name: string) => void;
 }
 
 interface Segment {
@@ -78,6 +80,8 @@ function parseThinkSegments(input: string, isStreaming: boolean): Segment[] {
 export const ThinkAwareMarkdown = memo(function ThinkAwareMarkdown({
   children,
   isStreaming = false,
+  threadId,
+  onOpenFile,
 }: ThinkAwareMarkdownProps): React.JSX.Element {
   const segments = parseThinkSegments(children, isStreaming);
 
@@ -92,6 +96,8 @@ export const ThinkAwareMarkdown = memo(function ThinkAwareMarkdown({
               key={`think-${index}-${isStreaming && isLast ? "streaming" : "settled"}`}
               content={segment.content}
               isStreaming={isStreaming && isLast}
+              threadId={threadId}
+              onOpenFile={onOpenFile}
             />
           );
         }
@@ -100,6 +106,8 @@ export const ThinkAwareMarkdown = memo(function ThinkAwareMarkdown({
           <StreamingMarkdown
             key={`markdown-${index}`}
             isStreaming={isStreaming && isLast}
+            threadId={threadId}
+            onOpenFile={onOpenFile}
           >
             {segment.content}
           </StreamingMarkdown>
@@ -112,11 +120,15 @@ export const ThinkAwareMarkdown = memo(function ThinkAwareMarkdown({
 interface ThinkBlockProps {
   content: string;
   isStreaming: boolean;
+  threadId?: string;
+  onOpenFile?: (path: string, name: string) => void;
 }
 
 function ThinkBlock({
   content,
   isStreaming,
+  threadId,
+  onOpenFile,
 }: ThinkBlockProps): React.JSX.Element {
   const [expanded, setExpanded] = useState(isStreaming);
   const summary = useMemo(() => summarizeThinkContent(content), [content]);
@@ -146,7 +158,11 @@ function ThinkBlock({
       </button>
       {expanded && (
         <div className="think-content">
-          <StreamingMarkdown isStreaming={false}>
+          <StreamingMarkdown
+            isStreaming={false}
+            threadId={threadId}
+            onOpenFile={onOpenFile}
+          >
             {content || "*思考内容为空*"}
           </StreamingMarkdown>
         </div>

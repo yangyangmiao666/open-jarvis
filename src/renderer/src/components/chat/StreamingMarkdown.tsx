@@ -1,23 +1,50 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import { MarkdownImageRenderer } from "./MarkdownImageRenderer";
 
 interface StreamingMarkdownProps {
   children: string;
   isStreaming?: boolean;
+  threadId?: string;
+  onOpenFile?: (path: string, name: string) => void;
 }
 
 export const StreamingMarkdown = memo(function StreamingMarkdown({
   children,
   isStreaming = false,
+  threadId,
+  onOpenFile,
 }: StreamingMarkdownProps): React.JSX.Element {
+  const components = useMemo(
+    () =>
+      threadId
+        ? {
+            img: ({
+              src,
+              alt,
+              ...rest
+            }: React.ImgHTMLAttributes<HTMLImageElement> & { node?: unknown }) => (
+              <MarkdownImageRenderer
+                src={src}
+                alt={alt}
+                threadId={threadId}
+                onOpenFile={onOpenFile}
+              />
+            ),
+          }
+        : undefined,
+    [threadId, onOpenFile],
+  );
+
   return (
     <div className="streaming-markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
+        components={components}
       >
         {children}
       </ReactMarkdown>

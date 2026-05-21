@@ -176,6 +176,7 @@ export function ChatContainer({
     currentModel,
     draftInput: input,
     workspaceFiles,
+    openFile,
     setMessages,
     setTodos,
     setWorkspaceFiles,
@@ -1051,6 +1052,8 @@ export function ChatContainer({
               <MessageBubble
                 key={message.id}
                 message={message}
+                threadId={threadId}
+                onOpenFile={openFile}
                 isStreaming={streamingAssistantIds.has(message.id)}
                 canResend={!isLoading && message.role === "user"}
                 canEdit={!isLoading && message.role === "user"}
