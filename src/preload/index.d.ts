@@ -10,6 +10,7 @@ import type {
   MCPServerConfig,
   OpenAICompatibleProfile,
   ProxyConfig,
+  GlobalConfigImportResult,
 } from "../main/types";
 
 interface ElectronAPI {
@@ -110,6 +111,12 @@ interface CustomAPI {
   settings: {
     getProxyConfig: () => Promise<ProxyConfig>;
     setProxyConfig: (config: ProxyConfig) => Promise<ProxyConfig>;
+    exportGlobalConfigToFile: (
+      options: { includeApiKeys: boolean },
+    ) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+    importGlobalConfigFromFile: (
+      mode: "merge" | "replace",
+    ) => Promise<GlobalConfigImportResult>;
   };
   workspace: {
     get: (threadId?: string) => Promise<string | null>;

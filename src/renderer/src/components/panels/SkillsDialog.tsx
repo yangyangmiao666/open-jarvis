@@ -57,6 +57,7 @@ export function SkillsDialog({
   const [editorName, setEditorName] = useState("");
   const [editorMarkdown, setEditorMarkdown] = useState("");
   const [editorLoading, setEditorLoading] = useState(false);
+  const [highlightedCard, setHighlightedCard] = useState<string | null>(null);
 
   const textAreaClassName = cn(
     "flex w-full rounded-[20px] border border-input/90 bg-background/78 px-4 py-3 text-xs font-mono shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)]",
@@ -146,6 +147,8 @@ export function SkillsDialog({
   };
 
   const openEditEditor = async (folderName: string): Promise<void> => {
+    setHighlightedCard(folderName);
+    setTimeout(() => setHighlightedCard(null), 220);
     setEditorMode("edit");
     setOriginFolder(folderName);
     setEditorName(folderName);
@@ -408,14 +411,17 @@ export function SkillsDialog({
                     没有匹配的技能目录，请尝试其他关键词。
                   </div>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  <div key={currentPage} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 animate-soft-fade">
                     {pagedFolders.map((folderName) => {
                       const checked = selected.has(folderName);
                       return (
                         <button
                           key={folderName}
                           type="button"
-                          className="group flex min-h-[162px] flex-col items-start rounded-[18px] border border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_86%,transparent),color-mix(in_srgb,var(--background-elevated)_74%,transparent))] p-4 text-left transition-colors hover:border-primary/24 hover:bg-background-interactive/55"
+                          className={cn(
+                            "group flex min-h-[162px] flex-col items-start rounded-[18px] border border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_86%,transparent),color-mix(in_srgb,var(--background-elevated)_74%,transparent))] p-4 text-left transition-colors hover:border-primary/24 hover:bg-background-interactive/55",
+                            highlightedCard === folderName && "animate-card-highlight",
+                          )}
                           onClick={() => void openEditEditor(folderName)}
                         >
                           <div className="flex w-full items-start justify-between gap-2">

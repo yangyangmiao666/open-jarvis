@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import type { ProxyConfig } from "@/types";
 
 interface ProxyConfigDialogProps {
@@ -29,6 +30,7 @@ export function ProxyConfigDialog({
 }: ProxyConfigDialogProps): React.JSX.Element {
   const [config, setConfig] = useState<ProxyConfig>(emptyConfig);
   const [saving, setSaving] = useState(false);
+  const [successFlash, setSuccessFlash] = useState<"save" | "reset" | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -47,6 +49,8 @@ export function ProxyConfigDialog({
       const saved = await window.api.settings.setProxyConfig(config);
       setConfig(saved);
       toast.success("代理配置已保存并立即生效");
+      setSuccessFlash("save");
+      setTimeout(() => setSuccessFlash(null), 360);
     } catch {
       toast.error("保存失败");
     } finally {
@@ -60,6 +64,8 @@ export function ProxyConfigDialog({
       const saved = await window.api.settings.setProxyConfig(emptyConfig);
       setConfig(saved);
       toast.success("代理配置已清空");
+      setSuccessFlash("reset");
+      setTimeout(() => setSuccessFlash(null), 360);
     } catch {
       toast.error("重置失败");
     } finally {
@@ -132,11 +138,17 @@ export function ProxyConfigDialog({
             variant="ghost"
             disabled={saving}
             onClick={() => void handleReset()}
+            className={cn(successFlash === "reset" && "animate-button-success")}
           >
             <RotateCcw className="size-4" />
             清空
           </Button>
-          <Button type="button" disabled={saving} onClick={() => void handleSave()}>
+          <Button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleSave()}
+            className={cn(successFlash === "save" && "animate-button-success")}
+          >
             <Save className="size-4" />
             保存
           </Button>

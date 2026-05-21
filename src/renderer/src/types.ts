@@ -94,6 +94,32 @@ export interface SettingsOpenRequest {
 }
 
 /** User-defined OpenAI-compatible API endpoint (custom base URL + model id). */
+export type GlobalConfigImportMode = "merge" | "replace";
+
+export interface GlobalConfigExport {
+  meta: {
+    version: 1;
+    exportedAt: string;
+    appVersion: string;
+    includeApiKeys: boolean;
+  };
+  openaiCompatibleProfiles: OpenAICompatibleProfile[];
+  defaultModel: string;
+  mcpServers: MCPServerConfig[];
+  enabledMcpServerIds: string[];
+  proxyConfig: ProxyConfig;
+  skills: { name: string; markdown: string }[];
+}
+
+export interface GlobalConfigImportResult {
+  success: boolean;
+  error?: string;
+  profilesImported: number;
+  serversImported: number;
+  skillsImported: number;
+  proxyUpdated: boolean;
+}
+
 export interface OpenAICompatibleProfile {
   id: string;
   name: string;

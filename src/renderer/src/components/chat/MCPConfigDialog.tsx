@@ -319,7 +319,7 @@ export function MCPConfigDialog({
             </div>
 
             {editing && (
-              <div className="app-flat-surface space-y-3 rounded-[24px] p-4">
+              <div className="app-flat-surface space-y-3 rounded-[24px] p-4 animate-slide-down-in">
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1">
                     <label htmlFor="mcp-name" className="text-sm font-medium">

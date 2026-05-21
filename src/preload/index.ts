@@ -12,6 +12,7 @@ import type {
   MCPServerConfig,
   OpenAICompatibleProfile,
   ProxyConfig,
+  GlobalConfigImportResult,
 } from "../main/types";
 
 // Simple electron API - replaces @electron-toolkit/preload
@@ -261,6 +262,16 @@ const api = {
     },
     setProxyConfig: (config: ProxyConfig): Promise<ProxyConfig> => {
       return ipcRenderer.invoke("settings:setProxyConfig", config);
+    },
+    exportGlobalConfigToFile: (
+      options: { includeApiKeys: boolean },
+    ): Promise<{ success: boolean; filePath?: string; error?: string }> => {
+      return ipcRenderer.invoke("settings:exportGlobalConfigToFile", options);
+    },
+    importGlobalConfigFromFile: (
+      mode: "merge" | "replace",
+    ): Promise<GlobalConfigImportResult> => {
+      return ipcRenderer.invoke("settings:importGlobalConfigFromFile", mode);
     },
   },
   workspace: {

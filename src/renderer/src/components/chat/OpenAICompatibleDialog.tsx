@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Trash2, Pencil, Copy, Boxes, Sparkles, Eye, EyeOff } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -311,7 +312,18 @@ export function OpenAICompatibleDialog({
             </ScrollArea>
           </section>
 
-          <section className="app-flat-surface flex min-h-0 min-w-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
+          <section className={cn(
+            "app-flat-surface flex min-h-0 min-w-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5",
+            "config-panel-transition",
+            editing ? "config-panel-expanded animate-slide-down-in" : "config-panel-collapsed",
+          )}>
+            {!editing && (
+              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                点击左侧配置编辑，或点击添加配置按钮
+              </div>
+            )}
+            {editing && (
+            <>
             <div className="flex items-start gap-3">
               <div className="icon-blue flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-border/70 shadow-[0_8px_18px_color-mix(in_srgb,var(--status-info)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                 <Sparkles className="size-5" />
@@ -556,6 +568,8 @@ export function OpenAICompatibleDialog({
               </div>
             </div>
             </div>
+            </>
+            )}
           </section>
         </div>
         </div>
