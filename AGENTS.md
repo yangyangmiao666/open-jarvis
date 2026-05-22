@@ -279,11 +279,12 @@ open-jarvis/
   - 删除最后一个线程时会立刻补一个新线程，避免 `currentThreadId === null` 造成工作区相关状态悬空。
 
 - **`src/renderer/src/lib/thread-context.tsx`**（1100 行）
-  - 线程内状态源：`messages`、`todos`、`workspaceFiles`、`workspacePath`、`subagents`、`pendingApproval`、`currentModel`、`tokenUsage`、`openFiles`、`activeTab`、`fileContents`、`draftInput`、`approvalMode` 等。
+  - 线程内状态源：`messages`、`todos`、`workspaceFiles`、`workspacePath`、`subagents`、`pendingApproval`、`currentModel`、`tokenUsage`、`openFiles`、`activeTab`、`fileContents`、`draftInput`、`approvalMode`、`interruptionQueue` 等。
   - `ThreadProvider` 为每个活跃线程挂接 `useStream()` + `ElectronIPCTransport`。
-  - 新线程默认状态：消息空数组、草稿空字符串、无工作区文件、审批模式 `manual`。
+  - 新线程默认状态：消息空数组、草稿空字符串、无工作区文件、审批模式 `manual`、插嘴队列空数组。
   - token usage 持久化到 localStorage，用于上下文窗口监控。
   - 自定义事件处理：interrupt、workspace、subagents、token_usage。
+  - **插嘴队列（Interruption Queue）**：`interruptionQueue: Message[]` 存储用户在 AI 流式响应期间发送的消息，`enqueueInterruption` / `clearInterruptionQueue` 控制入队与清空。队列消息带 `_queued: true` 标记，流结束后自动合并为一条消息发送给大模型。
 
 ### 5.3 左侧会话栏
 
@@ -296,11 +297,13 @@ open-jarvis/
 
 - **`src/renderer/src/components/chat/ChatContainer.tsx`**（1206 行）
   - 对话主容器，负责消息发送、流式状态、错误提示、审批状态接入。
+  - **插嘴队列逻辑**：`displayMessages` 合并线程消息、流式消息和 `interruptionQueue`；`submitUserMessage` 在 loading 时将消息入队（`_queued: true`），非 loading 时正常提交；`prevLoadingRef` effect 在流结束后自动合并队列消息并发送给大模型；取消操作清空队列。
   - 流式处理时显示动态提示，基于当前状态生成上下文相关提示信息。
   - 消息发送前检查工作区路径，缺失时阻止发送并提示。
 
 - **`src/renderer/src/components/chat/MessageBubble.tsx`**
   - 单条消息渲染。助手显示为 Jarvis，用户显示为"你"。
+  - `_queued` 标记的消息：半透明（`opacity-60`）+ "排队中"角标。
   - 支持单条消息与整会话导出 Markdown。
 
 - **`src/renderer/src/components/chat/ToolCallRenderer.tsx`**（742 行）
@@ -510,25 +513,35 @@ open-jarvis/
     ↓
 ChatContainer.submitUserMessage()
     ↓
-stream.submit({ messages: [...] }, { config: { thread_id, model_id } })
+┌─ isLoading=true（插嘴模式）
+│   ↓
+│   message._queued = true
+│   ↓
+│   enqueueInterruption(message) → interruptionQueue
+│   ↓
+│   消息以半透明 + "排队中"角标展示
+│
+└─ isLoading=false（正常模式）
     ↓
-ElectronIPCTransport.stream()
+    stream.submit({ messages: [...] }, { config: { thread_id, model_id } })
     ↓
-window.api.agent.streamAgent(threadId, message, command, onEvent)
+    ElectronIPCTransport.stream()
     ↓
-IPC: "agent:invoke" → 主进程
+    window.api.agent.streamAgent(threadId, message, command, onEvent)
     ↓
-createAgentRuntime({ threadId, workspacePath, modelId })
+    IPC: "agent:invoke" → 主进程
     ↓
-agent.stream({ messages: [HumanMessage] }, { streamMode: ["messages", "values"] })
+    createAgentRuntime({ threadId, workspacePath, modelId })
     ↓
-for await (chunk of stream) → window.webContents.send(channel, { type: "stream", mode, data })
+    agent.stream({ messages: [HumanMessage] }, { streamMode: ["messages", "values"] })
     ↓
-ElectronIPCTransport.convertToSDKEvents() → StreamEvent[]
+    for await (chunk of stream) → window.webContents.send(channel, { type: "stream", mode, data })
     ↓
-useStream onCustomEvent → ThreadContext.handleCustomEvent()
+    ElectronIPCTransport.convertToSDKEvents() → StreamEvent[]
     ↓
-updateThreadState() → React 重渲染
+    useStream onCustomEvent → ThreadContext.handleCustomEvent()
+    ↓
+    updateThreadState() → React 重渲染
 ```
 
 ### 10.2 HITL 审批流程
@@ -603,6 +616,41 @@ applyGlobalProxyDispatcher(getProxyConfigFromEnv())
 undici.setGlobalDispatcher(new ProxyAgent({ uri: proxyUrl }))
     ↓
 后续所有 HTTP 请求（模型 API、MCP 远程连接）走代理
+```
+
+### 10.5 插嘴队列流程
+
+```
+AI 流式响应期间，用户再次输入
+    ↓
+submitUserMessage() → isLoading=true → 插嘴模式
+    ↓
+message._queued = true → enqueueInterruption(message)
+    ↓
+displayMessages = [...threadMessages, ...streamingMsgs, ...interruptionQueue]
+    ↓
+MessageBubble 渲染：opacity-60 + "排队中"角标
+    ↓
+AI 流式响应结束（prevLoadingRef: true → false）
+    ↓
+interruptionQueue.length > 0
+    ↓
+合并队列消息内容（\n\n 拼接）
+    ↓
+队列消息升级为正式消息（_queued=false）→ appendMessage
+    ↓
+clearInterruptionQueue()
+    ↓
+stream.submit(合并内容) → 新一轮 API 交互
+```
+
+取消操作时：
+```
+handleCancel()
+    ↓
+clearInterruptionQueue() → 插嘴消息从 displayMessages 中移除
+    ↓
+stream.stop() + agent.cancel()
 ```
 
 ## 11. IPC 通道清单
@@ -698,6 +746,14 @@ undici.setGlobalDispatcher(new ProxyAgent({ uri: proxyUrl }))
 2. 准备脚本在 `scripts/prepare-embedded-tooling.mjs`。
 3. 命令执行注入在 `src/main/agent/local-sandbox.ts`（`buildWorkspaceRuntimeCommand` / `buildWorkspaceRuntimeCommandForWindows`）。
 4. 版本号变更需同步：`prepare-embedded-tooling.mjs` 中的下载 URL、`system-prompt.ts` 中的版本文案、`local-sandbox.ts` 中的错误提示。
+
+### 12.12 改插嘴队列行为
+
+1. 队列状态与 actions 在 `src/renderer/src/lib/thread-context.tsx`（`interruptionQueue`、`enqueueInterruption`、`clearInterruptionQueue`）。
+2. 入队与合并逻辑在 `src/renderer/src/components/chat/ChatContainer.tsx`（`submitUserMessage` 的 loading 分支、`prevLoadingRef` effect）。
+3. 视觉样式在 `src/renderer/src/components/chat/MessageBubble.tsx`（`_queued` 标记 → `opacity-60` + "排队中"角标）。
+4. `Message` 类型定义在 `src/renderer/src/types.ts`（`_queued?: boolean`）。
+5. 若改合并策略（如从 `\n\n` 拼接改为逐条发送），改 `ChatContainer.tsx` 中 `prevLoadingRef` effect 的合并逻辑。
 
 ## 13. 验证命令
 

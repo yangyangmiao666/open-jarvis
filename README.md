@@ -1,8 +1,364 @@
+<div align="center">
+
 # Open Jarvis
 
-**桌面端 AI 编程助手** — 基于 Electron + React + LangGraph 构建的全栈智能体应用，支持多模型、MCP 工具扩展、HITL 审批、嵌入式工具链，以及完整的本地沙箱执行环境。
+**An open-source alternative to Claude Cowork**
+
+A powerful cross-platform desktop AI programming assistant built on Electron + React + LangGraph,
+supporting multi-model, MCP tool extension, HITL approval, embedded toolchain,
+interruption queue, and full local sandbox execution.
+
+[English](#english) | [中文](#中文)
 
 ---
+
+</div>
+
+<a id="english"></a>
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><b>Main - Light</b></td>
+    <td align="center"><b>Main - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/主界面-亮色.png" alt="Main Light" width="480" /></td>
+    <td><img src="docs/主界面-深色.png" alt="Main Dark" width="480" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Settings - Light</b></td>
+    <td align="center"><b>Settings - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/设置中枢-亮色.png" alt="Settings Light" width="480" /></td>
+    <td><img src="docs/设置中枢-深色.png" alt="Settings Dark" width="480" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Kanban - Light</b></td>
+    <td align="center"><b>Kanban - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/多任务总览-亮色.png" alt="Kanban Light" width="480" /></td>
+    <td><img src="docs/多任务总览-深色.png" alt="Kanban Dark" width="480" /></td>
+  </tr>
+</table>
+
+---
+
+## Features
+
+### Multi-Model Support
+
+- **Anthropic Claude** — Claude Opus / Sonnet / Haiku full series
+- **OpenAI** — GPT-5 / GPT-4.1 / GPT-4o / O1 / O3 / O4 series
+- **Google Gemini** — Gemini 3 Pro / 2.5 Pro / 1.5 Pro etc.
+- **OpenAI-Compatible** — DeepSeek, Qwen, GLM, Minimax and any model with an OpenAI-compatible API. Custom API format (openai / anthropic), thinking mode, and context window.
+
+### Agent Runtime
+
+- Based on `deepagents` + LangGraph agent loop with tool calling, subagent delegation, and task management
+- Per-thread independent checkpoints (SQLite) with message rewind and history replay
+- Streaming output with real-time token-level display
+- Customizable system prompt per workspace
+
+### Interruption Queue (Butt-in)
+
+- Send messages while the AI is still streaming — they enter a queue
+- Queued messages appear immediately in the chat with a "Queued" badge (semi-transparent)
+- When the current API interaction completes, queued messages are automatically merged and submitted
+- Cancel clears the entire queue
+
+### Local Sandbox Execution
+
+- Embedded toolchain: bundled bun 1.3.13, uv 0.11.7, Python 3.12.13 — no system install needed
+- Auto-intercept direct `python/pip/node/npm` calls, redirect to embedded runtimes
+- Cross-platform: macOS uses shell function overrides; Windows uses `.cmd` shim files
+- Auto-create `.venv` virtual environment
+- Command timeout 120s, output truncation 100KB
+- Text encoding: UTF-8 primary + GB18030 fallback
+
+### HITL Approval (Human-in-the-Loop)
+
+- Tool execution can be interrupted for user approval
+- Manual / auto approval modes per thread
+- "Remember this decision": persist approval rules to workspace `.open-jarvis/approval-rules.json`
+- Approval signature normalization to prevent rule mismatch from command detail drift
+
+### MCP Tool Extension
+
+- Model Context Protocol support — connect to any MCP server
+- Three transports: stdio / streamable_http / sse
+- Remote connections with custom HTTP headers
+- Per-thread enable/disable of MCP servers
+- Config import/export
+
+### Workspace Management
+
+- Bind local project directory as workspace
+- Real-time file change monitoring and sync
+- File tree / list dual view
+- Built-in file preview: code (Shiki, 35+ languages), images, PDF, audio/video
+- Multi-tab browsing
+
+### Skill System
+
+- Global skill directory `~/.open-jarvis/skills/`
+- Markdown + YAML frontmatter format
+- Skill import, create, edit, rename
+
+### Proxy Support
+
+- HTTP / HTTPS / ALL_PROXY configuration
+- Auto-set case-insensitive env var aliases
+- Global undici ProxyAgent dispatcher
+
+### Other
+
+- Kanban view: threads by status (idle / busy / interrupted / error)
+- Context window monitoring: real-time token usage vs model context ratio
+- Conversation export to Markdown
+- Light / dark theme toggle
+- macOS custom title bar
+
+---
+
+## Tech Stack
+
+| Layer | Tech |
+|-------|------|
+| Shell | Electron 42 + electron-vite 5 |
+| Main Process | TypeScript, Node.js 24+ |
+| Renderer | React 19 + Tailwind CSS 4 + Radix UI + Zustand 5 |
+| Agent | deepagents + LangGraph |
+| Model Integration | @langchain/anthropic, @langchain/openai, @langchain/google-genai |
+| MCP | @modelcontextprotocol/sdk |
+| Checkpoint | sql.js (per-thread SQLite) |
+| Code Highlight | Shiki |
+| Markdown | react-markdown + remark-gfm + remark-math + rehype-katex |
+| Package Manager | Bun |
+| Build | Vite 8 + electron-builder 26 |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) >= 1.0
+- Node.js >= 20 (for development; runtime provided by Electron)
+
+### Install Dependencies
+
+```bash
+bun install
+```
+
+### Install Electron
+
+After `bun install`, you **must** run the Electron install script to download the Electron binary:
+
+```bash
+bun node_modules/electron/install.js
+```
+
+> **Note for users in mainland China:** The Electron binary is hosted on GitHub releases. If the download fails, please enable a proxy (e.g. set `HTTPS_PROXY` environment variable) before running the install script.
+
+### Development Mode
+
+```bash
+bun run dev
+```
+
+Opens the Electron window with hot reload for both main and renderer processes.
+
+### Build & Package
+
+```bash
+# Type check + build
+bun run build
+
+# Package as local runnable directory
+bun run package:dir
+
+# Generate distribution package
+bun run dist
+```
+
+### Embedded Toolchain Preparation
+
+In dev mode, toolchain is read from `resources/tooling/`. To re-prepare:
+
+```bash
+# Current platform
+bun run prepare:tooling
+
+# Specific platform
+bun run prepare:tooling:darwin:arm64   # macOS Apple Silicon
+bun run prepare:tooling:darwin:x64     # macOS Intel
+bun run prepare:tooling:win:x64        # Windows x64
+bun run prepare:tooling:linux:x64      # Linux x64
+```
+
+---
+
+## Project Structure
+
+```
+open-jarvis/
+├── src/
+│   ├── main/                    # Electron main process
+│   │   ├── index.ts             # App entry, window creation, IPC registration
+│   │   ├── agent/               # Agent runtime
+│   │   │   ├── runtime.ts       # Core: model routing, runtime assembly
+│   │   │   ├── system-prompt.ts # Agent system prompt
+│   │   │   ├── local-sandbox.ts # Local sandbox (file read/write, command exec)
+│   │   │   ├── mcp-runtime.ts   # MCP connection management
+│   │   │   └── types.ts        # Agent type definitions
+│   │   ├── ipc/                 # IPC handlers (7 modules)
+│   │   │   ├── agent.ts         # Conversation flow, HITL, cancel
+│   │   │   ├── threads.ts       # Thread CRUD, history, rewind
+│   │   │   ├── models.ts        # Model list, API Key, workspace operations
+│   │   │   ├── approval.ts      # Approval mode
+│   │   │   ├── mcp.ts           # MCP config
+│   │   │   ├── skills.ts        # Skill management
+│   │   │   └── settings.ts      # Proxy config
+│   │   ├── checkpointer/        # Checkpoint storage
+│   │   │   └── sqljs-saver.ts   # Per-thread SQLite checkpoint
+│   │   ├── db/                  # Persistent database
+│   │   │   └── index.ts         # Thread, run, assistant CRUD
+│   │   ├── services/            # Auxiliary services
+│   │   │   ├── title-generator.ts
+│   │   │   └── workspace-watcher.ts
+│   │   ├── storage.ts           # ~/.open-jarvis directory & .env management
+│   │   ├── approval-settings.ts # Approval rules & workspace rules
+│   │   ├── mcp-config.ts        # MCP config CRUD
+│   │   ├── skill-config.ts      # Skill source directory resolution
+│   │   ├── openai-compatible-profiles.ts  # Custom model config
+│   │   ├── tooling.ts           # Embedded toolchain resolution
+│   │   ├── text-encoding.ts     # UTF-8 / GB18030 decoding
+│   │   ├── proxy-config.ts      # Proxy config & global dispatcher
+│   │   ├── global-config.ts     # Global config export/import
+│   │   ├── logger.ts            # Logging
+│   │   └── types.ts             # Main process shared types
+│   ├── preload/                 # contextBridge bridge layer
+│   │   ├── index.ts             # window.api exposure
+│   │   └── index.d.ts           # Type contract
+│   ├── renderer/src/            # React renderer
+│   │   ├── App.tsx              # Three-column layout
+│   │   ├── lib/                 # State & utilities
+│   │   │   ├── store.ts         # Global Zustand store
+│   │   │   ├── thread-context.tsx  # Thread state + stream subscription
+│   │   │   ├── electron-transport.ts  # IPC → LangGraph Transport
+│   │   │   └── ...
+│   │   └── components/          # UI components
+│   │       ├── chat/            # Chat area (20 components)
+│   │       ├── panels/          # Right panel
+│   │       ├── tabs/            # Tabs & file preview
+│   │       ├── sidebar/         # Thread sidebar
+│   │       ├── kanban/          # Kanban view
+│   │       └── ui/              # Base components (Radix UI)
+│   ├── model-context.ts         # Model context window config
+│   └── types.ts                 # Renderer shared types
+├── resources/tooling/           # Embedded toolchain (per platform)
+├── scripts/
+│   └── prepare-embedded-tooling.mjs  # Toolchain preparation script
+├── bin/cli.js                   # CLI entry
+└── release/                     # Build output
+```
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                     Renderer Process                         │
+│   React 19 + Zustand + Tailwind CSS 4                        │
+│   ThreadProvider → useStream → ElectronIPCTransport          │
+├──────────────────────────┬───────────────────────────────────┤
+│       window.api         │       window.electron              │
+│   (contextBridge)       │   (raw IPC access)                │
+├──────────────────────────┴───────────────────────────────────┤
+│                      Preload Layer                           │
+│   8 namespaces: agent / threads / approval / models /        │
+│   workspace / mcp / skills / settings                        │
+├──────────────────────────────────────────────────────────────┤
+│                      Main Process                            │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│   │ Agent    │  │ MCP      │  │ DB       │  │ Storage  │   │
+│   │ Runtime  │  │ Runtime  │  │ (SQLite) │  │ (.env)   │   │
+│   └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
+│   │ Local    │  │ Tooling  │  │ Proxy    │                  │
+│   │ Sandbox  │  │ (embedded)│  │ (undici) │                  │
+│   └──────────┘  └──────────┘  └──────────┘                  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Core Data Flow
+
+1. **Message Send**: User input → `ChatContainer` → `ElectronIPCTransport` → IPC `agent:invoke` → `AgentRuntime.stream()` → stream events → `ThreadContext` update → React re-render
+
+2. **HITL Approval**: Agent executes tool → `interruptOn` interrupts → main process pushes interrupt event → renderer shows approval UI → user decision → `agent:resume` → agent continues
+
+3. **Workspace Sync**: User selects directory → `workspace:select` → file list loaded → `workspace-watcher` monitors changes → `workspace:files-changed` notifies renderer
+
+4. **Interruption Queue**: User sends message while AI is streaming → message enters `interruptionQueue` with `_queued` flag → displayed semi-transparent with "Queued" badge → when stream ends, queued messages are merged and auto-submitted → queue cleared
+
+---
+
+## Data Storage
+
+| Data | Location |
+|------|----------|
+| App Data | `~/.open-jarvis/` |
+| Main Database | `~/.open-jarvis/openwork.sqlite` |
+| Thread Checkpoints | `~/.open-jarvis/threads/{threadId}.sqlite` |
+| API Keys | `~/.open-jarvis/.env` |
+| Approval Rules | `{workspace}/.open-jarvis/approval-rules.json` |
+| MCP Config | electron-store `settings.json` |
+| Skills (global) | `~/.open-jarvis/skills/` |
+
+> Note: The app automatically migrates data from the old path `~/.openwork` to `~/.open-jarvis`.
+
+---
+
+## Development Guide
+
+### Code Checks
+
+```bash
+bun run typecheck       # Full TypeScript check
+bun run typecheck:node  # Main process + preload
+bun run typecheck:web   # Renderer process
+bun run lint            # ESLint
+bun run format          # Prettier
+```
+
+### Add New IPC Capability
+
+1. Register handler in `src/main/ipc/*.ts`
+2. Call `register*Handlers(ipcMain)` in `src/main/index.ts`
+3. Expose to `window.api` in `src/preload/index.ts`
+4. Add type declaration in `src/preload/index.d.ts`
+
+### Add New Model Support
+
+1. Add model routing in `src/main/agent/runtime.ts` → `createAgentRuntime`
+2. Add context window config in `src/model-context.ts`
+3. Add types in `src/main/types.ts` if needed
+
+---
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
+
+---
+
+<a id="中文"></a>
 
 ## 界面预览
 
@@ -51,6 +407,13 @@
 - 流式输出，实时 token 级展示
 - 自定义系统提示，可针对工作区定制行为
 
+### 插嘴功能（中断队列）
+
+- AI 流式响应期间，用户可以继续输入消息，消息进入排队队列
+- 排队消息立即显示在对话列表中，半透明 + "排队中"角标
+- 当前 API 交互完成后，队列中的消息自动合并发送给大模型
+- 取消操作会清空整个排队队列
+
 ### 本地沙箱执行
 
 - 嵌入式工具链：自带 bun 1.3.13、uv 0.11.7、Python 3.12.13，无需系统预装
@@ -86,7 +449,6 @@
 ### 技能系统
 
 - 全局技能目录 `~/.open-jarvis/skills/`
-- 不再使用工作区级技能目录
 - 支持 Markdown + YAML frontmatter 格式
 - 技能导入、创建、编辑、重命名
 
@@ -136,6 +498,16 @@
 ```bash
 bun install
 ```
+
+### 安装 Electron
+
+`bun install` 之后，**必须**运行 Electron 安装脚本来下载 Electron 二进制文件：
+
+```bash
+bun node_modules/electron/install.js
+```
+
+> **中国大陆用户注意：** Electron 二进制文件托管在 GitHub releases 上，下载可能失败。建议在运行安装脚本前开启代理（如设置 `HTTPS_PROXY` 环境变量）。
 
 ### 开发模式
 
@@ -187,8 +559,8 @@ open-jarvis/
 │   │   │   ├── system-prompt.ts # Agent 系统提示
 │   │   │   ├── local-sandbox.ts # 本地沙箱（文件读写、命令执行）
 │   │   │   ├── mcp-runtime.ts   # MCP 连接管理
-│   │   │   └── types.ts         # Agent 类型定义
-│   │   ├── ipc/                 # IPC 处理器
+│   │   │   └── types.ts        # Agent 类型定义
+│   │   ├── ipc/                 # IPC 处理器（7 个模块）
 │   │   │   ├── agent.ts         # 对话流、HITL、取消
 │   │   │   ├── threads.ts       # 线程 CRUD、历史、回滚
 │   │   │   ├── models.ts        # 模型列表、API Key、工作区操作
@@ -211,6 +583,7 @@ open-jarvis/
 │   │   ├── tooling.ts           # 嵌入式工具链定位
 │   │   ├── text-encoding.ts     # UTF-8 / GB18030 解码
 │   │   ├── proxy-config.ts      # 代理配置与全局分发器
+│   │   ├── global-config.ts     # 全局配置导入/导出
 │   │   ├── logger.ts            # 日志
 │   │   └── types.ts             # 主进程共享类型
 │   ├── preload/                 # contextBridge 桥接层
@@ -224,7 +597,7 @@ open-jarvis/
 │   │   │   ├── electron-transport.ts  # IPC → LangGraph Transport
 │   │   │   └── ...
 │   │   └── components/          # UI 组件
-│   │       ├── chat/            # 对话区
+│   │       ├── chat/            # 对话区（20 个组件）
 │   │       ├── panels/          # 右侧面板
 │   │       ├── tabs/            # 标签页与文件预览
 │   │       ├── sidebar/         # 左侧会话栏
@@ -276,6 +649,8 @@ open-jarvis/
 
 3. **工作区同步**：用户选择目录 → `workspace:select` → 文件列表加载 → `workspace-watcher` 监听变更 → `workspace:files-changed` 通知渲染层
 
+4. **插嘴队列**：用户在 AI 流式响应期间发送消息 → 消息进入 `interruptionQueue`（标记 `_queued`）→ 半透明显示 + "排队中"角标 → 流结束后队列消息自动合并提交 → 队列清空
+
 ---
 
 ## 数据存储
@@ -323,4 +698,4 @@ bun run format          # Prettier 格式化
 
 ## 许可证
 
-私有项目，未公开许可证。
+本项目基于 [Apache License 2.0](LICENSE) 开源。
