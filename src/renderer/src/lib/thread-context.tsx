@@ -68,6 +68,7 @@ export interface ThreadState {
   promptTokenEstimate: PromptTokenEstimate | null;
   draftInput: string;
   approvalMode: ApprovalMode;
+  interruptionQueue: Message[];
 }
 
 // Stream instance type
@@ -104,6 +105,8 @@ export interface ThreadActions {
   setFileContents: (path: string, content: string) => void;
   setDraftInput: (input: string) => void;
   setApprovalMode: (mode: ApprovalMode) => Promise<void>;
+  enqueueInterruption: (message: Message) => void;
+  clearInterruptionQueue: () => void;
 }
 
 // Context value
@@ -142,6 +145,7 @@ const createDefaultThreadState = (): ThreadState => ({
   promptTokenEstimate: null,
   draftInput: "",
   approvalMode: "manual",
+  interruptionQueue: [],
 });
 
 const defaultStreamData: StreamData = {
@@ -558,7 +562,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         case "subagents":
           if (Array.isArray(data.subagents)) {
             updateThreadState(threadId, () => ({
-              subagents: data.subagents!.map((s) => ({
+              subagents: data.subagents?.map((s) => ({
                 id: s.id || crypto.randomUUID(),
                 name: s.name || "Subagent",
                 description: s.description || "",
@@ -589,11 +593,11 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             });
             updateThreadState(threadId, () => ({
               tokenUsage: {
-                inputTokens: data.usage!.inputTokens || 0,
-                outputTokens: data.usage!.outputTokens || 0,
-                totalTokens: data.usage!.totalTokens || 0,
-                cacheReadTokens: data.usage!.cacheReadTokens,
-                cacheCreationTokens: data.usage!.cacheCreationTokens,
+                inputTokens: data.usage?.inputTokens || 0,
+                outputTokens: data.usage?.outputTokens || 0,
+                totalTokens: data.usage?.totalTokens || 0,
+                cacheReadTokens: data.usage?.cacheReadTokens,
+                cacheCreationTokens: data.usage?.cacheCreationTokens,
                 lastUpdated: new Date(),
               },
             }));
@@ -805,6 +809,14 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         setApprovalMode: async (mode: ApprovalMode) => {
           updateThreadState(threadId, () => ({ approvalMode: mode }));
           await window.api.approval.setMode(threadId, mode);
+        },
+        enqueueInterruption: (message: Message) => {
+          updateThreadState(threadId, (state) => ({
+            interruptionQueue: [...state.interruptionQueue, message],
+          }));
+        },
+        clearInterruptionQueue: () => {
+          updateThreadState(threadId, () => ({ interruptionQueue: [] }));
         },
       };
 

@@ -194,6 +194,8 @@ export interface Message {
   // For tool messages - whether the tool execution failed
   is_error?: boolean;
   created_at: Date;
+  // Interruption queue marker - true while message is queued waiting for current stream to finish
+  _queued?: boolean;
 }
 
 export interface ContentBlock {

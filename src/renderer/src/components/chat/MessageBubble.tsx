@@ -255,6 +255,7 @@ export function MessageBubble({
       className={cn(
         "group/msg animate-enter flex overflow-visible",
         isUser ? "justify-end" : "justify-start",
+        message._queued && "opacity-60",
       )}
     >
       <div
@@ -338,6 +339,11 @@ export function MessageBubble({
                   </Button>
                 </div>
                 <span className="text-section-header">{getLabel()}</span>
+                {message._queued && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/20 bg-muted-foreground/10 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    排队中
+                  </span>
+                )}
               </>
             ) : (
               <>

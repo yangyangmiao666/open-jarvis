@@ -189,6 +189,9 @@ export function ChatContainer({
     setDraftInput: setInput,
     approvalMode,
     setApprovalMode,
+    interruptionQueue,
+    enqueueInterruption,
+    clearInterruptionQueue,
   } = useCurrentThread(threadId);
 
   // Get the stream data via subscription - reactive updates without re-rendering provider
@@ -204,7 +207,6 @@ export function ChatContainer({
   }, [workspaceFiles, mentionQuery]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMentionActiveIndex(0);
   }, [mentionQuery, mentionOpen, mentionCandidates.length]);
 
@@ -371,9 +373,46 @@ export function ChatContainer({
         }
       }
       loadThreads();
+
+      // Handle interruption queue: merge queued messages and auto-submit
+      if (interruptionQueue.length > 0 && stream) {
+        const queuedContent = interruptionQueue
+          .map((m) => (typeof m.content === "string" ? m.content : ""))
+          .filter(Boolean)
+          .join("\n\n");
+
+        // Promote queued messages to normal messages
+        for (const qm of interruptionQueue) {
+          appendMessage({ ...qm, _queued: false });
+        }
+        clearInterruptionQueue();
+
+        // Submit merged content as a single message
+        stream.submit(
+          { messages: [{ type: "human", content: queuedContent }] },
+          {
+            config: {
+              configurable: {
+                thread_id: threadId,
+                model_id: currentModel,
+              },
+            },
+          },
+        );
+      }
     }
     prevLoadingRef.current = isLoading;
-  }, [isLoading, streamData.messages, loadThreads, appendMessage]);
+  }, [
+    isLoading,
+    streamData.messages,
+    loadThreads,
+    appendMessage,
+    interruptionQueue,
+    stream,
+    threadId,
+    currentModel,
+    clearInterruptionQueue,
+  ]);
 
   const displayMessages = useMemo(() => {
     if (!isLoading) {
@@ -411,8 +450,8 @@ export function ChatContainer({
         };
       });
 
-    return [...threadMessages, ...streamingMsgs];
-  }, [isLoading, threadMessages, streamData.messages]);
+    return [...threadMessages, ...streamingMsgs, ...interruptionQueue];
+  }, [isLoading, threadMessages, streamData.messages, interruptionQueue]);
 
   const currentModelConfig = useMemo(
     () =>
@@ -637,7 +676,7 @@ export function ChatContainer({
 
   const submitUserMessage = useCallback(
     async (messageText: string): Promise<void> => {
-      if (!messageText.trim() || isLoading || !stream) return;
+      if (!messageText.trim() || !stream) return;
 
       if (!workspacePath) {
         setError("发送消息前请先选择工作区文件夹。");
@@ -652,17 +691,26 @@ export function ChatContainer({
         setPendingApproval(null);
       }
 
-      setIsCancelling(false);
-      setInput("");
-
-      const isFirstMessage = threadMessages.length === 0;
-
       const userMessage: Message = {
         id: crypto.randomUUID(),
         role: "user",
         content: messageText,
         created_at: new Date(),
       };
+
+      if (isLoading) {
+        // Interruption mode: queue message, don't call stream.submit
+        userMessage._queued = true;
+        enqueueInterruption(userMessage);
+        setInput("");
+        return;
+      }
+
+      setIsCancelling(false);
+      setInput("");
+
+      const isFirstMessage = threadMessages.length === 0;
+
       appendMessage(userMessage);
 
       if (isFirstMessage) {
@@ -697,6 +745,7 @@ export function ChatContainer({
       appendMessage,
       clearError,
       currentModel,
+      enqueueInterruption,
       generateTitleForFirstMessage,
       isLoading,
       pendingApproval,
@@ -962,6 +1011,7 @@ export function ChatContainer({
 
   const handleCancel = async (): Promise<void> => {
     setIsCancelling(true);
+    clearInterruptionQueue();
     try {
       await Promise.all([
         window.api.agent.cancel(threadId),
@@ -993,7 +1043,7 @@ export function ChatContainer({
         <div className="px-4 pt-5">
           <div className="mx-auto max-w-4xl space-y-4 pb-6">
             {displayMessages.length === 0 && !isLoading && (
-              <div className="animate-scale-in relative mx-auto flex max-w-2xl flex-col items-center justify-center overflow-hidden rounded-[32px] border border-border bg-background-elevated px-8 py-14 text-center text-muted-foreground">
+              <div className="animate-scale-in relative mx-auto flex max-w-2xl flex-col items-center justify-center overflow-hidden rounded-4xl border border-border bg-background-elevated px-8 py-14 text-center text-muted-foreground">
                 <div className="relative flex flex-col items-center gap-4">
                   <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background-elevated px-3 py-1 text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
                     <span className="size-1.5 rounded-full bg-foreground" />
@@ -1038,7 +1088,7 @@ export function ChatContainer({
                         onClick={handleSelectWorkspaceFromEmptyState}
                       >
                         <Folder className="size-3.5" />
-                        <span className="max-w-[120px] truncate">
+                        <span className="max-w-30 truncate">
                           选择工作区
                         </span>
                       </button>
@@ -1088,7 +1138,7 @@ export function ChatContainer({
                   <div className="font-medium text-destructive text-sm">
                     智能体错误
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1 break-words">
+                  <div className="text-sm text-muted-foreground mt-1 wrap-break-word">
                     {threadError}
                   </div>
                   <div className="text-xs text-muted-foreground mt-2">
@@ -1118,7 +1168,7 @@ export function ChatContainer({
         className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex flex-col items-center gap-3"
       >
         {pendingApproval && (
-          <div className="pointer-events-auto w-full max-w-4xl rounded-[24px] border border-border bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)]">
+          <div className="pointer-events-auto w-full max-w-4xl rounded-3xl border border-border bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 text-sm">
                 <div className="flex items-start gap-2">
@@ -1241,9 +1291,12 @@ export function ChatContainer({
                     }
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder="输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"
-                  disabled={isLoading}
-                  className="chat-input-scrollbar block min-w-0 w-full resize-none border-0 bg-transparent px-4 py-3.5 pr-2 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+                  placeholder={
+                    isLoading
+                      ? "输入消息插嘴… Enter 排队发送，等当前回复完成后自动提交"
+                      : "输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"
+                  }
+                  className="chat-input-scrollbar block min-w-0 w-full resize-none border-0 bg-transparent px-4 py-3.5 pr-2 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none"
                   rows={1}
                   style={{
                     minHeight: "48px",
@@ -1280,8 +1333,8 @@ export function ChatContainer({
                   ))}
                 </div>
               )}
-              <div className="flex h-12 shrink-0 items-center justify-center">
-                {isLoading ? (
+              <div className="flex h-12 shrink-0 items-center justify-center gap-2">
+                {isLoading && (
                   <Button
                     type="button"
                     variant="destructive"
@@ -1291,6 +1344,18 @@ export function ChatContainer({
                     title="停止生成"
                   >
                     <Square className="size-4" />
+                  </Button>
+                )}
+                {isLoading ? (
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    size="icon"
+                    disabled={!input.trim()}
+                    className="rounded-full"
+                    title="插嘴发送（排队等待当前回复完成后自动提交）"
+                  >
+                    <Send className="size-4" />
                   </Button>
                 ) : (
                   <Button
@@ -1394,7 +1459,7 @@ export function ChatContainer({
               <PencilLine className="size-3.5" />
               目标消息
             </div>
-            <p className="whitespace-pre-wrap break-words text-foreground/85">
+            <p className="whitespace-pre-wrap wrap-break-word text-foreground/85">
               {truncate(
                 extractMessageText(deleteConfirmMessage ?? {
                   id: "",
