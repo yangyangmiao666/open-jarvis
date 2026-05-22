@@ -672,7 +672,7 @@ function createOpenAICompatibleFetch(
 ): typeof fetch {
   const baseFetch = globalThis.fetch.bind(globalThis);
 
-  return async (input, init) => {
+  return async (input: string | URL | Request, init: RequestInit | undefined) => {
     const parsedBody = tryParseOpenAICompatibleBody(init?.body);
     if (!parsedBody) {
       return baseFetch(input, init);

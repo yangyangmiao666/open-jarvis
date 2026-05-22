@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useObjectUrlFromBase64 } from "./media-blob";
 
 interface UseInlineMediaResult {
   url: string | null;
   isLoading: boolean;
   error: string | null;
+  ref: React.RefObject<HTMLDivElement | null>;
 }
 
 const mediaCache = new Map<

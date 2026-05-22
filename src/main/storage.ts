@@ -14,7 +14,7 @@ import type { ProviderId, ProxyConfig } from "./types";
 const OPEN_JARVIS_DIR = join(homedir(), ".open-jarvis");
 const LEGACY_OPENWORK_DIR = join(homedir(), ".openwork");
 const ENV_FILE = join(OPEN_JARVIS_DIR, ".env");
-const PROXY_ENV_KEYS = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] as const;
+
 
 function syncProxyEnvAliases(env: Record<string, string>): void {
   const aliasGroups = [
@@ -145,7 +145,7 @@ export function setProxyConfig(config: ProxyConfig): ProxyConfig {
     allProxy: config.allProxy.trim(),
   };
 
-  const nextEntries: Array<[typeof PROXY_ENV_KEYS[number], string]> = [
+  const nextEntries: Array<[string, string]> = [
     ["HTTP_PROXY", normalized.httpProxy],
     ["HTTPS_PROXY", normalized.httpsProxy],
     ["ALL_PROXY", normalized.allProxy],

@@ -5,7 +5,6 @@ import { useInlineMedia } from "@/lib/inline-media";
 interface InlineFileThumbnailProps {
   threadId: string;
   filePath: string;
-  fileName: string;
   fileType: FileType;
   mimeType?: string;
   isDir?: boolean;
@@ -15,7 +14,6 @@ interface InlineFileThumbnailProps {
 export function InlineFileThumbnail({
   threadId,
   filePath,
-  fileName,
   fileType,
   mimeType,
   isDir,

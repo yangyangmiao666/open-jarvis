@@ -258,12 +258,12 @@ function stripLeadingEnvWrappers(segment: string): string {
   }
 
   while (
-    /^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)(?:\s+|$)/.test(
+    /^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)(?:\s+|$)/.test(
       remaining,
     )
   ) {
     remaining = remaining.replace(
-      /^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)(?:\s+|$)/,
+      /^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)(?:\s+|$)/,
       "",
     );
   }
@@ -279,7 +279,7 @@ function getLeadingExecutable(segment: string): string | null {
 
   const commandMatch = normalized.match(/^(?:command|builtin)\s+(.+)$/i);
   const candidate = commandMatch?.[1]?.trimStart() ?? normalized;
-  const executable = candidate.match(/^[^\s]+/)?.[0] ?? null;
+  const executable = candidate.match(/^\S+/)?.[0] ?? null;
   return executable ? executable.replace(/^['"]|['"]$/g, "") : null;
 }
 
@@ -317,7 +317,7 @@ function getNestedShellCommand(segment: string): string | null {
 
   if (/^(?:powershell(?:\.exe)?|pwsh(?:\.exe)?)$/i.test(executable)) {
     const commandMatch = rest.match(
-      /^(?:(?:-(?:NoProfile|NonInteractive|NoLogo))\s+|(?:-ExecutionPolicy\s+\S+)\s+|(?:-File\s+\S+)\s+)*-(?:c|command)\s+([\s\S]+)$/i,
+      /^(?:-(?:NoProfile|NonInteractive|NoLogo)\s+|-ExecutionPolicy\s+\S+\s+|-File\s+\S+\s+)*-(?:c|command)\s+([\s\S]+)$/i,
     );
     return commandMatch ? stripMatchingQuotes(commandMatch[1]) : null;
   }
@@ -393,11 +393,7 @@ function needsWindowsPythonBootstrap(command: string): boolean {
       return workspacePythonSegmentPattern.test(segment);
     }
 
-    if (/^uv\s+(--version|-V)\b/i.test(segment)) {
-      return false;
-    }
-
-    return true;
+    return !/^uv\s+(--version|-V)\b/i.test(segment);
   });
 }
 
@@ -489,7 +485,7 @@ export interface LocalSandboxOptions {
  * edit, glob, grep) and adds execute() for running shell commands locally.
  *
  * @example
- * ```typescript
+ * ```TypeScript
  * const sandbox = new LocalSandbox({
  *   rootDir: '/path/to/workspace',
  *   virtualMode: true,
@@ -1348,7 +1344,7 @@ export class LocalSandbox
    * @returns ExecuteResponse with combined output, exit code, and truncation flag
    *
    * @example
-   * ```typescript
+   * ```TypeScript
    * const result = await sandbox.execute('echo "Hello World"');
    * // result.output: "Hello World\n"
    * // result.exitCode: 0

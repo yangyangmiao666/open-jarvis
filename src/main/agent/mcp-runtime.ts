@@ -148,7 +148,7 @@ async function createConnection(server: MCPServerConfig): Promise<MCPConnection>
 export async function getMCPToolsForServers(
   servers: MCPServerConfig[],
 ): Promise<StructuredToolInterface[]> {
-  const activeServers = servers.filter((server) => server.enabled !== false);
+  const activeServers = servers.filter((server) => server.enabled);
   const resolved = await Promise.all(
     activeServers.map(async (server) => {
       const signature = getConnectionSignature(server);

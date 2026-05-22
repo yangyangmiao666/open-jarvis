@@ -25,7 +25,6 @@ export const StreamingMarkdown = memo(function StreamingMarkdown({
             img: ({
               src,
               alt,
-              ...rest
             }: React.ImgHTMLAttributes<HTMLImageElement> & { node?: unknown }) => (
               <MarkdownImageRenderer
                 src={src}

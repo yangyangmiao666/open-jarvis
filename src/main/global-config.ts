@@ -11,7 +11,6 @@ import type {
   GlobalConfigImportMode,
   GlobalConfigImportResult,
   OpenAICompatibleProfile,
-  MCPServerConfig,
 } from "./types";
 
 const store = new Store({

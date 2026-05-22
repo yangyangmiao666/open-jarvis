@@ -20,10 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ToolCall, Todo } from "@/types";
 import { getFileType } from "@/lib/file-types";
-import type { FileType } from "@/lib/file-types";
 import { ShikiCodePreview } from "./ShikiCodePreview";
 import { InlineMediaPreview } from "./InlineMediaPreview";
-import { InlineFileThumbnail } from "./InlineFileThumbnail";
 
 interface ToolCallRendererProps {
   toolCall: ToolCall;
@@ -471,7 +469,7 @@ export function ToolCallRenderer({
                   {dirs > 0 ? `，${dirs} 个文件夹` : ""}
                 </span>
               </div>
-              <FileListDisplay files={result} threadId={threadId} onOpenFile={onOpenFile} />
+              <FileListDisplay files={result} />
             </div>
           );
         }
@@ -486,7 +484,7 @@ export function ToolCallRenderer({
                 <CheckCircle2 className="size-3" />
                 <span>找到 {result.length} 项匹配</span>
               </div>
-              <FileListDisplay files={result} threadId={threadId} onOpenFile={onOpenFile} />
+              <FileListDisplay files={result} />
             </div>
           );
         }

@@ -6,7 +6,6 @@ import { singleMessageToMarkdown } from "@/lib/chat-markdown";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { JarvisMark } from "@/components/branding/JarvisMark";
-import { getFileType } from "@/lib/file-types";
 import { ToolCallRenderer } from "./ToolCallRenderer";
 import { ThinkAwareMarkdown } from "./ThinkAwareMarkdown";
 import { InlineImagePreview } from "./InlineImagePreview";
@@ -79,6 +78,23 @@ export function MessageBubble({
     }
   }, [message, toolResults]);
 
+  useEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+
+    const textarea = editTextareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > 220 ? "auto" : "hidden";
+  }, [isEditing]);
+
   // Hide tool result messages - they're shown inline with tool calls
   if (isTool) {
     return null;
@@ -150,23 +166,6 @@ export function MessageBubble({
 
     return renderedBlocks.length > 0 ? renderedBlocks : null;
   };
-
-  useEffect(() => {
-    if (!isEditing) {
-      return;
-    }
-
-    const textarea = editTextareaRef.current;
-    if (!textarea) {
-      return;
-    }
-
-    textarea.focus();
-    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`;
-    textarea.style.overflowY = textarea.scrollHeight > 220 ? "auto" : "hidden";
-  }, [isEditing]);
 
   const content = renderContent();
   const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
@@ -404,7 +403,7 @@ export function MessageBubble({
           {/* Tool calls */}
           {hasToolCalls && (
             <div className="space-y-3 overflow-visible px-1 py-1">
-              {message.tool_calls!.map((toolCall, index) => {
+              {message.tool_calls?.map((toolCall, index) => {
                 const result = toolResults?.get(toolCall.id);
                 const needsApproval = pendingApprovalIds.has(toolCall.id);
                 return (

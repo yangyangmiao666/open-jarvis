@@ -1,36 +1,35 @@
-import { defineConfig } from "eslint/config";
-import eslint from "@eslint/js";
-import tseslint from "@electron-toolkit/eslint-config-ts";
-import eslintConfigPrettier from "@electron-toolkit/eslint-config-prettier";
-import eslintPluginReact from "eslint-plugin-react";
-import eslintPluginReactHooks from "eslint-plugin-react-hooks";
-import eslintPluginReactRefresh from "eslint-plugin-react-refresh";
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+import globals from "globals";
 
-export default defineConfig(
-  { ignores: ["**/node_modules", "**/dist", "**/out"] },
-  eslint.configs.recommended,
-  tseslint.configs.recommended,
-  eslintPluginReact.configs.flat.recommended,
-  eslintPluginReact.configs.flat["jsx-runtime"],
+export default tseslint.config(
+  { ignores: ["dist", "out", "release"] },
   {
-    settings: {
-      react: {
-        version: "detect",
-      },
-    },
-  },
-  {
-    files: ["**/*.{ts,tsx}"],
     plugins: {
-      "react-hooks": eslintPluginReactHooks,
-      "react-refresh": eslintPluginReactRefresh,
+      "react-hooks": reactHooks,
+      "react-refresh": reactRefresh,
+    },
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
     },
     rules: {
-      ...eslintPluginReactHooks.configs.recommended.rules,
-      ...eslintPluginReactRefresh.configs.vite.rules,
-      "@typescript-eslint/explicit-function-return-type": "off",
-      "react/prop-types": "off",
+      ...reactHooks.configs.recommended.rules,
+      "react-hooks/set-state-in-effect": "off",
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-non-null-assertion": "warn",
     },
   },
-  eslintConfigPrettier,
 );
