@@ -70,7 +70,7 @@ const PANEL_SYNCED_TOOLS = new Set(["write_todos"]);
 
 // Helper to get a clean file name from path
 function getFileName(path: string): string {
-  return path.split("/").pop() || path;
+  return path.split(/[/\\]/).pop() || path;
 }
 
 function toDisplayText(value: unknown): string {

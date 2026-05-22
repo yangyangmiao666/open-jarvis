@@ -66,6 +66,24 @@ function resolveDefaultModelId(): string {
   return firstProfile ? `oac:${firstProfile.id}` : "";
 }
 
+/**
+ * Cross-platform path prefix check.
+ * On Windows, paths are case-insensitive; on POSIX, they are case-sensitive.
+ */
+function pathStartsWith(childPath: string, parentPath: string): boolean {
+  const sep = path.sep;
+  const parentWithSep = parentPath.endsWith(sep)
+    ? parentPath
+    : parentPath + sep;
+  if (process.platform === "win32") {
+    return (
+      childPath.toLowerCase() === parentPath.toLowerCase() ||
+      childPath.toLowerCase().startsWith(parentWithSep.toLowerCase())
+    );
+  }
+  return childPath === parentPath || childPath.startsWith(parentWithSep);
+}
+
 export function registerModelHandlers(ipcMain: IpcMain): void {
   // List available models
   ipcMain.handle("models:list", async () => {
@@ -435,32 +453,51 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
 
       try {
         // Resolve the full disk path
-        const resolvedWorkspace = path.resolve(workspacePath);
+        const resolvedWorkspace = workspacePath
+          ? path.resolve(workspacePath)
+          : null;
         let resolvedPath: string;
 
         if (path.isAbsolute(filePath)) {
           resolvedPath = path.resolve(filePath);
-          // If the absolute path doesn't exist or is outside workspace,
-          // treat it as relative to workspace (agent may return "/file.png" meaning "file.png" in workspace)
-          if (!resolvedPath.startsWith(resolvedWorkspace)) {
-            resolvedPath = path.resolve(workspacePath, filePath.slice(1));
+          // If the absolute path doesn't exist and we have a workspace,
+          // try treating it as relative to workspace (agent may return "/file.png" meaning "file.png" in workspace)
+          // Only strip leading slash for POSIX-style paths that aren't valid absolute paths on this platform
+          if (
+            resolvedWorkspace &&
+            !pathStartsWith(resolvedPath, resolvedWorkspace) &&
+            !(await fs.stat(resolvedPath).catch(() => null))
+          ) {
+            // On POSIX: "/file.png" → "file.png" relative to workspace
+            // On Windows: skip this fallback — the path is already a valid absolute path or doesn't exist
+            const relativePart =
+              process.platform === "win32"
+                ? filePath
+                : filePath.startsWith("/")
+                  ? filePath.slice(1)
+                  : filePath;
+            resolvedPath = path.resolve(workspacePath, relativePart);
           }
-        } else {
+        } else if (resolvedWorkspace) {
           resolvedPath = path.resolve(workspacePath, filePath);
-        }
-
-        // Security check: ensure the resolved path is within the workspace
-        const workspaceWithSep = resolvedWorkspace.endsWith(path.sep)
-          ? resolvedWorkspace
-          : resolvedWorkspace + path.sep;
-        if (
-          resolvedPath !== resolvedWorkspace &&
-          !resolvedPath.startsWith(workspaceWithSep)
-        ) {
+        } else {
           return {
             success: false,
-            error: "Access denied: path outside workspace",
+            error: "No workspace folder linked and path is not absolute",
           };
+        }
+
+        // Security check for workspace-relative paths: ensure they are within the workspace
+        if (resolvedWorkspace && !path.isAbsolute(filePath)) {
+          if (
+            resolvedPath !== resolvedWorkspace &&
+            !pathStartsWith(resolvedPath, resolvedWorkspace)
+          ) {
+            return {
+              success: false,
+              error: "Access denied: path outside workspace",
+            };
+          }
         }
 
         // Check if file exists

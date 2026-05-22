@@ -44,7 +44,7 @@ export function InlineImagePreview({
         <div className="relative">
           <img
             src={url}
-            alt={filePath.split("/").pop() || "image"}
+            alt={filePath.split(/[/\\]/).pop() || "image"}
             className="cursor-pointer rounded-lg border border-border/50 object-contain transition-opacity hover:opacity-90"
             style={{ maxHeight, maxWidth: "100%" }}
             onClick={onClick}

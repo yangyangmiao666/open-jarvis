@@ -146,7 +146,7 @@ function InlinePdfPlaceholder({
   filePath: string;
   onClick?: () => void;
 }) {
-  const fileName = filePath.split("/").pop() || filePath;
+  const fileName = filePath.split(/[/\\]/).pop() || filePath;
   return (
     <button
       onClick={onClick}

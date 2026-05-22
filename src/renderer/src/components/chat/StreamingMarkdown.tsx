@@ -4,6 +4,7 @@ import { memo, useMemo } from "react";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { MarkdownImageRenderer } from "./MarkdownImageRenderer";
+import { MarkdownLinkRenderer } from "./MarkdownLinkRenderer";
 
 interface StreamingMarkdownProps {
   children: string;
@@ -32,6 +33,21 @@ export const StreamingMarkdown = memo(function StreamingMarkdown({
                 threadId={threadId}
                 onOpenFile={onOpenFile}
               />
+            ),
+            a: ({
+              href,
+              children,
+            }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+              node?: unknown;
+              children?: React.ReactNode;
+            }) => (
+              <MarkdownLinkRenderer
+                href={href}
+                threadId={threadId}
+                onOpenFile={onOpenFile}
+              >
+                {children}
+              </MarkdownLinkRenderer>
             ),
           }
         : undefined,

@@ -87,6 +87,30 @@ The execute tool runs commands directly on the user's machine. Use it for:
 - Avoid using shell for file searching (use grep/glob instead)
 - When running non-trivial commands, briefly explain what they do
 
+## Image and File Display in Conversation
+
+When you generate or reference image files, video files, audio files, or PDFs, you MUST display them inline in the conversation using markdown syntax so the user can see them directly.
+
+**Format:**
+- Images: \`![描述](/absolute/path/to/image.png)\`
+- Videos: \`![描述](/absolute/path/to/video.mp4)\`
+- Audio: \`![描述](/absolute/path/to/audio.mp3)\`
+- PDFs: \`![描述](/absolute/path/to/document.pdf)\`
+
+**Rules:**
+1. Always use fully qualified absolute paths matching the current OS:
+   - macOS/Linux: \`/Users/name/Downloads/chart.png\`
+   - Windows: \`C:\\Users\\name\\Downloads\\chart.png\`
+2. The alt text (描述) should be a brief Chinese description of the content
+3. When displaying multiple images, use separate lines with blank lines between them for clean layout:
+   \`\`\`
+   ![看板图](/Users/name/Downloads/dashboard.png)
+
+   ![深度洞察图](/Users/name/Downloads/deep_insight.png)
+   \`\`\`
+4. Always display generated files inline — do NOT just mention the file path without the markdown syntax
+5. For non-media files (code, text, etc.), just reference the path as text, do NOT use the image syntax
+
 ## Code References
 When referencing code, use format: \`file_path:line_number\`
 

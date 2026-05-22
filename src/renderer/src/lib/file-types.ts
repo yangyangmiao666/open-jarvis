@@ -225,3 +225,17 @@ export function isBinaryFile(fileName: string): boolean {
     type === "binary"
   );
 }
+
+export function getFileIcon(fileName: string): string {
+  const { type } = getFileType(fileName);
+  const icons: Record<FileType, string> = {
+    image: "🖼️",
+    video: "🎬",
+    audio: "🎵",
+    pdf: "📄",
+    code: "📝",
+    text: "📝",
+    binary: "📦",
+  };
+  return icons[type] || "📎";
+}
