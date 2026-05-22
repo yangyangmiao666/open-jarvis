@@ -28,6 +28,30 @@ interruption queue, and full local sandbox execution.
     <td><img src="docs/主界面-深色.png" alt="Main Dark" width="480" /></td>
   </tr>
   <tr>
+    <td align="center"><b>Result - Light</b></td>
+    <td align="center"><b>Result - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/结果展示-亮色.png" alt="Result Light" width="480" /></td>
+    <td><img src="docs/结果展示-深色.png" alt="Result Dark" width="480" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>HITL Approval - Light</b></td>
+    <td align="center"><b>HITL Approval - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/人工审批-亮色.png" alt="HITL Light" width="480" /></td>
+    <td><img src="docs/人工审批-深色.png" alt="HITL Dark" width="480" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>File Preview - Light</b></td>
+    <td align="center"><b>File Preview - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/文件预览-亮色.png" alt="File Preview Light" width="480" /></td>
+    <td><img src="docs/文件预览-深色.png" alt="File Preview Dark" width="480" /></td>
+  </tr>
+  <tr>
     <td align="center"><b>Settings - Light</b></td>
     <td align="center"><b>Settings - Dark</b></td>
   </tr>
@@ -176,14 +200,10 @@ Opens the Electron window with hot reload for both main and renderer processes.
 ### Build & Package
 
 ```bash
-# Type check + build
-bun run build
-
-# Package as local runnable directory
-bun run package:dir
-
-# Generate distribution package
-bun run dist
+bun run dist              # Current platform
+bun run dist:mac          # macOS (.dmg)
+bun run dist:win          # Windows (NSIS installer)
+bun run dist:linux        # Linux (AppImage + tar.gz)
 ```
 
 ### Embedded Toolchain Preparation
@@ -370,6 +390,30 @@ This project is licensed under the [Apache License 2.0](LICENSE).
   <tr>
     <td><img src="docs/主界面-亮色.png" alt="主界面-亮色" width="480" /></td>
     <td><img src="docs/主界面-深色.png" alt="主界面-深色" width="480" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>结果展示 - 亮色</b></td>
+    <td align="center"><b>结果展示 - 深色</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/结果展示-亮色.png" alt="结果展示-亮色" width="480" /></td>
+    <td><img src="docs/结果展示-深色.png" alt="结果展示-深色" width="480" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>人工审批 - 亮色</b></td>
+    <td align="center"><b>人工审批 - 深色</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/人工审批-亮色.png" alt="人工审批-亮色" width="480" /></td>
+    <td><img src="docs/人工审批-深色.png" alt="人工审批-深色" width="480" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>文件预览 - 亮色</b></td>
+    <td align="center"><b>文件预览 - 深色</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/文件预览-亮色.png" alt="文件预览-亮色" width="480" /></td>
+    <td><img src="docs/文件预览-深色.png" alt="文件预览-深色" width="480" /></td>
   </tr>
   <tr>
     <td align="center"><b>设置中枢 - 亮色</b></td>
