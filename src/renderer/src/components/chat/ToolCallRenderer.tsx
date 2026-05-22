@@ -404,7 +404,7 @@ export function ToolCallRenderer({
       return (
         <div className="text-xs text-status-critical flex items-start gap-1.5">
           <XCircle className="size-3 mt-0.5 shrink-0" />
-          <span className="break-words">
+          <span className="wrap-break-word">
             {toDisplayText(result)}
           </span>
         </div>
@@ -633,7 +633,7 @@ export function ToolCallRenderer({
   return (
     <div
       className={cn(
-        "relative isolate rounded-[24px]",
+        "relative isolate rounded-3xl",
       )}
     >
       <div
