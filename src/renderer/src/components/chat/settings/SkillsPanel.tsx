@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ChevronLeft,
@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { toast } from "@/components/ui/toast";
+import { toast } from "@/lib/toast";
 import { SettingsSection, SettingsCard, SettingsRow } from "./primitives";
 
 const PAGE_SIZE = 12;
@@ -26,7 +26,7 @@ const PAGE_SIZE = 12;
 type SkillsDeleteConfirmState = { type: "folders" } | null;
 
 const textAreaClassName = cn(
-  "flex w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-mono",
+  "flex w-full rounded-lg border border-input app-premium-field px-3 py-2 text-xs font-mono",
   "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
   "disabled:cursor-not-allowed disabled:opacity-50 resize-y",
 );
@@ -52,7 +52,7 @@ export function SkillsPanel(): React.JSX.Element {
   const [editorLoading, setEditorLoading] = useState(false);
   const [highlightedCard, setHighlightedCard] = useState<string | null>(null);
 
-  const reload = async (): Promise<void> => {
+  const reload = useCallback(async (): Promise<void> => {
     const [nextSources, result] = await Promise.all([
       window.api.skills.listSources(),
       window.api.skills.listWorkspaceSkillFolders(workspaceSkillTarget),
@@ -67,13 +67,13 @@ export function SkillsPanel(): React.JSX.Element {
       setWorkspaceReady(false);
     }
     setSelected(new Set());
-  };
+  }, [workspaceSkillTarget]);
 
   useEffect(() => {
     void reload();
     setCurrentPage(1);
     setSearchQuery("");
-  }, []);
+  }, [reload]);
 
   const filteredFolders = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
@@ -341,7 +341,7 @@ export function SkillsPanel(): React.JSX.Element {
                         key={folderName}
                         type="button"
                         className={cn(
-                          "group flex min-h-[120px] flex-col items-start rounded-lg border border-border/50 p-3 text-left transition-colors hover:border-primary/20 hover:bg-primary/5",
+                          "group flex min-h-30 flex-col items-start rounded-lg border border-border/50 p-3 text-left transition-colors hover:border-primary/20 hover:bg-primary/5",
                           highlightedCard === folderName && "animate-card-highlight",
                         )}
                         onClick={() => void openEditEditor(folderName)}
@@ -435,7 +435,7 @@ export function SkillsPanel(): React.JSX.Element {
                       onChange={(e) => setEditorMarkdown(e.target.value)}
                       placeholder={editorLoading ? t("skills.loadingPlaceholder") : t("skills.skillMdContent")}
                       disabled={busy || editorLoading}
-                      className={cn(textAreaClassName, "min-h-[240px] border-0 bg-transparent")}
+                      className={cn(textAreaClassName, "min-h-60 border-0 bg-transparent")}
                     />
                   </ScrollArea>
                 </div>

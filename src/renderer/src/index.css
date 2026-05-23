@@ -95,7 +95,9 @@
   /* Borders */
   --border: #e5e5e5;
   --border-emphasis: #d4d4d4;
-  --input: #fafafa;
+  --border-subtle: #d4d4d4;
+  --border-muted: #b0b0b0;
+  --input: #e5e5e5;
   --ring: #1f1f1f;
 
   /* Text hierarchy */
@@ -145,7 +147,9 @@ html.dark {
   /* Borders */
   --border: #373e47;
   --border-emphasis: #4a5568;
-  --input: #22262e;
+  --border-subtle: #4a5568;
+  --border-muted: #6e7681;
+  --input: #373e47;
   --ring: #e6edf3;
 
   /* Text hierarchy */
@@ -191,7 +195,7 @@ html.dark {
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-sans);
+    font-family: var(--font-sans), serif;
     background-image: none;
     min-height: 100vh;
     letter-spacing: 0.01em;
@@ -443,7 +447,7 @@ html.dark {
 }
 
 .app-display-title {
-  font-family: var(--font-sans);
+  font-family: var(--font-sans), serif;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -961,7 +965,7 @@ html.dark {
 @keyframes agent-activity-spectrum {
   0%,
   100% {
-    background-position: 0% 50%, 100% 50%, 0% 50%, 20% 30%;
+    background-position: 0 50%, 100% 50%, 0 50%, 20% 30%;
     filter: hue-rotate(0deg) saturate(1.08);
   }
   25% {
@@ -969,7 +973,7 @@ html.dark {
     filter: hue-rotate(18deg) saturate(1.16);
   }
   50% {
-    background-position: 100% 50%, 0% 50%, 100% 50%, 80% 70%;
+    background-position: 100% 50%, 0 50%, 100% 50%, 80% 70%;
     filter: hue-rotate(34deg) saturate(1.22);
   }
   75% {

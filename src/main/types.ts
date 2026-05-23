@@ -89,6 +89,7 @@ export interface ProxyConfig {
   httpProxy: string;
   httpsProxy: string;
   allProxy: string;
+  proxyMode?: "system" | "custom";
 }
 
 // =============================================================================

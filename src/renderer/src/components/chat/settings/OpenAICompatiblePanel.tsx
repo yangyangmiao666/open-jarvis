@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
+import { toast } from "@/lib/toast";
 import {
   SettingsSection,
   SettingsCard,
@@ -77,7 +77,7 @@ export function OpenAICompatiblePanel({ profileId }: OpenAICompatiblePanelProps)
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [profileId]);
 
   const handleSave = async (): Promise<void> => {
     if (!editing) return;
@@ -162,111 +162,104 @@ export function OpenAICompatiblePanel({ profileId }: OpenAICompatiblePanelProps)
             </SettingsCard>
           )}
         </SettingsSection>
-
-        {editing && (
-          <SettingsSection
-            title={editing?.id ? t("openAICompatible.editConfigTitle") : t("openAICompatible.newConfigTitle")}
-            description={t("openAICompatible.editorDesc")}
-          >
-            <SettingsCard divided={false}>
-              <SettingsSelect
-                label={t("openAICompatible.requestFormat")}
-                description={t("openAICompatible.requestFormatDesc")}
-                value={editing?.apiFormat ?? "openai"}
-                onChange={(e) => setEditing({ ...(editing ?? emptyForm()), apiFormat: e.target.value as CustomModelApiFormat })}
-                options={[
-                  { value: "openai", label: "OpenAI" },
-                  { value: "anthropic", label: "Anthropic" },
-                ]}
-              />
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between gap-4">
-                  <label className="text-sm font-medium leading-none min-w-0 flex-1">{t("openAICompatible.displayName")}</label>
-                  <input
-                    className="flex h-9 w-[260px] rounded-lg border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={editing?.name ?? ""}
-                    onChange={(e) => setEditing({ ...(editing ?? emptyForm()), name: e.target.value })}
-                    placeholder={t("openAICompatible.namePlaceholder")}
-                  />
-                </div>
-              </div>
-              <SettingsInput
-                label={t("openAICompatible.baseUrl")}
-                value={editing?.baseUrl ?? ""}
-                onChange={(e) => setEditing({ ...(editing ?? emptyForm()), baseUrl: e.target.value })}
-                placeholder={editing?.apiFormat === "anthropic" ? t("openAICompatible.baseUrlPlaceholderAnthropic") : t("openAICompatible.baseUrlPlaceholderOpenAI")}
-              />
-              <SettingsSecretInput
-                label={t("openAICompatible.apiKey")}
-                description={t("openAICompatible.apiKeyToggleDesc")}
-                value={editing?.apiKey ?? ""}
-                onChange={(e) => setEditing({ ...(editing ?? emptyForm()), apiKey: e.target.value })}
-                placeholder={t("openAICompatible.apiKeyPlaceholder")}
-              />
-              <SettingsInput
-                label={t("openAICompatible.modelId")}
-                value={editing?.model ?? ""}
-                onChange={(e) => setEditing({ ...(editing ?? emptyForm()), model: e.target.value })}
-                placeholder={t("openAICompatible.modelIdPlaceholder")}
-              />
-              <SettingsSelect
-                label={t("openAICompatible.thinkingMode")}
-                value={editing?.thinkingType ?? "disabled"}
-                onChange={(e) => setEditing({ ...(editing ?? emptyForm()), thinkingType: e.target.value as CustomModelThinkingType })}
-                options={[
-                  { value: "disabled", label: t("openAICompatible.thinkingOff") },
-                  { value: "enabled", label: t("openAICompatible.thinkingOn", { effort: "" }).replace(/ \/ $/, "") },
-                ]}
-              />
-              <SettingsSelect
-                label={t("openAICompatible.thinkingEffort")}
-                description={t("openAICompatible.thinkingEffortDesc")}
-                value={editing?.thinkingEffort ?? "high"}
-                onChange={(e) => setEditing({ ...(editing ?? emptyForm()), thinkingEffort: normalizeThinkingEffort(e.target.value) })}
-                disabled={(editing?.thinkingType ?? "disabled") !== "enabled"}
-                options={[
-                  { value: "low", label: "low" },
-                  { value: "medium", label: "medium" },
-                  { value: "high", label: "high" },
-                  { value: "xhigh", label: "xhigh/max" },
-                ]}
-              />
-              <SettingsSelect
-                label={t("openAICompatible.reasoningContent")}
-                description={editing?.apiFormat === "anthropic" ? t("openAICompatible.reasoningAnthropicDesc") : t("openAICompatible.reasoningAutoDesc")}
-                value={editing?.reasoningContent ?? "auto"}
-                onChange={(e) => setEditing({ ...(editing ?? emptyForm()), reasoningContent: normalizeReasoningContentMode(e.target.value) })}
-                disabled={(editing?.apiFormat ?? "openai") === "anthropic"}
-                options={[
-                  { value: "auto", label: t("openAICompatible.reasoningAuto") },
-                  { value: "enabled", label: t("openAICompatible.reasoningAlways") },
-                  { value: "disabled", label: t("openAICompatible.reasoningDisabled") },
-                ]}
-              />
-              <SettingsInput
-                label={t("openAICompatible.contextWindow")}
-                description={t("openAICompatible.contextWindowDesc")}
-                value={editing?.contextWindow?.toString() ?? ""}
-                onChange={(e) => {
-                  const rawValue = e.target.value.trim();
-                  const nextValue = rawValue.length === 0 ? undefined : Number.parseInt(rawValue, 10);
-                  setEditing({ ...(editing ?? emptyForm()), contextWindow: typeof nextValue === "number" && nextValue > 0 ? nextValue : undefined });
-                }}
-                placeholder={t("openAICompatible.contextWindowPlaceholder")}
-              />
-            </SettingsCard>
-            <div className="flex justify-end gap-2 mt-3">
-              <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>
-                {t("common:cancel")}
-              </Button>
-              <Button size="sm" onClick={() => void handleSave()}>
-                {t("common:save")}
-              </Button>
-            </div>
-          </SettingsSection>
-        )}
       </div>
 
+      {/* Edit / New Configuration Dialog */}
+      <Dialog open={editing !== null} onOpenChange={(nextOpen) => !nextOpen && setEditing(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editing?.id ? t("openAICompatible.editConfigTitle") : t("openAICompatible.newConfigTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 -mr-1">
+            <SettingsSelect
+              label={t("openAICompatible.requestFormat")}
+              description={t("openAICompatible.requestFormatDesc")}
+              value={editing?.apiFormat ?? "openai"}
+              onValueChange={(v) => setEditing({ ...(editing ?? emptyForm()), apiFormat: v as CustomModelApiFormat })}
+              options={[
+                { value: "openai", label: "OpenAI" },
+                { value: "anthropic", label: "Anthropic" },
+              ]}
+            />
+            <SettingsInput
+              label={t("openAICompatible.displayName")}
+              value={editing?.name ?? ""}
+              onChange={(e) => setEditing({ ...(editing ?? emptyForm()), name: e.target.value })}
+              placeholder={t("openAICompatible.namePlaceholder")}
+            />
+            <SettingsInput
+              label={t("openAICompatible.baseUrl")}
+              value={editing?.baseUrl ?? ""}
+              onChange={(e) => setEditing({ ...(editing ?? emptyForm()), baseUrl: e.target.value })}
+              placeholder={editing?.apiFormat === "anthropic" ? t("openAICompatible.baseUrlPlaceholderAnthropic") : t("openAICompatible.baseUrlPlaceholderOpenAI")}
+            />
+            <SettingsSecretInput
+              label={t("openAICompatible.apiKey")}
+              description={t("openAICompatible.apiKeyToggleDesc")}
+              value={editing?.apiKey ?? ""}
+              onChange={(e) => setEditing({ ...(editing ?? emptyForm()), apiKey: e.target.value })}
+              placeholder={t("openAICompatible.apiKeyPlaceholder")}
+            />
+            <SettingsInput
+              label={t("openAICompatible.modelId")}
+              value={editing?.model ?? ""}
+              onChange={(e) => setEditing({ ...(editing ?? emptyForm()), model: e.target.value })}
+              placeholder={t("openAICompatible.modelIdPlaceholder")}
+            />
+            <SettingsSelect
+              label={t("openAICompatible.thinkingMode")}
+              value={editing?.thinkingType ?? "disabled"}
+              onValueChange={(v) => setEditing({ ...(editing ?? emptyForm()), thinkingType: v as CustomModelThinkingType })}
+              options={[
+                { value: "disabled", label: t("openAICompatible.thinkingOff") },
+                { value: "enabled", label: t("openAICompatible.thinkingOn", { effort: "" }).replace(/ \/ $/, "") },
+              ]}
+            />
+            <SettingsSelect
+              label={t("openAICompatible.thinkingEffort")}
+              description={t("openAICompatible.thinkingEffortDesc")}
+              value={editing?.thinkingEffort ?? "high"}
+              onValueChange={(v) => setEditing({ ...(editing ?? emptyForm()), thinkingEffort: normalizeThinkingEffort(v) })}
+              disabled={(editing?.thinkingType ?? "disabled") !== "enabled"}
+              options={[
+                { value: "low", label: "low" },
+                { value: "medium", label: "medium" },
+                { value: "high", label: "high" },
+                { value: "xhigh", label: "xhigh/max" },
+              ]}
+            />
+            <SettingsSelect
+              label={t("openAICompatible.reasoningContent")}
+              description={editing?.apiFormat === "anthropic" ? t("openAICompatible.reasoningAnthropicDesc") : t("openAICompatible.reasoningAutoDesc")}
+              value={editing?.reasoningContent ?? "auto"}
+              onValueChange={(v) => setEditing({ ...(editing ?? emptyForm()), reasoningContent: normalizeReasoningContentMode(v) })}
+              disabled={(editing?.apiFormat ?? "openai") === "anthropic"}
+              options={[
+                { value: "auto", label: t("openAICompatible.reasoningAuto") },
+                { value: "enabled", label: t("openAICompatible.reasoningAlways") },
+                { value: "disabled", label: t("openAICompatible.reasoningDisabled") },
+              ]}
+            />
+            <SettingsInput
+              label={t("openAICompatible.contextWindow")}
+              description={t("openAICompatible.contextWindowDesc")}
+              value={editing?.contextWindow?.toString() ?? ""}
+              onChange={(e) => {
+                const rawValue = e.target.value.trim();
+                const nextValue = rawValue.length === 0 ? undefined : Number.parseInt(rawValue, 10);
+                setEditing({ ...(editing ?? emptyForm()), contextWindow: typeof nextValue === "number" && nextValue > 0 ? nextValue : undefined });
+              }}
+              placeholder={t("openAICompatible.contextWindowPlaceholder")}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="secondary" onClick={() => setEditing(null)}>{t("common:cancel")}</Button>
+            <Button onClick={() => void handleSave()}>{t("common:save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteTarget !== null} onOpenChange={(nextOpen) => !nextOpen && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

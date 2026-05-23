@@ -88,12 +88,17 @@ export type CustomModelReasoningContentMode =
   | "enabled"
   | "disabled";
 
-export type SettingsPanel = "general" | "models" | "proxy" | "skills" | "mcp";
+export type SettingsPanel = "general" | "models" | "proxy" | "skills" | "mcp" | "about" | "usage";
 
 export interface SettingsOpenRequest {
   panel?: SettingsPanel;
   profileId?: string;
 }
+
+// Notification sound types
+export type NotificationSoundId = "ding" | "ding-dong" | "discord" | "done" | "down-power" | "food" | "lite" | "quiet" | "none";
+export type NotificationSoundType = "taskComplete" | "permissionRequest";
+export type NotificationSoundSettings = Partial<Record<NotificationSoundType, NotificationSoundId>>;
 
 /** User-defined OpenAI-compatible API endpoint (custom base URL + model id). */
 export type GlobalConfigImportMode = "merge" | "replace";
@@ -139,6 +144,7 @@ export interface ProxyConfig {
   httpProxy: string;
   httpsProxy: string;
   allProxy: string;
+  proxyMode?: "system" | "custom";
 }
 
 export interface Provider {

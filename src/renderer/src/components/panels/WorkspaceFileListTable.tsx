@@ -244,7 +244,8 @@ export function WorkspaceFileListTable({
         const r = resizeRef.current;
         if (!r) return;
         const delta = ev.clientX - r.startX;
-        const def = COL_CONFIG.find((c) => c.id === r.col)!;
+        const def = COL_CONFIG.find((c) => c.id === r.col);
+        if (!def) return;
         const next = Math.max(def.min, r.startW + delta);
         setWidths((w) => ({ ...w, [r.col]: next }));
       };

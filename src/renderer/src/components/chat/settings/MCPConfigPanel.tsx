@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2, Pencil, Copy, Search } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, Search, FileJson } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,21 +8,30 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "@/lib/toast";
 import {
   SettingsSection,
   SettingsCard,
   SettingsRow,
-  SettingsToggle,
+  SettingsSegmentedControl,
 } from "./primitives";
+import { Switch } from "@/components/ui/switch";
 import type { MCPServerConfig, MCPTransportType } from "@/types";
 
 const textAreaClassName =
-  "flex min-h-[96px] w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-mono " +
-  "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring " +
-  "disabled:cursor-not-allowed disabled:opacity-50 resize-y";
+  "flex min-h-[96px] w-full rounded-lg border border-input app-premium-field px-3 py-2 text-xs font-mono " +
+  "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 " +
+  "focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 resize-y";
 
 const emptyForm = (): Omit<MCPServerConfig, "id"> & { id?: string } => ({
   name: "",
@@ -50,6 +59,40 @@ function parseEnv(text: string): Record<string, string> {
   );
 }
 
+function serializeServerToJson(server: Omit<MCPServerConfig, "id"> & { id?: string }): string {
+  const obj: Record<string, unknown> = {};
+  if (server.id) obj.id = server.id;
+  obj.name = server.name;
+  obj.transport = server.transport;
+  obj.command = server.command;
+  obj.args = server.args;
+  obj.env = server.env;
+  obj.headers = server.headers;
+  obj.url = server.url;
+  obj.enabled = server.enabled;
+  return JSON.stringify(obj, null, 2);
+}
+
+function parseServerFromJson(text: string): Omit<MCPServerConfig, "id"> & { id?: string } | null {
+  try {
+    const obj = JSON.parse(text);
+    return {
+      id: typeof obj.id === "string" ? obj.id : undefined,
+      name: typeof obj.name === "string" ? obj.name : "",
+      transport: obj.transport === "sse" || obj.transport === "streamable_http" ? obj.transport : "stdio",
+      command: typeof obj.command === "string" ? obj.command : "",
+      args: Array.isArray(obj.args) ? obj.args.map(String) : [],
+      env: typeof obj.env === "object" && obj.env !== null ? Object.fromEntries(Object.entries(obj.env).map(([k, v]) => [k, String(v)])) : {},
+      headers: typeof obj.headers === "object" && obj.headers !== null ? Object.fromEntries(Object.entries(obj.headers).map(([k, v]) => [k, String(v)])) : {},
+      cwd: typeof obj.cwd === "string" ? obj.cwd : "",
+      url: typeof obj.url === "string" ? obj.url : "",
+      enabled: obj.enabled !== false,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function MCPConfigPanel(): React.JSX.Element {
   const { t } = useTranslation("settings");
   const [enabledMcpServerIds, setEnabledMcpServerIds] = useState<string[]>([]);
@@ -60,7 +103,10 @@ export function MCPConfigPanel(): React.JSX.Element {
   const [headersText, setHeadersText] = useState("");
   const [argsText, setArgsText] = useState("");
   const [importJson, setImportJson] = useState("");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [serverSearch, setServerSearch] = useState("");
+  const [editMode, setEditMode] = useState<"form" | "json">("form");
+  const [jsonText, setJsonText] = useState("");
 
   const filteredServers = useMemo(
     () =>
@@ -77,6 +123,28 @@ export function MCPConfigPanel(): React.JSX.Element {
     setEnvText(stringifyEnv(next.env));
     setHeadersText(stringifyEnv(next.headers));
     setArgsText(next.args.join("\n"));
+    setJsonText(serializeServerToJson(next));
+    setEditMode("form");
+  };
+
+  const switchToFormMode = (): void => {
+    if (!editing) return;
+    const parsed = parseServerFromJson(jsonText);
+    if (parsed) {
+      setEditing(parsed);
+      setEnvText(stringifyEnv(parsed.env));
+      setHeadersText(stringifyEnv(parsed.headers));
+      setArgsText(parsed.args.join("\n"));
+      setEditMode("form");
+    } else {
+      toast.error(t("mcpConfig.invalidJson"));
+    }
+  };
+
+  const switchToJsonMode = (): void => {
+    if (!editing) return;
+    setJsonText(serializeServerToJson(editing));
+    setEditMode("json");
   };
 
   const load = async (): Promise<void> => {
@@ -90,18 +158,28 @@ export function MCPConfigPanel(): React.JSX.Element {
 
   useEffect(() => {
     void load();
-    setEditing(null);
-    setImportJson("");
   }, []);
 
   const handleSave = async (): Promise<void> => {
     if (!editing) return;
-    const payload = {
-      ...editing,
-      env: parseEnv(envText),
-      headers: parseEnv(headersText),
-      args: argsText.split("\n").map((a) => a.trim()).filter(Boolean),
-    };
+
+    let payload: Omit<MCPServerConfig, "id"> & { id?: string };
+    if (editMode === "json") {
+      const parsed = parseServerFromJson(jsonText);
+      if (!parsed) {
+        toast.error(t("mcpConfig.invalidJson"));
+        return;
+      }
+      payload = parsed;
+    } else {
+      payload = {
+        ...editing,
+        env: parseEnv(envText),
+        headers: parseEnv(headersText),
+        args: argsText.split("\n").map((a) => a.trim()).filter(Boolean),
+      };
+    }
+
     try {
       await window.api.mcp.upsertServer(payload);
       await load();
@@ -147,6 +225,7 @@ export function MCPConfigPanel(): React.JSX.Element {
         : "";
       toast.success(t("mcpConfig.imported", { imported: result.imported.length, skipped: skippedSuffix }));
       setImportJson("");
+      setImportDialogOpen(false);
     } catch {
       toast.error(t("mcpConfig.importFailed"));
     }
@@ -165,46 +244,6 @@ export function MCPConfigPanel(): React.JSX.Element {
   return (
     <>
       <div className="space-y-6">
-        <SettingsSection title={t("mcpConfig.defaultEnabled")} description={t("mcpConfig.defaultEnabledDesc")}>
-          <SettingsCard>
-            {servers.length === 0 ? (
-              <div className="px-4 py-6 text-sm text-muted-foreground">{t("mcpConfig.noServers")}</div>
-            ) : (
-              servers.map((server) => (
-                <SettingsToggle
-                  key={server.id}
-                  label={server.name}
-                  description={server.transport === "stdio" ? (server.command || t("mcpConfig.noCommand")) : (server.url || t("mcpConfig.noUrl"))}
-                  checked={enabledIdSet.has(server.id)}
-                  onCheckedChange={(checked) => handleToggleEnabled(server.id, checked)}
-                />
-              ))
-            )}
-          </SettingsCard>
-        </SettingsSection>
-
-        <SettingsSection title={t("mcpConfig.importExport")} description={t("mcpConfig.importExportDesc")}>
-          <SettingsCard divided={false}>
-            <div className="px-4 pt-3">
-              <textarea
-                value={importJson}
-                onChange={(e) => setImportJson(e.target.value)}
-                placeholder={'{\n  "mcpServers": {\n    "my-server": {\n      "command": "npx",\n      "args": ["-y", "@scope/server"]\n    }\n  }\n}'}
-                className={textAreaClassName}
-              />
-            </div>
-            <div className="flex justify-end gap-2 px-4 py-3">
-              <Button variant="outline" size="sm" onClick={() => void handleCopyExport()}>
-                <Copy className="h-3.5 w-3.5 mr-1" />
-                {t("mcpConfig.copyExport")}
-              </Button>
-              <Button size="sm" disabled={!importJson.trim()} onClick={() => void handleImport()}>
-                {t("mcpConfig.importJson")}
-              </Button>
-            </div>
-          </SettingsCard>
-        </SettingsSection>
-
         <SettingsSection
           title={t("mcpConfig.serverList")}
           action={
@@ -218,6 +257,10 @@ export function MCPConfigPanel(): React.JSX.Element {
                   className="h-8 w-36 rounded-lg pl-8 text-xs"
                 />
               </div>
+              <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                <FileJson className="h-4 w-4 mr-1" />
+                {t("mcpConfig.importJson")}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => beginEditing(emptyForm())}>
                 <Plus className="h-4 w-4 mr-1" />
                 {t("common:add")}
@@ -225,117 +268,13 @@ export function MCPConfigPanel(): React.JSX.Element {
             </div>
           }
         >
-          {editing && (
-            <div className="rounded-xl border border-border/50 bg-card mb-3 overflow-hidden">
-              <div className="grid gap-3 p-4 md:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("mcpConfig.displayName")}</label>
-                  <Input
-                    value={editing.name}
-                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                    placeholder={t("mcpConfig.namePlaceholder")}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("mcpConfig.transport")}</label>
-                  <select
-                    value={editing.transport}
-                    onChange={(e) => setEditing({ ...editing, transport: e.target.value as MCPTransportType })}
-                    className="flex h-9 w-full rounded-lg border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="stdio">stdio</option>
-                    <option value="streamable_http">streamable_http</option>
-                    <option value="sse">sse</option>
-                  </select>
-                </div>
-              </div>
-
-              {editing.transport === "stdio" ? (
-                <div className="space-y-3 px-4 pb-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">{t("mcpConfig.startCommand")}</label>
-                    <Input
-                      value={editing.command}
-                      onChange={(e) => setEditing({ ...editing, command: e.target.value })}
-                      placeholder={t("mcpConfig.commandPlaceholder")}
-                    />
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">{t("mcpConfig.argsList")}</label>
-                      <textarea
-                        value={argsText}
-                        onChange={(e) => setArgsText(e.target.value)}
-                        placeholder={t("mcpConfig.argsPlaceholder")}
-                        className={textAreaClassName}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">{t("mcpConfig.envVars")}</label>
-                      <textarea
-                        value={envText}
-                        onChange={(e) => setEnvText(e.target.value)}
-                        placeholder={t("mcpConfig.envPlaceholder")}
-                        className={textAreaClassName}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">{t("mcpConfig.workingDir")}</label>
-                    <Input
-                      value={editing.cwd}
-                      onChange={(e) => setEditing({ ...editing, cwd: e.target.value })}
-                      placeholder={t("mcpConfig.cwdPlaceholder")}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3 px-4 pb-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">{t("mcpConfig.serviceUrl")}</label>
-                    <Input
-                      value={editing.url}
-                      onChange={(e) => setEditing({ ...editing, url: e.target.value })}
-                      placeholder={t("mcpConfig.urlPlaceholder")}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">{t("mcpConfig.headers")}</label>
-                    <textarea
-                      value={headersText}
-                      onChange={(e) => setHeadersText(e.target.value)}
-                      placeholder={t("mcpConfig.headersPlaceholder")}
-                      className={textAreaClassName}
-                    />
-                    <p className="text-xs text-muted-foreground">{t("mcpConfig.headersExample")}</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between border-t px-4 py-3">
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={editing.enabled}
-                    onChange={(e) => setEditing({ ...editing, enabled: e.target.checked })}
-                  />
-                  {t("mcpConfig.configAvailable")}
-                </label>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>{t("common:cancel")}</Button>
-                  <Button size="sm" onClick={() => void handleSave()}>{t("common:save")}</Button>
-                </div>
-              </div>
+          {filteredServers.length === 0 ? (
+            <div className="rounded-xl border border-border/50 px-4 py-8 text-center text-sm text-muted-foreground">
+              {serverSearch.trim() ? t("mcpConfig.noSearchResults") : t("mcpConfig.noMcpConfigs")}
             </div>
-          )}
-
-          <SettingsCard>
-            {filteredServers.length === 0 && !editing ? (
-              <div className="px-4 py-6 text-sm text-muted-foreground text-center">
-                {serverSearch.trim() ? t("mcpConfig.noSearchResults") : t("mcpConfig.noMcpConfigs")}
-              </div>
-            ) : (
-              filteredServers.map((server) => (
+          ) : (
+            <SettingsCard>
+              {filteredServers.map((server) => (
                 <SettingsRow
                   key={server.id}
                   label={server.name}
@@ -345,21 +284,175 @@ export function MCPConfigPanel(): React.JSX.Element {
                       : server.url
                   }
                 >
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => beginEditing({ ...server })}>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={enabledIdSet.has(server.id)}
+                      onCheckedChange={(checked) => handleToggleEnabled(server.id, checked)}
+                    />
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => beginEditing({ ...server })}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteTarget(server)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(server)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </SettingsRow>
-              ))
-            )}
-          </SettingsCard>
+              ))}
+            </SettingsCard>
+          )}
         </SettingsSection>
       </div>
 
+      {/* Edit / New Server Dialog */}
+      <Dialog open={editing !== null} onOpenChange={(nextOpen) => !nextOpen && setEditing(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editing?.id ? t("mcpConfig.editConfigTitle") : t("mcpConfig.newConfigTitle")}</DialogTitle>
+          </DialogHeader>
+          <SettingsSegmentedControl
+            options={[
+              { value: "form", label: t("mcpConfig.formMode") },
+              { value: "json", label: t("mcpConfig.jsonMode") },
+            ]}
+            value={editMode}
+            onValueChange={(v) => v === "form" ? switchToFormMode() : switchToJsonMode()}
+          />
+          {editMode === "json" ? (
+            <textarea
+              value={jsonText}
+              onChange={(e) => setJsonText(e.target.value)}
+              className={textAreaClassName + " min-h-[300px]"}
+              placeholder={serializeServerToJson(emptyForm())}
+            />
+          ) : (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-3 pr-1">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">{t("mcpConfig.displayName")}</label>
+                    <Input
+                      value={editing?.name ?? ""}
+                      onChange={(e) => setEditing({ ...(editing ?? emptyForm()), name: e.target.value })}
+                      placeholder={t("mcpConfig.namePlaceholder")}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">{t("mcpConfig.transport")}</label>
+                    <Select
+                      value={editing?.transport ?? "stdio"}
+                      onValueChange={(v) => setEditing({ ...(editing ?? emptyForm()), transport: v as MCPTransportType })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="stdio">stdio</SelectItem>
+                        <SelectItem value="streamable_http">streamable_http</SelectItem>
+                        <SelectItem value="sse">sse</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {editing?.transport === "stdio" ? (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">{t("mcpConfig.startCommand")}</label>
+                      <Input
+                        value={editing?.command ?? ""}
+                        onChange={(e) => setEditing({ ...(editing ?? emptyForm()), command: e.target.value })}
+                        placeholder={t("mcpConfig.commandPlaceholder")}
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium">{t("mcpConfig.argsList")}</label>
+                        <textarea
+                          value={argsText}
+                          onChange={(e) => setArgsText(e.target.value)}
+                          placeholder={t("mcpConfig.argsPlaceholder")}
+                          className={textAreaClassName}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium">{t("mcpConfig.envVars")}</label>
+                        <textarea
+                          value={envText}
+                          onChange={(e) => setEnvText(e.target.value)}
+                          placeholder={t("mcpConfig.envPlaceholder")}
+                          className={textAreaClassName}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">{t("mcpConfig.serviceUrl")}</label>
+                      <Input
+                        value={editing?.url ?? ""}
+                        onChange={(e) => setEditing({ ...(editing ?? emptyForm()), url: e.target.value })}
+                        placeholder={t("mcpConfig.urlPlaceholder")}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">{t("mcpConfig.headers")}</label>
+                      <textarea
+                        value={headersText}
+                        onChange={(e) => setHeadersText(e.target.value)}
+                        placeholder={t("mcpConfig.headersPlaceholder")}
+                        className={textAreaClassName}
+                      />
+                      <p className="text-xs text-muted-foreground">{t("mcpConfig.headersExample")}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editing?.enabled ?? true}
+                    onChange={(e) => setEditing({ ...(editing ?? emptyForm()), enabled: e.target.checked })}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <label className="text-xs text-muted-foreground">{t("mcpConfig.configAvailable")}</label>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="secondary" onClick={() => setEditing(null)}>{t("common:cancel")}</Button>
+            <Button onClick={() => void handleSave()}>{t("common:save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import JSON Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("mcpConfig.importExport")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("mcpConfig.importExportDesc")}</p>
+          <textarea
+            value={importJson}
+            onChange={(e) => setImportJson(e.target.value)}
+            placeholder={'{\n  "mcpServers": {\n    "my-server": {\n      "command": "npx",\n      "args": ["-y", "@scope/server"]\n    }\n  }\n}'}
+            className={textAreaClassName + " min-h-[160px]"}
+          />
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => void handleCopyExport()}>
+              <Copy className="h-3.5 w-3.5 mr-1" />
+              {t("mcpConfig.copyExport")}
+            </Button>
+            <Button disabled={!importJson.trim()} onClick={() => void handleImport()}>
+              {t("mcpConfig.importJson")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteTarget !== null} onOpenChange={(nextOpen) => !nextOpen && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

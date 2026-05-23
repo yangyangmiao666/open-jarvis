@@ -2,96 +2,115 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Save, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
-import { SettingsSection, SettingsCard, SettingsInput } from "./primitives";
-import type { ProxyConfig } from "@/types";
+import { toast } from "@/lib/toast";
+import {
+  SettingsSection,
+  SettingsCard,
+  SettingsInput,
+  SettingsSegmentedControl,
+} from "./primitives";
 
-const emptyConfig: ProxyConfig = {
-  httpProxy: "",
-  httpsProxy: "",
-  allProxy: "",
-};
+type ProxyMode = "system" | "custom";
 
 export function ProxyConfigPanel(): React.JSX.Element {
   const { t } = useTranslation("settings");
-  const [config, setConfig] = useState<ProxyConfig>(emptyConfig);
-  const [saving, setSaving] = useState(false);
+  const [proxyMode, setProxyMode] = useState<ProxyMode>("system");
+  const [httpsProxy, setHttpsProxy] = useState("");
+  const [httpProxy, setHttpProxy] = useState("");
+  const [allProxy, setAllProxy] = useState("");
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    void window.api.settings.getProxyConfig().then((nextConfig) => {
-      setConfig(nextConfig);
-    });
+    (async () => {
+      try {
+        const config = await window.api.settings.getProxyConfig();
+        const hasProxyValues = !!(config.httpsProxy || config.httpProxy || config.allProxy);
+        const mode: ProxyMode = config.proxyMode ?? (hasProxyValues ? "custom" : "system");
+        setProxyMode(mode);
+        setHttpsProxy(config.httpsProxy ?? "");
+        setHttpProxy(config.httpProxy ?? "");
+        setAllProxy(config.allProxy ?? "");
+      } catch {
+        // use defaults
+      }
+      setInitialized(true);
+    })();
   }, []);
 
-  const updateField = (key: keyof ProxyConfig, e: React.ChangeEvent<HTMLInputElement>): void => {
-    setConfig((current) => ({ ...current, [key]: e.target.value }));
-  };
-
   const handleSave = async (): Promise<void> => {
-    setSaving(true);
     try {
-      const saved = await window.api.settings.setProxyConfig(config);
-      setConfig(saved);
+      await window.api.settings.setProxyConfig({
+        httpsProxy: proxyMode === "custom" ? httpsProxy : "",
+        httpProxy: proxyMode === "custom" ? httpProxy : "",
+        allProxy: proxyMode === "custom" ? allProxy : "",
+        proxyMode,
+      });
       toast.success(t("proxyConfig.savedAndActive"));
     } catch {
       toast.error(t("proxyConfig.saveFailed"));
-    } finally {
-      setSaving(false);
     }
   };
 
-  const handleReset = async (): Promise<void> => {
-    setSaving(true);
-    try {
-      const saved = await window.api.settings.setProxyConfig(emptyConfig);
-      setConfig(saved);
-      toast.success(t("proxyConfig.cleared"));
-    } catch {
-      toast.error(t("proxyConfig.resetFailed"));
-    } finally {
-      setSaving(false);
-    }
+  const handleReset = (): void => {
+    setProxyMode("system");
+    setHttpsProxy("");
+    setHttpProxy("");
+    setAllProxy("");
   };
+
+  if (!initialized) return <></>;
 
   return (
     <div className="space-y-6">
-      <SettingsSection
-        title={t("proxyConfig.title")}
-        description={t("proxyConfig.description")}
-      >
+      <SettingsSection title={t("proxyConfig.title")} description={t("proxyConfig.description")}>
         <SettingsCard divided={false}>
-          <SettingsInput
-            label={t("proxyConfig.httpsProxy")}
-            value={config.httpsProxy}
-            onChange={(e) => updateField("httpsProxy", e)}
-            placeholder={t("proxyConfig.httpsProxyPlaceholder")}
-          />
-          <SettingsInput
-            label={t("proxyConfig.httpProxy")}
-            value={config.httpProxy}
-            onChange={(e) => updateField("httpProxy", e)}
-            placeholder={t("proxyConfig.httpProxyPlaceholder")}
-          />
-          <SettingsInput
-            label={t("proxyConfig.allProxy")}
-            value={config.allProxy}
-            onChange={(e) => updateField("allProxy", e)}
-            placeholder={t("proxyConfig.allProxyPlaceholder")}
-          />
+          <div className="px-4 pt-4 pb-1">
+            <SettingsSegmentedControl
+              value={proxyMode}
+              onValueChange={(v) => setProxyMode(v as ProxyMode)}
+              options={[
+                { value: "system", label: t("proxyConfig.system") },
+                { value: "custom", label: t("proxyConfig.custom") },
+              ]}
+            />
+          </div>
+
+          {proxyMode === "system" ? (
+            <div className="px-4 pb-4">
+              <p className="text-xs text-muted-foreground leading-relaxed">{t("proxyConfig.systemDesc")}</p>
+            </div>
+          ) : (
+            <div className="space-y-1 px-4 pb-4">
+              <SettingsInput
+                label={t("proxyConfig.httpsProxy")}
+                value={httpsProxy}
+                onChange={(e) => setHttpsProxy(e.target.value)}
+                placeholder={t("proxyConfig.httpsProxyPlaceholder")}
+              />
+              <SettingsInput
+                label={t("proxyConfig.httpProxy")}
+                value={httpProxy}
+                onChange={(e) => setHttpProxy(e.target.value)}
+                placeholder={t("proxyConfig.httpProxyPlaceholder")}
+              />
+              <SettingsInput
+                label={t("proxyConfig.allProxy")}
+                value={allProxy}
+                onChange={(e) => setAllProxy(e.target.value)}
+                placeholder={t("proxyConfig.allProxyPlaceholder")}
+              />
+            </div>
+          )}
         </SettingsCard>
       </SettingsSection>
 
-      <div className="rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-xs leading-5 text-muted-foreground">
-        {t("proxyConfig.autoNodeProxy")}
-      </div>
-
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" disabled={saving} onClick={() => void handleReset()}>
-          <RotateCcw className="h-4 w-4 mr-1" />
+        <Button variant="ghost" size="sm" onClick={handleReset}>
+          <RotateCcw className="h-3.5 w-3.5 mr-1" />
           {t("proxyConfig.clear")}
         </Button>
-        <Button disabled={saving} onClick={() => void handleSave()}>
-          <Save className="h-4 w-4 mr-1" />
+        <Button size="sm" onClick={() => void handleSave()}>
+          <Save className="h-3.5 w-3.5 mr-1" />
           {t("common:save")}
         </Button>
       </div>

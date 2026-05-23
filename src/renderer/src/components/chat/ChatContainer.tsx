@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/lib/store";
 import { useCurrentThread, useThreadStream } from "@/lib/thread-context";
+import { sendDesktopNotification } from "@/lib/notifications";
 import { MessageBubble } from "./MessageBubble";
 import { ModelSwitcher } from "./ModelSwitcher";
 import { Folder } from "lucide-react";
@@ -34,7 +35,7 @@ import {
 import type { ApprovalMode, Message, SettingsOpenRequest } from "@/types";
 import { cn, truncate } from "@/lib/utils";
 import { messagesToMarkdown } from "@/lib/chat-markdown";
-import { toast } from "@/components/ui/toast";
+import { toast } from "@/lib/toast";
 
 const STREAMING_BASE_TIPS = [
   i18n.t('streaming.tip1', { ns: 'chat' }),
@@ -163,7 +164,8 @@ export function ChatContainer({
     null,
   );
 
-  const { threads, models, loadThreads, generateTitleForFirstMessage } =
+  const { threads, models, loadThreads, generateTitleForFirstMessage,
+    notificationsEnabled, notificationSoundEnabled, notificationSounds } =
     useAppStore();
 
   // Get persisted thread state and actions from context
@@ -344,8 +346,24 @@ export function ChatContainer({
   }, [streamTodos, setTodos]);
 
   const prevLoadingRef = useRef(false);
+
   useEffect(() => {
     if (prevLoadingRef.current && !isLoading) {
+      if (!pendingApproval && pendingApprovals.length === 0 && !threadError && !isCancelling) {
+        sendDesktopNotification(
+          t('notification.taskComplete'),
+          t('notification.taskCompleteBody'),
+          {
+            force: true,
+            soundType: "taskComplete",
+            playSound: true,
+            sounds: notificationSounds,
+            soundEnabled: notificationSoundEnabled,
+            notificationsEnabled,
+          },
+        );
+      }
+
       for (const rawMsg of streamData.messages) {
         const msg = rawMsg as StreamMessage;
         if (msg.id) {
@@ -405,17 +423,7 @@ export function ChatContainer({
       }
     }
     prevLoadingRef.current = isLoading;
-  }, [
-    isLoading,
-    streamData.messages,
-    loadThreads,
-    appendMessage,
-    interruptionQueue,
-    stream,
-    threadId,
-    currentModel,
-    clearInterruptionQueue,
-  ]);
+  }, [isLoading, streamData.messages, loadThreads, appendMessage, interruptionQueue, stream, threadId, currentModel, clearInterruptionQueue, t, notificationSounds, notificationSoundEnabled, notificationsEnabled, pendingApproval, pendingApprovals.length, threadError, isCancelling]);
 
   const displayMessages = useMemo(() => {
     if (!isLoading) {

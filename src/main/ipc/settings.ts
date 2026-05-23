@@ -1,10 +1,11 @@
 import type {IpcMain} from "electron";
-import {BrowserWindow, dialog} from "electron";
+import {BrowserWindow, Notification, dialog} from "electron";
 import * as fs from "fs/promises";
 import {applyGlobalProxyDispatcher, getProxyConfigFromEnv} from "../proxy-config";
 import {getProxyConfig, setProxyConfig} from "../storage";
 import {exportGlobalConfig, importGlobalConfig} from "../global-config";
 import type {GlobalConfigExport, GlobalConfigImportMode, ProxyConfig} from "../types";
+import {getEmbeddedToolingRuntime} from "../tooling";
 
 export function registerSettingsHandlers(ipcMain: IpcMain): void {
   ipcMain.handle("settings:getProxyConfig", (): ProxyConfig => {
@@ -88,6 +89,59 @@ export function registerSettingsHandlers(ipcMain: IpcMain): void {
         return {
           success: false,
           error: e instanceof Error ? e.message : "Import failed",
+        };
+      }
+    },
+  );
+
+  ipcMain.handle("settings:getToolingVersions", (): { bun: string | null; uv: string | null; python: string | null } => {
+    const runtime = getEmbeddedToolingRuntime();
+    if (!runtime) {
+      return { bun: null, uv: null, python: null };
+    }
+    return {
+      bun: runtime.manifest.bun.version,
+      uv: runtime.manifest.uv.version,
+      python: runtime.manifest.python.version,
+    };
+  });
+
+  ipcMain.handle(
+    "settings:showDesktopNotification",
+    async (
+      event,
+      payload: { title: string; body: string },
+    ): Promise<{ success: boolean; error?: string }> => {
+      if (!Notification.isSupported()) {
+        return { success: false, error: "Desktop notifications are not supported" };
+      }
+
+      try {
+        const parentWindow = BrowserWindow.fromWebContents(event.sender);
+        const notification = new Notification({
+          title: payload.title,
+          body: payload.body,
+          silent: true,
+        });
+
+        notification.on("click", () => {
+          if (!parentWindow || parentWindow.isDestroyed()) {
+            return;
+          }
+
+          if (parentWindow.isMinimized()) {
+            parentWindow.restore();
+          }
+          parentWindow.show();
+          parentWindow.focus();
+        });
+
+        notification.show();
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Failed to show notification",
         };
       }
     },

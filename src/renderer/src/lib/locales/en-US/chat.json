@@ -223,5 +223,9 @@
     "clickToViewPdf": "Click to view",
     "cannotReadFile": "Cannot read file",
     "loadFailed": "Load failed"
-  }
+  },
+  "notification.taskComplete": "Task Complete",
+  "notification.taskCompleteBody": "The assistant has finished responding.",
+  "notification.permissionRequest": "Permission Request",
+  "notification.permissionRequestBody": "The assistant needs your approval to continue."
 }

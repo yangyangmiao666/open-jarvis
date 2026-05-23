@@ -32,6 +32,7 @@ const electronAPI = {
   },
   process: {
     platform: process.platform,
+    arch: process.arch,
     versions: process.versions,
   },
 };
@@ -272,6 +273,14 @@ const api = {
       mode: "merge" | "replace",
     ): Promise<GlobalConfigImportResult> => {
       return ipcRenderer.invoke("settings:importGlobalConfigFromFile", mode);
+    },
+    getToolingVersions: (): Promise<{ bun: string | null; uv: string | null; python: string | null }> => {
+      return ipcRenderer.invoke("settings:getToolingVersions");
+    },
+    showDesktopNotification: (
+      payload: { title: string; body: string },
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke("settings:showDesktopNotification", payload);
     },
   },
   workspace: {

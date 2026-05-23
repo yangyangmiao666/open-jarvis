@@ -223,12 +223,14 @@ export class ElectronIPCTransport implements UseStreamTransport {
 
   private buildTokenUsageEvent(
     usage: NormalizedTokenUsage,
+    usageKey?: string,
   ): StreamEvent {
     return {
       event: "custom",
       data: {
         type: "token_usage",
         usage,
+        usageKey,
       },
     };
   }
@@ -446,7 +448,10 @@ export class ElectronIPCTransport implements UseStreamTransport {
     while (!isDone || eventQueue.length > 0) {
       // Check for queued events first
       if (eventQueue.length > 0) {
-        const event = eventQueue.shift()!;
+        const event = eventQueue.shift();
+        if (!event) {
+          continue;
+        }
         if (event.event === "done") {
           break;
         }
@@ -760,7 +765,7 @@ export class ElectronIPCTransport implements UseStreamTransport {
 
           // Only emit if we have actual token counts (not on every chunk)
           if (usage.inputTokens > 0) {
-            events.push(this.buildTokenUsageEvent(usage));
+            events.push(this.buildTokenUsageEvent(usage, kwargs.id));
           }
         }
       }
@@ -825,6 +830,7 @@ export class ElectronIPCTransport implements UseStreamTransport {
       };
 
       let latestUsage: NormalizedTokenUsage | null = null;
+      let latestUsageKey: string | undefined;
 
       // Process messages in values mode to extract subagents
       if (state.messages) {
@@ -837,6 +843,7 @@ export class ElectronIPCTransport implements UseStreamTransport {
             const usage = this.extractTokenUsage(kwargs);
             if (usage) {
               latestUsage = usage;
+              latestUsageKey = kwargs.id;
             }
           }
 
@@ -949,7 +956,7 @@ export class ElectronIPCTransport implements UseStreamTransport {
       });
 
       if (latestUsage && latestUsage.inputTokens > 0) {
-        events.push(this.buildTokenUsageEvent(latestUsage));
+        events.push(this.buildTokenUsageEvent(latestUsage, latestUsageKey));
       }
 
       // Emit files/workspace

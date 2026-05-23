@@ -223,5 +223,9 @@
     "clickToViewPdf": "点击查看",
     "cannotReadFile": "无法读取文件",
     "loadFailed": "加载失败"
-  }
+  },
+  "notification.taskComplete": "任务完成",
+  "notification.taskCompleteBody": "助手已完成回复。",
+  "notification.permissionRequest": "权限请求",
+  "notification.permissionRequestBody": "助手需要您的批准才能继续。"
 }

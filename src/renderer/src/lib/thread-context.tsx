@@ -10,6 +10,14 @@ import {
   type ReactNode,
 } from "react";
 import i18n from "@/lib/locales";
+import { sendDesktopNotification } from "@/lib/notifications";
+import { useAppStore } from "@/lib/store";
+import {
+  appendPersistedTokenUsageStats,
+  loadPersistedTokenUsage,
+  persistTokenUsage,
+  type TokenUsage,
+} from "@/lib/token-usage";
 
 /* eslint-disable react-refresh/only-export-components */
 import { useStream } from "@langchain/langgraph-sdk/react";
@@ -29,16 +37,6 @@ import type { DeepAgent } from "../../../main/agent/types";
 export interface OpenFile {
   path: string;
   name: string;
-}
-
-// Token usage tracking for context window monitoring
-export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-  cacheReadTokens?: number;
-  cacheCreationTokens?: number;
-  lastUpdated: Date;
 }
 
 export interface PromptTokenEstimate {
@@ -155,52 +153,6 @@ const defaultStreamData: StreamData = {
   stream: null,
 };
 
-function tokenUsageStorageKey(threadId: string): string {
-  return `openwork-thread-${threadId}-token-usage`;
-}
-
-function loadPersistedTokenUsage(threadId: string): TokenUsage | null {
-  try {
-    const raw = localStorage.getItem(tokenUsageStorageKey(threadId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as {
-      inputTokens?: number;
-      outputTokens?: number;
-      totalTokens?: number;
-      cacheReadTokens?: number;
-      cacheCreationTokens?: number;
-      lastUpdated?: string;
-    };
-    if (typeof parsed.inputTokens !== "number") return null;
-    return {
-      inputTokens: parsed.inputTokens,
-      outputTokens: parsed.outputTokens ?? 0,
-      totalTokens: parsed.totalTokens ?? 0,
-      cacheReadTokens: parsed.cacheReadTokens,
-      cacheCreationTokens: parsed.cacheCreationTokens,
-      lastUpdated: parsed.lastUpdated
-        ? new Date(parsed.lastUpdated)
-        : new Date(),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function persistTokenUsage(threadId: string, usage: TokenUsage): void {
-  try {
-    localStorage.setItem(
-      tokenUsageStorageKey(threadId),
-      JSON.stringify({
-        ...usage,
-        lastUpdated: usage.lastUpdated.toISOString(),
-      }),
-    );
-  } catch {
-    // Ignore localStorage failures (quota/private mode)
-  }
-}
-
 const ThreadContext = createContext<ThreadContextValue | null>(null);
 
 // Custom event types from the stream
@@ -225,6 +177,7 @@ interface CustomEventData {
     cacheReadTokens?: number;
     cacheCreationTokens?: number;
   };
+  usageKey?: string;
   estimate?: {
     hiddenPromptTokens?: number;
     systemPromptTokens?: number;
@@ -501,9 +454,22 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                     threadId,
                     requests,
                   );
+                  const s = useAppStore.getState();
+                  sendDesktopNotification(
+                    i18n.t("notification.permissionRequest", { ns: "chat" }),
+                    i18n.t("notification.permissionRequestBody", { ns: "chat" }),
+                    {
+                      force: true,
+                      playSound: true,
+                      soundType: "permissionRequest",
+                      sounds: s.notificationSounds,
+                      soundEnabled: s.notificationSoundEnabled,
+                      notificationsEnabled: s.notificationsEnabled,
+                    },
+                  );
                   updateThreadState(threadId, () => ({
                     pendingApprovals: requests,
-                    pendingApproval: requests[0] ?? null,
+                  pendingApproval: requests[0] ?? null,
                   }));
                   return;
                 }
@@ -542,11 +508,12 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           break;
         case "workspace":
           if (Array.isArray(data.files)) {
+            const files = data.files;
             updateThreadState(threadId, (state) => {
               const fileMap = new Map(
                 state.workspaceFiles.map((f) => [f.path, f]),
               );
-              for (const f of data.files!) {
+              for (const f of files) {
                 fileMap.set(f.path, {
                   path: f.path,
                   is_dir: f.is_dir,
@@ -586,21 +553,23 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             data.usage.inputTokens !== undefined &&
             data.usage.inputTokens > 0
           ) {
+            const nextUsage: TokenUsage = {
+              inputTokens: data.usage?.inputTokens || 0,
+              outputTokens: data.usage?.outputTokens || 0,
+              totalTokens: data.usage?.totalTokens || 0,
+              cacheReadTokens: data.usage?.cacheReadTokens,
+              cacheCreationTokens: data.usage?.cacheCreationTokens,
+              lastUpdated: new Date(),
+            };
             console.log("[ThreadContext] Token usage update:", {
               threadId,
               inputTokens: data.usage.inputTokens,
               outputTokens: data.usage.outputTokens,
               totalTokens: data.usage.totalTokens,
             });
+            appendPersistedTokenUsageStats(threadId, nextUsage, data.usageKey);
             updateThreadState(threadId, () => ({
-              tokenUsage: {
-                inputTokens: data.usage?.inputTokens || 0,
-                outputTokens: data.usage?.outputTokens || 0,
-                totalTokens: data.usage?.totalTokens || 0,
-                cacheReadTokens: data.usage?.cacheReadTokens,
-                cacheCreationTokens: data.usage?.cacheCreationTokens,
-                lastUpdated: new Date(),
-              },
+              tokenUsage: nextUsage,
             }));
           }
           break;

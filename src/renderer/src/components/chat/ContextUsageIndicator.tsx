@@ -2,7 +2,8 @@ import {ArrowDown, ArrowUp, CircleGauge, Database, Zap} from "lucide-react";
 import {useTranslation} from "react-i18next";
 import {Popover, PopoverContent, PopoverTrigger,} from "@/components/ui/popover";
 import {cn} from "@/lib/utils";
-import type {PromptTokenEstimate, TokenUsage} from "@/lib/thread-context";
+import type {PromptTokenEstimate} from "@/lib/thread-context";
+import type {TokenUsage} from "@/lib/token-usage";
 import type {CustomModelApiFormat, Message, ProviderId} from "@/types";
 import {getContextWindowForModel} from "../../../../model-context";
 

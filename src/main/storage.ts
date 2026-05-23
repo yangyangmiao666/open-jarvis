@@ -130,25 +130,29 @@ export function loadEnvFileToProcessEnv(): Record<string, string> {
 
 export function getProxyConfig(): ProxyConfig {
   const env = parseEnvFile();
-  return {
-    httpProxy: env["HTTP_PROXY"] ?? process.env["HTTP_PROXY"] ?? "",
-    httpsProxy: env["HTTPS_PROXY"] ?? process.env["HTTPS_PROXY"] ?? "",
-    allProxy: env["ALL_PROXY"] ?? process.env["ALL_PROXY"] ?? "",
-  };
+  const httpProxy = env["HTTP_PROXY"] ?? process.env["HTTP_PROXY"] ?? "";
+  const httpsProxy = env["HTTPS_PROXY"] ?? process.env["HTTPS_PROXY"] ?? "";
+  const allProxy = env["ALL_PROXY"] ?? process.env["ALL_PROXY"] ?? "";
+  const hasProxyValues = !!(httpProxy || httpsProxy || allProxy);
+  const proxyMode = (env["PROXY_MODE"] as "system" | "custom" | undefined) ?? (hasProxyValues ? "custom" : "system");
+  return { httpProxy, httpsProxy, allProxy, proxyMode };
 }
 
 export function setProxyConfig(config: ProxyConfig): ProxyConfig {
   const env = parseEnvFile();
+  const proxyMode = config.proxyMode ?? "system";
   const normalized: ProxyConfig = {
     httpProxy: config.httpProxy.trim(),
     httpsProxy: config.httpsProxy.trim(),
     allProxy: config.allProxy.trim(),
+    proxyMode,
   };
 
   const nextEntries: Array<[string, string]> = [
     ["HTTP_PROXY", normalized.httpProxy],
     ["HTTPS_PROXY", normalized.httpsProxy],
     ["ALL_PROXY", normalized.allProxy],
+    ["PROXY_MODE", proxyMode],
   ];
 
   for (const [key, value] of nextEntries) {

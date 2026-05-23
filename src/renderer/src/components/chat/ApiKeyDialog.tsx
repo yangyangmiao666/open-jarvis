@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/lib/store";
-import { toast } from "@/components/ui/toast";
+import { toast } from "@/lib/toast";
 import type { Provider } from "@/types";
 
 interface ApiKeyDialogProps {

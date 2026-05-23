@@ -296,15 +296,15 @@ export function ThreadSidebar({
       </div>
 
       <div className="space-y-2 border-b border-sidebar-border/65 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--sidebar-accent)_46%,transparent),transparent)] p-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="default"
             size="sm"
-            className="min-w-0 flex-1 justify-start gap-2 rounded-2xl"
+            className="min-w-[9.5rem] flex-1 justify-start gap-2 rounded-2xl px-3"
             onClick={handleNewThread}
           >
             <Plus className="size-4" />
-            {t('newSession')}
+            <span className="min-w-0 truncate">{t('newSession')}</span>
           </Button>
           {!bulkMode && (
             <Button

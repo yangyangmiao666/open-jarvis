@@ -22,6 +22,7 @@ interface ElectronAPI {
   };
   process: {
     platform: NodeJS.Platform;
+    arch: string;
     versions: NodeJS.ProcessVersions;
   };
 }
@@ -117,6 +118,10 @@ interface CustomAPI {
     importGlobalConfigFromFile: (
       mode: "merge" | "replace",
     ) => Promise<GlobalConfigImportResult>;
+    getToolingVersions: () => Promise<{ bun: string | null; uv: string | null; python: string | null }>;
+    showDesktopNotification: (
+      payload: { title: string; body: string },
+    ) => Promise<{ success: boolean; error?: string }>;
   };
   workspace: {
     get: (threadId?: string) => Promise<string | null>;

@@ -9,7 +9,6 @@ export function useObjectUrlFromBase64(
 
   useEffect(() => {
     if (!base64) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUrl(null);
       return undefined;
     }

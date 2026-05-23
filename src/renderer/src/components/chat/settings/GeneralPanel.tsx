@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Upload, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Download, Upload, AlertTriangle, ShieldCheck, Volume2, Sun, Moon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,16 +9,103 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { SettingsSection, SettingsCard, SettingsRow } from "./primitives";
-import { LanguageSelector } from "@/components/chat/LanguageSelector";
+import {
+  SettingsSection,
+  SettingsCard,
+  SettingsRow,
+  SettingsToggle,
+} from "./primitives";
 import { useAppStore } from "@/lib/store";
+import {
+  NOTIFICATION_SOUNDS,
+  DEFAULT_NOTIFICATION_SOUNDS,
+  ensureDesktopNotificationPermission,
+  playNotificationSound,
+} from "@/lib/notifications";
+import type { NotificationSoundId, NotificationSoundType, NotificationSoundSettings } from "@/lib/notifications";
 import type { GlobalConfigImportResult } from "@/types";
+
+// ===== SoundPicker =====
+
+interface SoundPickerProps {
+  label: string;
+  description?: string;
+  type: NotificationSoundType;
+  sounds: NotificationSoundSettings;
+  disabled: boolean;
+  onSoundChange: (type: NotificationSoundType, soundId: NotificationSoundId) => void;
+}
+
+function SoundPicker({ label, description, type, sounds, disabled, onSoundChange }: SoundPickerProps): React.JSX.Element {
+  const { t } = useTranslation("settings");
+  const currentId = sounds[type] ?? DEFAULT_NOTIFICATION_SOUNDS[type];
+
+  const soundOptions = [
+    { value: "none", label: t("general.soundNone") },
+    ...NOTIFICATION_SOUNDS.map((s) => ({ value: s.id, label: s.label })),
+  ];
+
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3">
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="text-sm font-medium leading-tight">{label}</div>
+        {description && <div className="text-xs text-muted-foreground leading-relaxed">{description}</div>}
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Select
+          value={currentId}
+          disabled={disabled}
+          onValueChange={(v) => onSoundChange(type, v as NotificationSoundId)}
+        >
+          <SelectTrigger className="h-9 w-[260px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {soundOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          disabled={disabled || currentId === "none"}
+          onClick={() => playNotificationSound(currentId)}
+          title={t("general.previewSound")}
+        >
+          <Volume2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function GeneralPanel(): React.JSX.Element {
   const { t } = useTranslation("settings");
-  const { loadModels, loadProviders } = useAppStore();
+  const {
+    loadModels,
+    loadProviders,
+    colorMode,
+    setColorMode,
+    language,
+    setLanguage,
+    notificationsEnabled,
+    setNotificationsEnabled,
+    notificationSoundEnabled,
+    setNotificationSoundEnabled,
+    notificationSounds,
+    setNotificationSound,
+  } = useAppStore();
 
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [includeApiKeys, setIncludeApiKeys] = useState(false);
@@ -28,6 +115,13 @@ export function GeneralPanel(): React.JSX.Element {
   const [importResultOpen, setImportResultOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+
+  const handleDesktopNotificationToggle = async (enabled: boolean): Promise<void> => {
+    if (enabled) {
+      await ensureDesktopNotificationPermission();
+    }
+    setNotificationsEnabled(enabled);
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -57,9 +151,112 @@ export function GeneralPanel(): React.JSX.Element {
     }
   };
 
+  const soundDisabled = !notificationSoundEnabled;
+
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-8">
+        {/* General Settings */}
+        <SettingsSection title={t("general.generalSettings")} description={t("general.generalSettingsDesc")}>
+          <SettingsCard>
+            <SettingsRow
+              label={t("general.theme")}
+              description={t("general.themeDesc")}
+              icon={colorMode === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            >
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                    colorMode === "light"
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                  onClick={() => setColorMode("light")}
+                >
+                  {t("general.light")}
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                    colorMode === "dark"
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                  onClick={() => setColorMode("dark")}
+                >
+                  {t("general.dark")}
+                </button>
+              </div>
+            </SettingsRow>
+
+            <SettingsRow
+              label={t("general.language")}
+              description={t("general.languageDesc")}
+            >
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                    language === "zh-CN"
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                  onClick={() => setLanguage("zh-CN")}
+                >
+                  中文
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                    language === "en-US"
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                  onClick={() => setLanguage("en-US")}
+                >
+                  English
+                </button>
+              </div>
+            </SettingsRow>
+
+            <SettingsToggle
+              label={t("general.desktopNotification")}
+              description={t("general.desktopNotificationDesc")}
+              checked={notificationsEnabled}
+              onCheckedChange={(checked) => {
+                void handleDesktopNotificationToggle(checked);
+              }}
+            />
+
+            <SettingsToggle
+              label={t("general.notificationSound")}
+              description={t("general.notificationSoundDesc")}
+              checked={notificationSoundEnabled}
+              onCheckedChange={setNotificationSoundEnabled}
+            />
+
+            <SoundPicker
+              label={t("general.taskCompleteSound")}
+              description={t("general.taskCompleteSoundDesc")}
+              type="taskComplete"
+              sounds={notificationSounds}
+              disabled={soundDisabled}
+              onSoundChange={setNotificationSound}
+            />
+
+            <SoundPicker
+              label={t("general.permissionRequestSound")}
+              description={t("general.permissionRequestSoundDesc")}
+              type="permissionRequest"
+              sounds={notificationSounds}
+              disabled={soundDisabled}
+              onSoundChange={setNotificationSound}
+            />
+          </SettingsCard>
+        </SettingsSection>
+
+        {/* Config Import/Export */}
         <SettingsSection title={t("settingsHub.globalConfig")} description={t("importDialog.description")}>
           <SettingsCard>
             <SettingsRow
@@ -93,14 +290,6 @@ export function GeneralPanel(): React.JSX.Element {
               >
                 {t("settingsHub.importAll")}
               </Button>
-            </SettingsRow>
-          </SettingsCard>
-        </SettingsSection>
-
-        <SettingsSection title={t("settingsHub.languageLabel")}>
-          <SettingsCard>
-            <SettingsRow label={t("settingsHub.languageLabel")} description="">
-              <LanguageSelector />
             </SettingsRow>
           </SettingsCard>
         </SettingsSection>
@@ -212,7 +401,7 @@ export function GeneralPanel(): React.JSX.Element {
             <DialogDescription>{t("importResult.description")}</DialogDescription>
           </DialogHeader>
           {importResult && (
-            <div className="flex flex-col gap-1.5 rounded-lg border px-4 py-3 text-sm">
+            <div className="flex flex-col gap-2 rounded-lg border px-4 py-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("importResult.modelConfig")}</span>
                 <span className="font-medium">{importResult.profilesImported} {t("importResult.items")}</span>

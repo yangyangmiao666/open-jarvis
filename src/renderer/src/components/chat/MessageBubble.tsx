@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { Message, HITLRequest } from "@/types";
 import { singleMessageToMarkdown } from "@/lib/chat-markdown";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
+import { toast } from "@/lib/toast";
 import { JarvisMark } from "@/components/branding/JarvisMark";
 import { ToolCallRenderer } from "./ToolCallRenderer";
 import { ThinkAwareMarkdown } from "./ThinkAwareMarkdown";

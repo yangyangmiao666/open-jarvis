@@ -1,6 +1,17 @@
 import { create } from "zustand";
 import i18n from "@/lib/locales";
 import type { Thread, ModelConfig, Provider } from "@/types";
+import {
+  type NotificationSoundSettings,
+  type NotificationSoundType,
+  type NotificationSoundId,
+  loadNotificationsEnabled,
+  saveNotificationsEnabled,
+  loadNotificationSoundEnabled,
+  saveNotificationSoundEnabled,
+  loadNotificationSounds,
+  saveNotificationSounds,
+} from "@/lib/notifications";
 
 interface AppState {
   // Threads
@@ -32,6 +43,18 @@ interface AppState {
   /** 语言 */
   language: "zh-CN" | "en-US";
   setLanguage: (lang: "zh-CN" | "en-US") => void;
+
+  /** 桌面通知 */
+  notificationsEnabled: boolean;
+  setNotificationsEnabled: (enabled: boolean) => void;
+
+  /** 通知提示音 */
+  notificationSoundEnabled: boolean;
+  setNotificationSoundEnabled: (enabled: boolean) => void;
+
+  /** 各场景通知音配置 */
+  notificationSounds: NotificationSoundSettings;
+  setNotificationSound: (type: NotificationSoundType, soundId: NotificationSoundId) => void;
 
   // Thread actions
   loadThreads: () => Promise<void>;
@@ -89,6 +112,15 @@ export const useAppStore = create<AppState>((set, get) => ({
         "zh-CN"
       : "zh-CN",
 
+  notificationsEnabled:
+    typeof window !== "undefined" ? loadNotificationsEnabled() : true,
+
+  notificationSoundEnabled:
+    typeof window !== "undefined" ? loadNotificationSoundEnabled() : true,
+
+  notificationSounds:
+    typeof window !== "undefined" ? loadNotificationSounds() : {},
+
   setColorMode: (mode) => {
     document.documentElement.classList.remove("light", "dark");
     document.documentElement.classList.add(mode);
@@ -105,6 +137,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     localStorage.setItem("openwork-language", lang);
     i18n.changeLanguage(lang);
     set({ language: lang });
+  },
+
+  setNotificationsEnabled: (enabled) => {
+    saveNotificationsEnabled(enabled);
+    set({ notificationsEnabled: enabled });
+  },
+
+  setNotificationSoundEnabled: (enabled) => {
+    saveNotificationSoundEnabled(enabled);
+    set({ notificationSoundEnabled: enabled });
+  },
+
+  setNotificationSound: (type, soundId) => {
+    const next = { ...get().notificationSounds, [type]: soundId };
+    saveNotificationSounds(next);
+    set({ notificationSounds: next });
   },
 
   // Thread actions

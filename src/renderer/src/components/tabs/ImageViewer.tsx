@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useObjectUrlFromBase64 } from "@/lib/media-blob";
 import { ZoomIn, ZoomOut, Maximize2, RotateCw, Hand } from "lucide-react";
@@ -29,20 +29,20 @@ export function ImageViewer({
   const blobUrl = useObjectUrlFromBase64(base64Content, mimeType);
   const imageUrl = blobUrl ?? `data:${mimeType};base64,${base64Content}`;
 
-  const applyTransform = (): void => {
+  const applyTransform = useCallback((): void => {
     const image = imageRef.current;
     if (!image) return;
     const { x, y } = panOffsetRef.current;
     image.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoom / 100}) rotate(${rotation}deg)`;
-  };
+  }, [rotation, zoom]);
 
-  const scheduleTransform = (): void => {
+  const scheduleTransform = useCallback((): void => {
     if (frameRef.current !== null) return;
     frameRef.current = requestAnimationFrame(() => {
       frameRef.current = null;
       applyTransform();
     });
-  };
+  }, [applyTransform]);
 
   useEffect(() => {
     applyTransform();
