@@ -205,6 +205,13 @@
     "editApiKey": "编辑 API 密钥",
     "customModel": "自定义模型"
   },
+  "thinkingSection": {
+    "thinking": "思考中",
+    "expand": "展开",
+    "collapse": "收起",
+    "emptyContent": "*思考内容为空*",
+    "summaryFallback": "已完成思考。点击展开查看详情。"
+  },
   "thinkBlock": {
     "thinkingInProgress": "思考中",
     "thinkingProcess": "思考过程",

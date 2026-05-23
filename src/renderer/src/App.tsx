@@ -6,7 +6,7 @@ import { KanbanView, KanbanHeader } from "@/components/kanban";
 import { ResizeHandle } from "@/components/ui/resizable";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WindowTitleBar } from "@/components/WindowTitleBar";
-import { SettingsHubDialog } from "@/components/chat/SettingsHubDialog";
+import { SettingsDialog } from "@/components/chat/SettingsDialog";
 import { Toaster } from "@/components/ui/toast";
 import { useAppStore } from "@/lib/store";
 import { useTranslation } from "react-i18next";
@@ -125,7 +125,7 @@ function AppShell({
         </div>
       </div>
 
-      <SettingsHubDialog
+      <SettingsDialog
         open={settingsOpen}
         onOpenChange={handleSettingsOpenChange}
         request={settingsRequest}

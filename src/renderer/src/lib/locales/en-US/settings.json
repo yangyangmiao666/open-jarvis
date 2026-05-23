@@ -2,6 +2,13 @@
   "settingsHub": {
     "title": "Settings Hub",
     "controlCenter": "Control Center",
+    "tabs": {
+      "general": "General",
+      "models": "Models",
+      "proxy": "Proxy",
+      "skills": "Skills",
+      "mcp": "MCP"
+    },
     "customModelConfig": "Custom Model Configuration",
     "proxyConfig": "Proxy Configuration",
     "skillsConfig": "Skills Configuration",
@@ -16,6 +23,11 @@
     "openMcpConfig": "Open MCP Config",
     "globalConfig": "Global Configuration",
     "languageLabel": "Language",
+    "tabGeneral": "General",
+    "tabModels": "Models",
+    "tabProxy": "Proxy",
+    "tabSkills": "Skills",
+    "tabMcp": "MCP",
     "exportAll": "Export All",
     "importAll": "Import All"
   },
@@ -265,6 +277,26 @@
     "sourcesLabel": "Sources",
     "globalLabel": "Global",
     "editorLabel": "Editor",
-    "skillTag": "Skill"
+    "skillTag": "Skill",
+    "addFolder": "Add Folder",
+    "addFolderFailed": "Failed to add folder",
+    "allSkills": "All Skills",
+    "confirmDeleteFolder": "Delete Skill Folder?",
+    "deleteFolderWarning": "This will remove the skill folder \"{{name}}\". This action cannot be undone.",
+    "description": "Description",
+    "folder": "Folder",
+    "folderAdded": "Folder added",
+    "folderPathPlaceholder": "/path/to/skills/folder",
+    "folderRemoved": "Folder removed",
+    "folderRenamed": "Folder renamed",
+    "newNamePlaceholder": "New folder name",
+    "noFolders": "No skill folders configured",
+    "noGlobalSources": "No global skill sources enabled",
+    "noSearchResults": "No matching skills",
+    "noSkills": "No skills available",
+    "removeFolderFailed": "Failed to remove folder",
+    "renameFolder": "Rename Folder",
+    "renameFolderFailed": "Failed to rename folder",
+    "toggleFailed": "Failed to toggle skill"
   }
 }

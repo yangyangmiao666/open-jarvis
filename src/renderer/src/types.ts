@@ -88,8 +88,10 @@ export type CustomModelReasoningContentMode =
   | "enabled"
   | "disabled";
 
+export type SettingsPanel = "general" | "models" | "proxy" | "skills" | "mcp";
+
 export interface SettingsOpenRequest {
-  panel?: "models";
+  panel?: SettingsPanel;
   profileId?: string;
 }
 
