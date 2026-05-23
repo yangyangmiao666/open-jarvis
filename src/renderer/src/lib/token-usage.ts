@@ -17,6 +17,16 @@ export interface TokenUsageEntry {
   recordedAt: string;
 }
 
+export interface PromptTokenEstimateSnapshot {
+  hiddenPromptTokens: number;
+  systemPromptTokens: number;
+  filesystemPromptTokens: number;
+  referencedPathsTokens: number;
+  summarizationMessageTokens: number;
+  estimatedInputTokens?: number;
+  lastUpdated: string;
+}
+
 export interface TokenUsageTotals {
   inputTokens: number;
   outputTokens: number;
@@ -53,6 +63,10 @@ export function tokenUsageStatsStorageKey(threadId: string): string {
   return `openwork-thread-${threadId}-token-usage-stats`;
 }
 
+export function promptTokenEstimateStorageKey(threadId: string): string {
+  return `openwork-thread-${threadId}-prompt-token-estimate`;
+}
+
 function serializeUsage(usage: TokenUsage): SerializedTokenUsage {
   return {
     inputTokens: usage.inputTokens,
@@ -61,6 +75,34 @@ function serializeUsage(usage: TokenUsage): SerializedTokenUsage {
     cacheReadTokens: usage.cacheReadTokens,
     cacheCreationTokens: usage.cacheCreationTokens,
     lastUpdated: usage.lastUpdated.toISOString(),
+  };
+}
+
+function mergeUsageValues(
+  current: SerializedTokenUsage | TokenUsage | null | undefined,
+  incoming: SerializedTokenUsage | TokenUsage,
+): SerializedTokenUsage {
+  const currentInput = current?.inputTokens ?? 0;
+  const currentOutput = current?.outputTokens ?? 0;
+  const nextInput = incoming.inputTokens > 0 ? incoming.inputTokens : currentInput;
+  const nextOutput = incoming.outputTokens > 0 ? incoming.outputTokens : currentOutput;
+  const nextTotal = Math.max(
+    incoming.totalTokens ?? 0,
+    current?.totalTokens ?? 0,
+    nextInput + nextOutput,
+  );
+
+  return {
+    inputTokens: nextInput,
+    outputTokens: nextOutput,
+    totalTokens: nextTotal,
+    cacheReadTokens: incoming.cacheReadTokens ?? current?.cacheReadTokens,
+    cacheCreationTokens:
+      incoming.cacheCreationTokens ?? current?.cacheCreationTokens,
+    lastUpdated:
+      incoming.lastUpdated instanceof Date
+        ? incoming.lastUpdated.toISOString()
+        : incoming.lastUpdated,
   };
 }
 
@@ -187,16 +229,64 @@ export function appendPersistedTokenUsageStats(
   const existing = loadPersistedTokenUsageStats(threadId);
   const serializedUsage = serializeUsage(usage);
 
-  if (
-    existing &&
-    (existing.lastRecordedUsageKey === normalizedKey ||
-      existing.entries.some((entry) => entry.usageKey === normalizedKey))
-  ) {
+  const existingEntryIndex =
+    existing?.entries.findIndex((entry) => entry.usageKey === normalizedKey) ?? -1;
+
+  if (existing && existingEntryIndex >= 0) {
+    const currentEntry = existing.entries[existingEntryIndex];
+    const mergedUsage = mergeUsageValues(
+      {
+        inputTokens: currentEntry.inputTokens,
+        outputTokens: currentEntry.outputTokens,
+        totalTokens: currentEntry.totalTokens,
+        cacheReadTokens: currentEntry.cacheReadTokens,
+        cacheCreationTokens: currentEntry.cacheCreationTokens,
+        lastUpdated: currentEntry.recordedAt,
+      },
+      serializedUsage,
+    );
+    const nextEntries = [...existing.entries];
+    nextEntries[existingEntryIndex] = {
+      ...currentEntry,
+      inputTokens: mergedUsage.inputTokens,
+      outputTokens: mergedUsage.outputTokens,
+      totalTokens: mergedUsage.totalTokens,
+      cacheReadTokens: mergedUsage.cacheReadTokens,
+      cacheCreationTokens: mergedUsage.cacheCreationTokens,
+      recordedAt: mergedUsage.lastUpdated,
+    };
+
     const next = {
       ...existing,
-      latest: serializedUsage,
+      latest: mergeUsageValues(existing.latest, serializedUsage),
+      totals: {
+        inputTokens:
+          existing.totals.inputTokens - currentEntry.inputTokens + mergedUsage.inputTokens,
+        outputTokens:
+          existing.totals.outputTokens - currentEntry.outputTokens + mergedUsage.outputTokens,
+        totalTokens:
+          existing.totals.totalTokens - currentEntry.totalTokens + mergedUsage.totalTokens,
+        cacheReadTokens:
+          existing.totals.cacheReadTokens - (currentEntry.cacheReadTokens ?? 0) + (mergedUsage.cacheReadTokens ?? 0),
+        cacheCreationTokens:
+          existing.totals.cacheCreationTokens - (currentEntry.cacheCreationTokens ?? 0) + (mergedUsage.cacheCreationTokens ?? 0),
+      },
+      entries: nextEntries,
       lastRecordedUsageKey: normalizedKey,
     };
+    persistTokenUsage(threadId, deserializeUsage(next.latest) ?? usage);
+    writeStorage(tokenUsageStatsStorageKey(threadId), next);
+    dispatchTokenUsageUpdated();
+    return next;
+  }
+
+  if (existing && existing.lastRecordedUsageKey === normalizedKey) {
+    const next = {
+      ...existing,
+      latest: mergeUsageValues(existing.latest, serializedUsage),
+      lastRecordedUsageKey: normalizedKey,
+    };
+    persistTokenUsage(threadId, deserializeUsage(next.latest) ?? usage);
     writeStorage(tokenUsageStatsStorageKey(threadId), next);
     dispatchTokenUsageUpdated();
     return next;
@@ -249,7 +339,9 @@ export function clearAllPersistedTokenUsage(): void {
       const key = localStorage.key(index);
       if (
         key?.startsWith("openwork-thread-") &&
-        (key.endsWith("-token-usage") || key.endsWith("-token-usage-stats"))
+        (key.endsWith("-token-usage") ||
+          key.endsWith("-token-usage-stats") ||
+          key.endsWith("-prompt-token-estimate"))
       ) {
         keys.push(key);
       }
@@ -260,5 +352,25 @@ export function clearAllPersistedTokenUsage(): void {
   } catch {
     // Ignore localStorage failures
   }
+  dispatchTokenUsageUpdated();
+}
+
+export function loadPersistedPromptTokenEstimate(
+  threadId: string,
+): PromptTokenEstimateSnapshot | null {
+  const estimate = readStorage<PromptTokenEstimateSnapshot>(
+    promptTokenEstimateStorageKey(threadId),
+  );
+  if (!estimate || typeof estimate.hiddenPromptTokens !== "number") {
+    return null;
+  }
+  return estimate;
+}
+
+export function persistPromptTokenEstimate(
+  threadId: string,
+  estimate: PromptTokenEstimateSnapshot,
+): void {
+  writeStorage(promptTokenEstimateStorageKey(threadId), estimate);
   dispatchTokenUsageUpdated();
 }

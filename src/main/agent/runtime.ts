@@ -380,6 +380,7 @@ function sanitizeOpenAICompatibleRequestBody(
     delete sanitized["user"];
     delete sanitized["seed"];
     delete sanitized["response_format"];
+    delete sanitized["stream_options"];
   }
 
   return sanitized;
@@ -835,7 +836,7 @@ function createCustomOpenAIChatModel(
     },
     modelKwargs,
     useResponsesApi: false,
-    streamUsage: false,
+    streamUsage: true,
     timeout: MODEL_REQUEST_TIMEOUT_MS,
     maxRetries: 1,
   });

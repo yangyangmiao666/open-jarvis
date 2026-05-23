@@ -79,10 +79,12 @@ export function ContextUsageIndicator({
     promptTokenEstimate?.summarizationMessageTokens ?? 0;
   const estimatedInputTokens =
     visibleMessageTokens + hiddenPromptTokens + summarizationMessageTokens;
-  const hasEstimatedUsage = provider === "openai_compatible" &&
-      apiFormat === "anthropic" &&
+  const hasEstimatedUsage =
       estimatedInputTokens > 0 &&
-      (!tokenUsage || estimatedInputTokens < tokenUsage.inputTokens);
+      ((!tokenUsage || tokenUsage.inputTokens <= 0) ||
+        (provider === "openai_compatible" &&
+          apiFormat === "anthropic" &&
+          estimatedInputTokens < tokenUsage.inputTokens));
   const hasUsage = Boolean(tokenUsage) || estimatedInputTokens > 0;
 
   const effectiveUsage = hasEstimatedUsage

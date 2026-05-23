@@ -15,7 +15,9 @@ import { useAppStore } from "@/lib/store";
 import {
   appendPersistedTokenUsageStats,
   loadPersistedTokenUsage,
+  loadPersistedPromptTokenEstimate,
   persistTokenUsage,
+  persistPromptTokenEstimate,
   type TokenUsage,
 } from "@/lib/token-usage";
 
@@ -46,6 +48,44 @@ export interface PromptTokenEstimate {
   referencedPathsTokens: number;
   summarizationMessageTokens: number;
   lastUpdated: Date;
+}
+
+function extractMessageText(message: Message): string {
+  const content = message.content;
+  if (typeof content === "string") {
+    return content;
+  }
+
+  const contentText = content
+    .map((block) => block.text ?? block.content ?? "")
+    .filter((value) => value.length > 0)
+    .join("\n");
+  const toolCallText = message.tool_calls?.length
+    ? JSON.stringify(message.tool_calls)
+    : "";
+
+  return [contentText, toolCallText].filter((value) => value.length > 0).join("\n");
+}
+
+function estimateMessageTokens(message: Message): number {
+  const text = extractMessageText(message);
+  if (text.trim().length === 0) {
+    return 0;
+  }
+
+  return Math.max(1, Math.ceil(text.length / 4) + 6);
+}
+
+function estimateInputTokensForState(state: ThreadState): number {
+  const visibleMessageTokens = state.messages.reduce(
+    (sum, message) => sum + estimateMessageTokens(message),
+    0,
+  );
+  const hiddenPromptTokens = state.promptTokenEstimate?.hiddenPromptTokens ?? 0;
+  const summarizationMessageTokens =
+    state.promptTokenEstimate?.summarizationMessageTokens ?? 0;
+
+  return visibleMessageTokens + hiddenPromptTokens + summarizationMessageTokens;
 }
 
 // Per-thread state (persisted/restored from checkpoints)
@@ -187,6 +227,38 @@ interface CustomEventData {
   summarizationTokens?: number;
 }
 
+function mergeTokenUsage(
+  current: TokenUsage | null,
+  incoming: NonNullable<CustomEventData["usage"]>,
+  estimatedInputTokens = 0,
+): TokenUsage {
+  const inputTokens =
+    typeof incoming.inputTokens === "number" && incoming.inputTokens > 0
+      ? incoming.inputTokens
+      : current?.inputTokens && current.inputTokens > 0
+        ? current.inputTokens
+        : estimatedInputTokens;
+  const outputTokens =
+    typeof incoming.outputTokens === "number" && incoming.outputTokens > 0
+      ? incoming.outputTokens
+      : current?.outputTokens ?? 0;
+  const totalTokens = Math.max(
+    typeof incoming.totalTokens === "number" ? incoming.totalTokens : 0,
+    inputTokens + outputTokens,
+    current?.totalTokens ?? 0,
+  );
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    cacheReadTokens: incoming.cacheReadTokens ?? current?.cacheReadTokens,
+    cacheCreationTokens:
+      incoming.cacheCreationTokens ?? current?.cacheCreationTokens,
+    lastUpdated: new Date(),
+  };
+}
+
 // Component that holds a stream and notifies subscribers
 function ThreadStreamHolder({
   threadId,
@@ -287,6 +359,17 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
     for (const [threadId, state] of Object.entries(threadStates)) {
       if (state.tokenUsage) {
         persistTokenUsage(threadId, state.tokenUsage);
+      }
+      if (state.promptTokenEstimate) {
+        persistPromptTokenEstimate(threadId, {
+          hiddenPromptTokens: state.promptTokenEstimate.hiddenPromptTokens,
+          systemPromptTokens: state.promptTokenEstimate.systemPromptTokens,
+          filesystemPromptTokens: state.promptTokenEstimate.filesystemPromptTokens,
+          referencedPathsTokens: state.promptTokenEstimate.referencedPathsTokens,
+          summarizationMessageTokens: state.promptTokenEstimate.summarizationMessageTokens,
+          estimatedInputTokens: estimateInputTokensForState(state),
+          lastUpdated: state.promptTokenEstimate.lastUpdated.toISOString(),
+        });
       }
     }
   }, [threadStates]);
@@ -546,31 +629,33 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           }
           break;
         case "token_usage":
-          // Only update if we have meaningful token values (> 0)
-          // This prevents resetting the usage when streaming ends
-          if (
-            data.usage &&
-            data.usage.inputTokens !== undefined &&
-            data.usage.inputTokens > 0
-          ) {
-            const nextUsage: TokenUsage = {
-              inputTokens: data.usage?.inputTokens || 0,
-              outputTokens: data.usage?.outputTokens || 0,
-              totalTokens: data.usage?.totalTokens || 0,
-              cacheReadTokens: data.usage?.cacheReadTokens,
-              cacheCreationTokens: data.usage?.cacheCreationTokens,
-              lastUpdated: new Date(),
-            };
+          {
+            const usage = data.usage;
+            if (
+              !usage ||
+              !((typeof usage.inputTokens === "number" && usage.inputTokens > 0) ||
+                (typeof usage.outputTokens === "number" && usage.outputTokens > 0) ||
+                (typeof usage.totalTokens === "number" && usage.totalTokens > 0))
+            ) {
+              break;
+            }
             console.log("[ThreadContext] Token usage update:", {
               threadId,
-              inputTokens: data.usage.inputTokens,
-              outputTokens: data.usage.outputTokens,
-              totalTokens: data.usage.totalTokens,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              totalTokens: usage.totalTokens,
             });
-            appendPersistedTokenUsageStats(threadId, nextUsage, data.usageKey);
-            updateThreadState(threadId, () => ({
-              tokenUsage: nextUsage,
-            }));
+            updateThreadState(threadId, (currentState) => {
+              const nextUsage = mergeTokenUsage(
+                currentState.tokenUsage,
+                usage,
+                estimateInputTokensForState(currentState),
+              );
+              appendPersistedTokenUsageStats(threadId, nextUsage, data.usageKey);
+              return {
+                tokenUsage: nextUsage,
+              };
+            });
           }
           break;
         case "prompt_token_estimate":
@@ -1016,6 +1101,20 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           [threadId]: {
             ...createDefaultThreadState(),
             tokenUsage: loadPersistedTokenUsage(threadId),
+            promptTokenEstimate: (() => {
+              const persisted = loadPersistedPromptTokenEstimate(threadId);
+              return persisted
+                ? {
+                    hiddenPromptTokens: persisted.hiddenPromptTokens,
+                    systemPromptTokens: persisted.systemPromptTokens,
+                    filesystemPromptTokens: persisted.filesystemPromptTokens,
+                    referencedPathsTokens: persisted.referencedPathsTokens,
+                    summarizationMessageTokens:
+                      persisted.summarizationMessageTokens,
+                    lastUpdated: new Date(persisted.lastUpdated),
+                  }
+                : null;
+            })(),
           },
         };
       });

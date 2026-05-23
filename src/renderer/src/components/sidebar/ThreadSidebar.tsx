@@ -296,21 +296,21 @@ export function ThreadSidebar({
       </div>
 
       <div className="space-y-2 border-b border-sidebar-border/65 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--sidebar-accent)_46%,transparent),transparent)] p-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant="default"
             size="sm"
-            className="min-w-[9.5rem] flex-1 justify-start gap-2 rounded-2xl px-3"
+            className="h-auto min-w-0 justify-start gap-2 rounded-2xl px-3 py-2 text-left"
             onClick={handleNewThread}
           >
             <Plus className="size-4" />
-            <span className="min-w-0 truncate">{t('newSession')}</span>
+            <span className="min-w-0 whitespace-normal break-words text-xs leading-tight">{t('newSession')}</span>
           </Button>
           {!bulkMode && (
             <Button
               variant="outline"
               size="sm"
-              className="h-9 shrink-0 rounded-2xl px-3 text-xs"
+              className="h-auto min-w-0 rounded-2xl px-3 py-2 text-xs leading-tight whitespace-normal break-words"
               onClick={() => setBulkMode(true)}
             >
               {t('multiSelect')}
@@ -320,7 +320,7 @@ export function ThreadSidebar({
             <Button
               variant="outline"
               size="sm"
-              className="h-9 shrink-0 rounded-2xl px-3 text-xs"
+              className="h-auto min-w-0 rounded-2xl px-3 py-2 text-xs leading-tight whitespace-normal break-words"
               disabled={threads.length === 0}
               onClick={() => {
                 const allSelected =

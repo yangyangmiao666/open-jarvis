@@ -35,6 +35,13 @@ interface NormalizedTokenUsage {
   cacheCreationTokens?: number;
 }
 
+function hasMeaningfulTokenUsage(usage: NormalizedTokenUsage | null | undefined): boolean {
+  return Boolean(
+    usage &&
+      (usage.inputTokens > 0 || usage.outputTokens > 0 || usage.totalTokens > 0),
+  );
+}
+
 function estimateTextTokens(text: string): number {
   if (text.trim().length === 0) {
     return 0;
@@ -147,22 +154,48 @@ export class ElectronIPCTransport implements UseStreamTransport {
         ? raw.input_tokens
         : typeof raw.promptTokens === "number"
           ? raw.promptTokens
+          : typeof raw.inputTokens === "number"
+            ? raw.inputTokens
           : typeof raw.prompt_tokens === "number"
             ? raw.prompt_tokens
+            : typeof raw.promptTokenCount === "number"
+              ? raw.promptTokenCount
+              : typeof raw.inputTokenCount === "number"
+                ? raw.inputTokenCount
+                : typeof raw.prompt_token_count === "number"
+                  ? raw.prompt_token_count
+                  : typeof raw.input_token_count === "number"
+                    ? raw.input_token_count
             : 0;
     const outputTokens =
       typeof raw.output_tokens === "number"
         ? raw.output_tokens
         : typeof raw.completionTokens === "number"
           ? raw.completionTokens
+          : typeof raw.outputTokens === "number"
+            ? raw.outputTokens
           : typeof raw.completion_tokens === "number"
             ? raw.completion_tokens
+            : typeof raw.candidatesTokenCount === "number"
+              ? raw.candidatesTokenCount
+              : typeof raw.outputTokenCount === "number"
+                ? raw.outputTokenCount
+                : typeof raw.completion_token_count === "number"
+                  ? raw.completion_token_count
+                  : typeof raw.candidates_token_count === "number"
+                    ? raw.candidates_token_count
+                    : typeof raw.output_token_count === "number"
+                      ? raw.output_token_count
             : 0;
     const totalTokens =
       typeof raw.total_tokens === "number"
         ? raw.total_tokens
         : typeof raw.totalTokens === "number"
           ? raw.totalTokens
+          : typeof raw.totalTokenCount === "number"
+            ? raw.totalTokenCount
+            : typeof raw.total_token_count === "number"
+              ? raw.total_token_count
           : inputTokens + outputTokens;
 
     const inputTokenDetails =
@@ -764,7 +797,7 @@ export class ElectronIPCTransport implements UseStreamTransport {
           });
 
           // Only emit if we have actual token counts (not on every chunk)
-          if (usage.inputTokens > 0) {
+          if (hasMeaningfulTokenUsage(usage)) {
             events.push(this.buildTokenUsageEvent(usage, kwargs.id));
           }
         }
@@ -955,7 +988,7 @@ export class ElectronIPCTransport implements UseStreamTransport {
         },
       });
 
-      if (latestUsage && latestUsage.inputTokens > 0) {
+      if (latestUsage && hasMeaningfulTokenUsage(latestUsage)) {
         events.push(this.buildTokenUsageEvent(latestUsage, latestUsageKey));
       }
 

@@ -8,6 +8,7 @@ import { toast } from "@/lib/toast";
 import { useAppStore } from "@/lib/store";
 import {
   clearAllPersistedTokenUsage,
+  loadPersistedPromptTokenEstimate,
   loadPersistedTokenUsageStats,
   subscribeToTokenUsageUpdates,
 } from "@/lib/token-usage";
@@ -23,14 +24,24 @@ interface ModelUsage {
 }
 
 interface ActivityBucket {
-  dayKey: string;
+  bucketKey: string;
+  inputTokens: number;
+  outputTokens: number;
   totalTokens: number;
 }
 
 interface UsageSnapshot {
   models: ModelUsage[];
-  activity: ActivityBucket[];
+  activityEntries: Array<{
+    recordedAt: string;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  }>;
+  hasEstimatedData: boolean;
 }
+
+type TimeGranularity = "day" | "month" | "year";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -42,20 +53,33 @@ function collectUsage(
   threads: { thread_id: string; metadata?: Record<string, unknown> }[],
 ): UsageSnapshot {
   const modelMap = new Map<string, ModelUsage>();
-  const activityMap = new Map<string, number>();
+  const activityEntries: UsageSnapshot["activityEntries"] = [];
+  let hasEstimatedData = false;
 
   for (const thread of threads) {
     const stats = loadPersistedTokenUsageStats(thread.thread_id);
-    if (!stats) {
+    const modelId = (thread.metadata as Record<string, unknown> | undefined)?.model as string || "unknown";
+    const estimate = loadPersistedPromptTokenEstimate(thread.thread_id);
+    const estimatedInput = estimate
+      ? estimate.estimatedInputTokens ?? (estimate.hiddenPromptTokens + estimate.summarizationMessageTokens)
+      : 0;
+
+    const input =
+      stats && stats.totals.inputTokens > 0
+        ? stats.totals.inputTokens
+        : estimatedInput;
+    const output = stats?.totals.outputTokens ?? 0;
+    const total = Math.max(stats?.totals.totalTokens ?? 0, estimatedInput + output);
+    const cacheRead = stats?.totals.cacheReadTokens ?? 0;
+    const cacheCreation = stats?.totals.cacheCreationTokens ?? 0;
+
+    if (input <= 0 && output <= 0 && total <= 0) {
       continue;
     }
 
-    const modelId = (thread.metadata as Record<string, unknown> | undefined)?.model as string || "unknown";
-    const input = stats.totals.inputTokens;
-    const output = stats.totals.outputTokens;
-    const total = stats.totals.totalTokens;
-    const cacheRead = stats.totals.cacheReadTokens;
-    const cacheCreation = stats.totals.cacheCreationTokens;
+    if ((!stats || stats.totals.inputTokens <= 0) && estimatedInput > 0) {
+      hasEstimatedData = true;
+    }
 
     const existing = modelMap.get(modelId);
     if (existing) {
@@ -77,19 +101,71 @@ function collectUsage(
       });
     }
 
-    for (const entry of stats.entries) {
-      const dayKey = entry.recordedAt.slice(0, 10);
-      activityMap.set(dayKey, (activityMap.get(dayKey) ?? 0) + entry.totalTokens);
+    if (stats) {
+      for (const entry of stats.entries) {
+        activityEntries.push({
+          recordedAt: entry.recordedAt,
+          inputTokens: entry.inputTokens,
+          outputTokens: entry.outputTokens,
+          totalTokens: entry.totalTokens,
+        });
+      }
+    } else if (estimate?.lastUpdated) {
+      activityEntries.push({
+        recordedAt: estimate.lastUpdated,
+        inputTokens: input,
+        outputTokens: output,
+        totalTokens: total,
+      });
     }
   }
 
   return {
     models: Array.from(modelMap.values()).sort((a, b) => b.totalTokens - a.totalTokens),
-    activity: Array.from(activityMap.entries())
-      .sort(([left], [right]) => left.localeCompare(right))
-      .slice(-7)
-      .map(([dayKey, totalTokens]) => ({ dayKey, totalTokens })),
+    activityEntries: activityEntries.sort((left, right) =>
+      left.recordedAt.localeCompare(right.recordedAt),
+    ),
+    hasEstimatedData,
   };
+}
+
+function buildActivityBuckets(
+  entries: UsageSnapshot["activityEntries"],
+  granularity: TimeGranularity,
+): ActivityBucket[] {
+  const bucketMap = new Map<string, ActivityBucket>();
+
+  for (const entry of entries) {
+    const date = new Date(entry.recordedAt);
+    if (Number.isNaN(date.getTime())) {
+      continue;
+    }
+
+    const bucketKey =
+      granularity === "year"
+        ? `${date.getFullYear()}`
+        : granularity === "month"
+          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+          : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+    const existing = bucketMap.get(bucketKey);
+    if (existing) {
+      existing.inputTokens += entry.inputTokens;
+      existing.outputTokens += entry.outputTokens;
+      existing.totalTokens += entry.totalTokens;
+    } else {
+      bucketMap.set(bucketKey, {
+        bucketKey,
+        inputTokens: entry.inputTokens,
+        outputTokens: entry.outputTokens,
+        totalTokens: entry.totalTokens,
+      });
+    }
+  }
+
+  return Array.from(bucketMap.values())
+    .sort((left, right) => left.bucketKey.localeCompare(right.bucketKey))
+    .slice(-7);
 }
 
 type SortKey = "modelId" | "totalTokens" | "inputTokens" | "outputTokens" | "sessionCount";
@@ -123,10 +199,17 @@ function SortHeaderButton({
 
 export function UsageLogsPanel(): React.JSX.Element {
   const { t, i18n } = useTranslation("settings");
-  const { threads } = useAppStore();
-  const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot>({ models: [], activity: [] });
+  const { threads, models, loadModels } = useAppStore();
+  const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot>({ models: [], activityEntries: [], hasEstimatedData: false });
   const [sortKey, setSortKey] = useState<SortKey>("totalTokens");
   const [sortDesc, setSortDesc] = useState(true);
+  const [timeGranularity, setTimeGranularity] = useState<TimeGranularity>("day");
+
+  useEffect(() => {
+    if (models.length === 0) {
+      void loadModels();
+    }
+  }, [loadModels, models.length]);
 
   const refresh = useCallback(() => {
     setUsageSnapshot(collectUsage(threads));
@@ -139,18 +222,30 @@ export function UsageLogsPanel(): React.JSX.Element {
 
   const usageData = usageSnapshot.models;
 
+  const modelNameMap = useMemo(
+    () => new Map(models.map((model) => [model.id, model.name])),
+    [models],
+  );
+
+  const getModelLabel = useCallback(
+    (modelId: string) => modelNameMap.get(modelId) ?? modelId,
+    [modelNameMap],
+  );
+
   const sorted = useMemo(() => {
     const copy = [...usageData];
     copy.sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
-      if (typeof av === "string" && typeof bv === "string") {
+      if (sortKey === "modelId") {
+        const av = getModelLabel(a.modelId);
+        const bv = getModelLabel(b.modelId);
         return sortDesc ? bv.localeCompare(av) : av.localeCompare(bv);
       }
+      const av = a[sortKey];
+      const bv = b[sortKey];
       return sortDesc ? (bv as number) - (av as number) : (av as number) - (bv as number);
     });
     return copy;
-  }, [usageData, sortKey, sortDesc]);
+  }, [getModelLabel, sortDesc, sortKey, usageData]);
 
   const totals = useMemo(() => ({
     inputTokens: usageData.reduce((s, u) => s + u.inputTokens, 0),
@@ -172,7 +267,7 @@ export function UsageLogsPanel(): React.JSX.Element {
 
   const handleClear = () => {
     clearAllPersistedTokenUsage();
-    setUsageSnapshot({ models: [], activity: [] });
+    setUsageSnapshot({ models: [], activityEntries: [], hasEstimatedData: false });
     toast.success(t("usage.cleared"));
   };
 
@@ -181,18 +276,36 @@ export function UsageLogsPanel(): React.JSX.Element {
     [usageData],
   );
 
+  const activityBuckets = useMemo(
+    () => buildActivityBuckets(usageSnapshot.activityEntries, timeGranularity),
+    [timeGranularity, usageSnapshot.activityEntries],
+  );
+
   const maxActivityTokens = useMemo(
-    () => Math.max(...usageSnapshot.activity.map((row) => row.totalTokens), 1),
-    [usageSnapshot.activity],
+    () => Math.max(...activityBuckets.map((row) => row.totalTokens), 1),
+    [activityBuckets],
   );
 
   const activityFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(i18n.language, {
+    () => (bucketKey: string) => {
+      if (timeGranularity === "year") {
+        return bucketKey;
+      }
+
+      if (timeGranularity === "month") {
+        const [year, month] = bucketKey.split("-");
+        return new Intl.DateTimeFormat(i18n.language, {
+          year: "numeric",
+          month: "short",
+        }).format(new Date(Number(year), Number(month) - 1, 1));
+      }
+
+      return new Intl.DateTimeFormat(i18n.language, {
         month: "numeric",
         day: "numeric",
-      }),
-    [i18n.language],
+      }).format(new Date(`${bucketKey}T00:00:00`));
+    },
+    [i18n.language, timeGranularity],
   );
 
   return (
@@ -200,6 +313,11 @@ export function UsageLogsPanel(): React.JSX.Element {
       {/* Summary */}
       <SettingsSection title={t("usage.title")} description={t("usage.description")}>
         <SettingsCard>
+          {usageSnapshot.hasEstimatedData ? (
+            <div className="border-b border-border/50 px-4 py-3 text-xs text-muted-foreground">
+              {t("usage.estimatedNotice")}
+            </div>
+          ) : null}
           <SettingsRow label={t("usage.totalInputTokens")}>
             <span className="text-sm text-muted-foreground font-mono">{formatTokens(totals.inputTokens)}</span>
           </SettingsRow>
@@ -243,45 +361,93 @@ export function UsageLogsPanel(): React.JSX.Element {
                   return (
                     <div key={row.modelId} className="space-y-1.5">
                       <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="truncate font-medium text-foreground">{row.modelId}</span>
-                        <span className="shrink-0 font-mono text-muted-foreground">{formatTokens(row.totalTokens)}</span>
+                        <span className="truncate font-medium text-foreground">{getModelLabel(row.modelId)}</span>
+                        <div className="shrink-0 text-right font-mono text-muted-foreground">
+                          <div>{formatTokens(row.totalTokens)}</div>
+                          <div className="text-[10px]">
+                            {t("usage.input")}: {formatTokens(row.inputTokens)} / {t("usage.output")}: {formatTokens(row.outputTokens)}
+                          </div>
+                        </div>
                       </div>
                       <div className="h-2.5 overflow-hidden rounded-full bg-muted/70">
                         <div className="flex h-full w-full gap-px overflow-hidden rounded-full">
                           <div className="bg-primary/75" style={{ width: inputWidth }} />
-                          <div className="bg-primary" style={{ width: outputWidth }} />
+                          <div className="bg-chart-2" style={{ width: outputWidth }} />
                         </div>
                       </div>
                     </div>
                   );
                 })}
+                <div className="flex items-center gap-4 pt-1 text-[10px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-primary/75" />
+                    {t("usage.input")}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-chart-2" />
+                    {t("usage.output")}
+                  </span>
+                </div>
               </div>
             </SettingsCard>
             <SettingsCard>
               <div className="space-y-3 px-4 py-4">
-                <div className="text-sm font-medium">{t("usage.recentActivity")}</div>
-                {usageSnapshot.activity.length === 0 ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium">{t("usage.recentActivity")}</div>
+                  <div className="inline-flex rounded-lg border border-border/70 bg-muted/30 p-1 text-xs">
+                    {(["day", "month", "year"] as TimeGranularity[]).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`rounded-md px-2 py-1 transition-colors ${
+                          timeGranularity === option
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                        onClick={() => setTimeGranularity(option)}
+                      >
+                        {t(`usage.${option}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {activityBuckets.length === 0 ? (
                   <div className="text-xs text-muted-foreground">{t("usage.noLogs")}</div>
                 ) : (
                   <div className="flex h-36 items-end gap-2">
-                    {usageSnapshot.activity.map((bucket) => {
+                    {activityBuckets.map((bucket) => {
+                      const inputHeight = `${Math.max((bucket.inputTokens / maxActivityTokens) * 100, bucket.inputTokens > 0 ? 8 : 0)}%`;
+                      const outputHeight = `${Math.max((bucket.outputTokens / maxActivityTokens) * 100, bucket.outputTokens > 0 ? 8 : 0)}%`;
                       const height = `${Math.max((bucket.totalTokens / maxActivityTokens) * 100, 12)}%`;
                       return (
-                        <div key={bucket.dayKey} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                        <div key={bucket.bucketKey} className="flex min-w-0 flex-1 flex-col items-center gap-2">
                           <div className="text-[10px] font-mono text-muted-foreground">
                             {formatTokens(bucket.totalTokens)}
                           </div>
                           <div className="flex h-24 w-full items-end rounded-md bg-muted/40 px-1 pb-1">
-                            <div className="w-full rounded-sm bg-primary/85" style={{ height }} />
+                            <div className="flex h-full w-full items-end gap-px">
+                              <div className="w-1/2 rounded-sm bg-primary/75" style={{ height: inputHeight || height }} />
+                              <div className="w-1/2 rounded-sm bg-chart-2" style={{ height: outputHeight }} />
+                            </div>
                           </div>
                           <div className="text-[10px] text-muted-foreground">
-                            {activityFormatter.format(new Date(`${bucket.dayKey}T00:00:00`))}
+                            {activityFormatter(bucket.bucketKey)}
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 )}
+                <div className="flex items-center gap-4 pt-1 text-[10px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-primary/75" />
+                    {t("usage.input")}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-chart-2" />
+                    {t("usage.output")}
+                  </span>
+                </div>
               </div>
             </SettingsCard>
           </div>
@@ -336,7 +502,7 @@ export function UsageLogsPanel(): React.JSX.Element {
                   <div key={row.modelId} className="flex items-center gap-3 px-4 py-2.5">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <Cpu className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span className="text-sm font-medium truncate">{row.modelId}</span>
+                      <span className="text-sm font-medium truncate">{getModelLabel(row.modelId)}</span>
                     </div>
                     <div className="w-18 text-right text-xs text-muted-foreground font-mono">
                       {formatTokens(row.inputTokens)}
