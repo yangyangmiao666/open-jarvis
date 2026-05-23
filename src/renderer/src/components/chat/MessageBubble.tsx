@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { User, Copy, RotateCcw, Trash2, PencilLine, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Message, HITLRequest } from "@/types";
@@ -63,6 +64,7 @@ export function MessageBubble({
   onDelete,
   onApprovalDecision,
 }: MessageBubbleProps): React.JSX.Element | null {
+  const { t } = useTranslation('chat');
   const isUser = message.role === "user";
   const isTool = message.role === "tool";
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -72,11 +74,11 @@ export function MessageBubble({
     if (!md) return;
     try {
       await navigator.clipboard.writeText(md);
-      toast.success("已复制到剪贴板");
+      toast.success(t('common:toast.copiedToClipboard'));
     } catch {
-      toast.error("复制失败");
+      toast.error(t('common:toast.copyFailed'));
     }
-  }, [message, toolResults]);
+  }, [message, t, toolResults]);
 
   useEffect(() => {
     if (!isEditing) {
@@ -101,7 +103,7 @@ export function MessageBubble({
   }
 
   const getLabel = (): string => {
-    if (isUser) return "你";
+    if (isUser) return t('you');
     return "Jarvis";
   };
 
@@ -195,8 +197,8 @@ export function MessageBubble({
           ref={editTextareaRef}
           value={editDraft ?? ""}
           rows={3}
-          className="min-h-[5.5rem] w-full resize-none rounded-2xl border border-border/70 bg-background px-3.5 py-3 text-sm text-foreground outline-none transition focus:border-status-info/45 focus:ring-2 focus:ring-status-info/20"
-          placeholder="编辑这条消息后重新发送"
+          className="min-h-22 w-full resize-none rounded-2xl border border-border/70 bg-background px-3.5 py-3 text-sm text-foreground outline-none transition focus:border-status-info/45 focus:ring-2 focus:ring-status-info/20"
+          placeholder={t('editPlaceholder')}
           onChange={(event) => {
             const textarea = event.currentTarget;
             textarea.style.height = "auto";
@@ -219,7 +221,7 @@ export function MessageBubble({
         />
         <div className="mt-3 flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
-            取消不会删除后续对话。按 Cmd/Ctrl + Enter 可直接发送。
+            {t('editHint')}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -231,7 +233,7 @@ export function MessageBubble({
               disabled={isSubmittingEdit}
             >
               <X className="size-3.5" />
-              取消
+              {t('common:cancel')}
             </Button>
             <Button
               type="button"
@@ -242,7 +244,7 @@ export function MessageBubble({
               onClick={() => void onEditSubmit?.(message)}
             >
               <Send className="size-3.5" />
-              发送
+              {t('common:send')}
             </Button>
           </div>
         </div>
@@ -270,7 +272,7 @@ export function MessageBubble({
           {isUser ? (
             <div
               className="icon-blue flex size-9 items-center justify-center rounded-2xl border border-status-info/20"
-              title="你"
+              title={t('you')}
             >
               <User className="size-4" />
             </div>
@@ -279,7 +281,7 @@ export function MessageBubble({
               className="icon-purple flex size-9 items-center justify-center rounded-2xl border border-status-accent/20"
               title="Jarvis"
             >
-              <JarvisMark className="size-[16px]" />
+              <JarvisMark className="size-4" />
             </div>
           )}
         </div>
@@ -293,13 +295,13 @@ export function MessageBubble({
           >
             {isUser ? (
               <>
-                <div className="flex w-0 items-center justify-end gap-1 overflow-hidden opacity-0 transition-all duration-200 group-hover/msg:w-[7.75rem] group-hover/msg:opacity-100">
+                <div className="flex w-0 items-center justify-end gap-1 overflow-hidden opacity-0 transition-all duration-200 group-hover/msg:w-31 group-hover/msg:opacity-100">
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-foreground"
-                    title="编辑并重新发送"
+                    title={t('editAndResend')}
                     disabled={!canEdit}
                     onClick={() => void onEdit?.(message)}
                   >
@@ -310,7 +312,7 @@ export function MessageBubble({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-destructive"
-                    title="删除此条消息"
+                    title={t('deleteMessage')}
                     disabled={!canDelete}
                     onClick={() => void onDelete?.(message)}
                   >
@@ -321,7 +323,7 @@ export function MessageBubble({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-foreground"
-                    title="重发此条消息"
+                    title={t('resendMessage')}
                     disabled={!canResend}
                     onClick={() => void onResend?.(message)}
                   >
@@ -332,7 +334,7 @@ export function MessageBubble({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-foreground"
-                    title="复制此条为 Markdown"
+                    title={t('copyAsMarkdown')}
                     onClick={() => void copyAsMarkdown()}
                   >
                     <Copy className="size-3.5" />
@@ -341,7 +343,7 @@ export function MessageBubble({
                 <span className="text-section-header">{getLabel()}</span>
                 {message._queued && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/20 bg-muted-foreground/10 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    排队中
+                    {t('queued')}
                   </span>
                 )}
               </>
@@ -352,7 +354,7 @@ export function MessageBubble({
                   {isStreaming && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
                       <span className="animate-tactical-pulse size-1.5 rounded-full bg-primary" />
-                      Live
+                      {t('streaming.live')}
                     </span>
                   )}
                 </div>
@@ -362,7 +364,7 @@ export function MessageBubble({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-destructive"
-                    title="删除此条消息"
+                    title={t('deleteMessage')}
                     disabled={!canDelete}
                     onClick={() => void onDelete?.(message)}
                   >
@@ -373,7 +375,7 @@ export function MessageBubble({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:translate-y-0 hover:text-foreground"
-                    title="复制此条为 Markdown"
+                    title={t('copyAsMarkdown')}
                     onClick={() => void copyAsMarkdown()}
                   >
                     <Copy className="size-3.5" />

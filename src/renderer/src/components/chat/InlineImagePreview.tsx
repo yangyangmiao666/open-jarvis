@@ -1,5 +1,6 @@
 import { Maximize2 } from "lucide-react";
 import { useInlineMedia } from "@/lib/inline-media";
+import { useTranslation } from "react-i18next";
 
 interface InlineImagePreviewProps {
   threadId: string;
@@ -18,6 +19,7 @@ export function InlineImagePreview({
   maxHeight = 200,
   className,
 }: InlineImagePreviewProps) {
+  const { t } = useTranslation('chat');
   const { url, isLoading, error, ref } = useInlineMedia(
     threadId,
     filePath,
@@ -37,7 +39,7 @@ export function InlineImagePreview({
       )}
       {error && (
         <div className="rounded-lg border border-border bg-background-elevated px-3 py-2 text-xs text-muted-foreground">
-          无法预览: {error}
+          {t('inlineMedia.cannotPreview')}: {error}
         </div>
       )}
       {url && (

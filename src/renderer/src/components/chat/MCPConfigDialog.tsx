@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Trash2, Pencil, Cable, Copy, Search } from "lucide-react";
 import {
   Dialog,
@@ -62,6 +63,7 @@ export function MCPConfigDialog({
   open,
   onOpenChange,
 }: MCPConfigDialogProps): React.JSX.Element {
+  const { t } = useTranslation("settings");
   const [enabledMcpServerIds, setEnabledMcpServerIds] = useState<string[]>([]);
   const [servers, setServers] = useState<MCPServerConfig[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<MCPServerConfig | null>(null);
@@ -109,11 +111,8 @@ export function MCPConfigDialog({
 
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEditing(null);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setImportJson("");
   }, [open]);
 
@@ -134,9 +133,9 @@ export function MCPConfigDialog({
       await window.api.mcp.upsertServer(payload);
       await load();
       setEditing(null);
-      toast.success("MCP 配置已保存");
+      toast.success(t("mcpConfig.saved"));
     } catch {
-      toast.error("保存失败");
+      toast.error(t("mcpConfig.saveFailed"));
     }
   };
 
@@ -154,9 +153,9 @@ export function MCPConfigDialog({
         await window.api.mcp.setEnabledForThread(undefined, nextIds);
       }
       setDeleteTarget(null);
-      toast.success("MCP 配置已删除");
+      toast.success(t("mcpConfig.deleted"));
     } catch {
-      toast.error("删除失败");
+      toast.error(t("mcpConfig.deleteFailed"));
     }
   };
 
@@ -172,14 +171,15 @@ export function MCPConfigDialog({
     try {
       const result = await window.api.mcp.importServers(importJson);
       await load();
+      const skippedSuffix = result.skipped.length > 0
+        ? t("mcpConfig.importSkipped", { count: result.skipped.length })
+        : "";
       toast.success(
-        `已导入 ${result.imported.length} 项${
-          result.skipped.length > 0 ? `，跳过 ${result.skipped.length} 项` : ""
-        }`,
+        t("mcpConfig.imported", { imported: result.imported.length, skipped: skippedSuffix }),
       );
       setImportJson("");
     } catch {
-      toast.error("导入失败");
+      toast.error(t("mcpConfig.importFailed"));
     }
   };
 
@@ -187,9 +187,9 @@ export function MCPConfigDialog({
     try {
       const exported = await window.api.mcp.exportServers();
       await navigator.clipboard.writeText(JSON.stringify(exported, null, 2));
-      toast.success("已复制导出 JSON");
+      toast.success(t("mcpConfig.copyExportSuccess"));
     } catch {
-      toast.error("复制失败");
+      toast.error(t("mcpConfig.saveFailed"));
     }
   };
 
@@ -197,14 +197,14 @@ export function MCPConfigDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex max-h-[min(92vh,54rem)] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0">
-        <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
+        <DialogHeader className="shrink-0 rounded-t-4xl border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
           <div className="flex items-center gap-3">
             <div className="badge-purple inline-flex shrink-0 items-center gap-2 rounded-full border border-status-accent/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
               <Cable className="size-3.5" />
-              MCP Workspace
+              {t('mcpConfig.workspaceLabel')}
             </div>
             <DialogTitle className="text-xl tracking-[-0.03em]">
-              MCP 配置
+              {t('mcpConfig.title')}
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -212,20 +212,20 @@ export function MCPConfigDialog({
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 sm:px-7">
         <div className="grid min-h-0 gap-4 lg:grid-cols-[1.05fr_1.2fr]">
           <div className="flex min-h-0 flex-col gap-3">
-            <div className="app-flat-surface rounded-[24px] p-4">
+            <div className="app-flat-surface rounded-3xl p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Cable className="size-4" />
-                全局默认启用
+                {t('mcpConfig.defaultEnabled')}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                勾选后，后续会话在调用 agent 时会默认装配对应的 MCP 工具。
+                {t('mcpConfig.defaultEnabledDesc')}
               </p>
 
-              <ScrollArea className="app-subtle-scroll mt-3 h-[220px] rounded-[20px] border border-border/75 bg-background/35">
+              <ScrollArea className="app-subtle-scroll mt-3 h-55 rounded-[20px] border border-border/75 bg-background/35">
                 <div className="p-2 space-y-2">
                   {servers.length === 0 && (
                     <p className="px-2 py-4 text-xs text-muted-foreground">
-                      还没有可启用的 MCP server。
+                      {t('mcpConfig.noServers')}
                     </p>
                   )}
                   {servers.map((server) => (
@@ -247,8 +247,8 @@ export function MCPConfigDialog({
                         </span>
                         <span className="block truncate text-muted-foreground font-mono mt-0.5">
                           {server.transport === "stdio"
-                            ? server.command || "未配置命令"
-                            : server.url || "未配置 URL"}
+                            ? server.command || t('mcpConfig.noCommand')
+                            : server.url || t('mcpConfig.noUrl')}
                         </span>
                       </span>
                     </label>
@@ -257,17 +257,17 @@ export function MCPConfigDialog({
               </ScrollArea>
             </div>
 
-            <div className="app-flat-surface rounded-[24px] p-4">
+            <div className="app-flat-surface rounded-3xl p-4">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <div className="text-sm font-medium">导入 / 导出</div>
+                  <div className="text-sm font-medium">{t('mcpConfig.importExport')}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    支持粘贴 Claude Desktop 风格的 mcpServers JSON。
+                    {t('mcpConfig.importExportDesc')}
                   </p>
                 </div>
                 <Button type="button" size="sm" variant="outline" onClick={() => void handleCopyExport()}>
                   <Copy className="size-3.5" />
-                  复制导出
+                  {t('mcpConfig.copyExport')}
                 </Button>
               </div>
 
@@ -275,7 +275,7 @@ export function MCPConfigDialog({
                 value={importJson}
                 onChange={(event) => setImportJson(event.target.value)}
                 placeholder={'{\n  "mcpServers": {\n    "my-server": {\n      "command": "npx",\n      "args": ["-y", "@scope/server"]\n    }\n  }\n}'}
-                className={cn(textAreaClassName, "mt-3 min-h-[160px]")}
+                className={cn(textAreaClassName, "mt-3 min-h-40")}
               />
               <div className="mt-2 flex justify-end">
                 <Button
@@ -284,7 +284,7 @@ export function MCPConfigDialog({
                   disabled={!importJson.trim()}
                   onClick={() => void handleImport()}
                 >
-                  导入 JSON
+                  {t('mcpConfig.importJson')}
                 </Button>
               </div>
             </div>
@@ -293,7 +293,7 @@ export function MCPConfigDialog({
           <div className="flex min-h-0 flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <div className="text-sm font-medium">全局 Server 列表</div>
+                <div className="text-sm font-medium">{t('mcpConfig.serverList')}</div>
               </div>
               <div className="flex items-center gap-2">
                 <div className="relative">
@@ -301,7 +301,7 @@ export function MCPConfigDialog({
                   <Input
                     value={serverSearch}
                     onChange={(e) => setServerSearch(e.target.value)}
-                    placeholder="搜索..."
+                    placeholder={t('common:search')}
                     className="h-8 w-36 rounded-xl pl-8 text-xs"
                   />
                 </div>
@@ -313,17 +313,17 @@ export function MCPConfigDialog({
                   onClick={() => beginEditing(emptyForm())}
                 >
                   <Plus className="size-4" />
-                  添加
+                  {t('common:add')}
                 </Button>
               </div>
             </div>
 
             {editing && (
-              <div className="app-flat-surface space-y-3 rounded-[24px] p-4 animate-slide-down-in">
+              <div className="app-flat-surface space-y-3 rounded-3xl p-4 animate-slide-down-in">
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1">
                     <label htmlFor="mcp-name" className="text-sm font-medium">
-                      显示名称
+                      {t('mcpConfig.displayName')}
                     </label>
                     <Input
                       id="mcp-name"
@@ -331,12 +331,12 @@ export function MCPConfigDialog({
                       onChange={(event) =>
                         setEditing({ ...editing, name: event.target.value })
                       }
-                      placeholder="例如：Context7"
+                      placeholder={t('mcpConfig.namePlaceholder')}
                     />
                   </div>
                   <div className="space-y-1">
                     <label htmlFor="mcp-transport" className="text-sm font-medium">
-                      传输方式
+                      {t('mcpConfig.transport')}
                     </label>
                     <select
                       id="mcp-transport"
@@ -360,7 +360,7 @@ export function MCPConfigDialog({
                   <>
                     <div className="space-y-1">
                       <label htmlFor="mcp-command" className="text-sm font-medium">
-                        启动命令
+                        {t('mcpConfig.startCommand')}
                       </label>
                       <Input
                         id="mcp-command"
@@ -368,32 +368,32 @@ export function MCPConfigDialog({
                         onChange={(event) =>
                           setEditing({ ...editing, command: event.target.value })
                         }
-                        placeholder="例如：npx"
+                        placeholder={t('mcpConfig.commandPlaceholder')}
                       />
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="text-sm font-medium">参数列表</label>
+                        <label className="text-sm font-medium">{t('mcpConfig.argsList')}</label>
                         <textarea
                           value={argsText}
                           onChange={(event) => setArgsText(event.target.value)}
-                          placeholder="每行一个参数"
+                          placeholder={t('mcpConfig.argsPlaceholder')}
                           className={textAreaClassName}
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-sm font-medium">环境变量</label>
+                        <label className="text-sm font-medium">{t('mcpConfig.envVars')}</label>
                         <textarea
                           value={envText}
                           onChange={(event) => setEnvText(event.target.value)}
-                          placeholder="每行一个 KEY=VALUE"
+                          placeholder={t('mcpConfig.envPlaceholder')}
                           className={textAreaClassName}
                         />
                       </div>
                     </div>
                     <div className="space-y-1">
                       <label htmlFor="mcp-cwd" className="text-sm font-medium">
-                        工作目录（可选）
+                        {t('mcpConfig.workingDir')}
                       </label>
                       <Input
                         id="mcp-cwd"
@@ -401,7 +401,7 @@ export function MCPConfigDialog({
                         onChange={(event) =>
                           setEditing({ ...editing, cwd: event.target.value })
                         }
-                        placeholder="例如：/absolute/path/to/workdir"
+                        placeholder={t('mcpConfig.cwdPlaceholder')}
                       />
                     </div>
                   </>
@@ -409,7 +409,7 @@ export function MCPConfigDialog({
                   <>
                     <div className="space-y-1">
                       <label htmlFor="mcp-url" className="text-sm font-medium">
-                        服务地址
+                        {t('mcpConfig.serviceUrl')}
                       </label>
                       <Input
                         id="mcp-url"
@@ -417,19 +417,19 @@ export function MCPConfigDialog({
                         onChange={(event) =>
                           setEditing({ ...editing, url: event.target.value })
                         }
-                        placeholder="例如：https://mcp.example.com"
+                        placeholder={t('mcpConfig.urlPlaceholder')}
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-sm font-medium">请求头</label>
+                      <label className="text-sm font-medium">{t('mcpConfig.headers')}</label>
                       <textarea
                         value={headersText}
                         onChange={(event) => setHeadersText(event.target.value)}
-                        placeholder="每行一个 Header=Value"
+                        placeholder={t('mcpConfig.headersPlaceholder')}
                         className={textAreaClassName}
                       />
                       <p className="text-xs text-muted-foreground">
-                        例如：x-browser-use-api-key=bu_xxx
+                        {t('mcpConfig.headersExample')}
                       </p>
                     </div>
                   </>
@@ -444,25 +444,25 @@ export function MCPConfigDialog({
                         setEditing({ ...editing, enabled: event.target.checked })
                       }
                     />
-                    配置可用
+                    {t('mcpConfig.configAvailable')}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(null)}>
-                      取消
+                      {t('common:cancel')}
                     </Button>
                     <Button type="button" size="sm" onClick={() => void handleSave()}>
-                      保存
+                      {t('common:save')}
                     </Button>
                   </div>
                 </div>
               </div>
             )}
 
-            <ScrollArea className="app-subtle-scroll min-h-[240px] flex-1 rounded-[20px] border border-border bg-background/35">
+            <ScrollArea className="app-subtle-scroll min-h-60 flex-1 rounded-[20px] border border-border bg-background/35">
               <div className="p-2 space-y-1">
                 {filteredServers.length === 0 && !editing && (
                   <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-                    {serverSearch.trim() ? "无匹配结果" : "暂无 MCP server 配置"}
+                    {serverSearch.trim() ? t('mcpConfig.noSearchResults') : t('mcpConfig.noMcpConfigs')}
                   </p>
                 )}
                 {filteredServers.map((server) => (
@@ -478,7 +478,7 @@ export function MCPConfigDialog({
                         </span>
                         {!server.enabled && (
                           <span className="rounded-full border border-border/60 bg-background-elevated/72 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                            disabled
+                            {t('mcpConfig.disabled')}
                           </span>
                         )}
                       </div>
@@ -523,10 +523,10 @@ export function MCPConfigDialog({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>确认删除 MCP 配置？</DialogTitle>
+            <DialogTitle>{t('mcpConfig.confirmDeleteMcp')}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            将删除 MCP server “{deleteTarget?.name || "当前配置"}”，此操作不可恢复。
+            {t('mcpConfig.deleteMcpWarning', { name: deleteTarget?.name || t('mcpConfig.currentConfig') })}
           </p>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
@@ -534,14 +534,14 @@ export function MCPConfigDialog({
               variant="secondary"
               onClick={() => setDeleteTarget(null)}
             >
-              取消
+              {t('common:cancel')}
             </Button>
             <Button
               type="button"
               variant="destructive"
               onClick={() => void handleDelete()}
             >
-              删除
+              {t('common:delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

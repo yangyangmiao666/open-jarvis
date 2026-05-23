@@ -1,4 +1,5 @@
 import { Bot } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -8,6 +9,7 @@ export function KanbanHeader({
 }: {
   className?: string;
 }): React.JSX.Element {
+  const { t } = useTranslation('kanban');
   const { showSubagentsInKanban, setShowSubagentsInKanban, threads } =
     useAppStore();
 
@@ -34,7 +36,7 @@ export function KanbanHeader({
           )}
         />
         <span className="tabular-nums">
-          {activeCount > 0 ? `${activeCount} 活跃` : "空闲"}
+          {activeCount > 0 ? t('header.active', { count: activeCount }) : t('header.idle')}
         </span>
       </div>
 
@@ -46,7 +48,7 @@ export function KanbanHeader({
         className="relative h-8 gap-2 rounded-full px-3"
       >
         <Bot className="size-3.5" />
-        {showSubagentsInKanban ? "隐藏" : "显示"}子智能体
+        {showSubagentsInKanban ? t('header.hideSubagents') : t('header.showSubagents')}
       </Button>
     </div>
   );

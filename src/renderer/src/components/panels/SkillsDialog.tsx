@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ChevronLeft,
   ChevronRight,
@@ -39,6 +40,7 @@ export function SkillsDialog({
   open,
   onOpenChange,
 }: SkillsDialogProps): React.JSX.Element {
+  const { t } = useTranslation("settings");
   const workspaceSkillTarget = undefined;
   const [sources, setSources] = useState<string[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
@@ -87,7 +89,7 @@ export function SkillsDialog({
     void reload();
     setCurrentPage(1);
     setSearchQuery("");
-  }, [open]);
+  }, [open, reload]);
 
   const filteredFolders = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
@@ -128,9 +130,9 @@ export function SkillsDialog({
       const result = await window.api.skills.importFolder(workspaceSkillTarget);
       await reload();
       if (result.success) {
-        toast.success("已从磁盘导入技能目录");
+        toast.success(t("skills.loadedFromDisk"));
       } else {
-        toast.error(result.error ?? "导入失败");
+        toast.error(result.error ?? t("skills.importFailed"));
       }
     } finally {
       setBusy(false);
@@ -202,10 +204,10 @@ export function SkillsDialog({
           editorMarkdown.trim() ? editorMarkdown : undefined,
         );
         if (!createResult.success) {
-          toast.error(createResult.error ?? "创建技能失败");
+          toast.error(createResult.error ?? t("skills.createFailed"));
           return;
         }
-        toast.success("技能已创建");
+        toast.success(t("skills.skillCreated"));
       } else {
         if (!originFolder) return;
         let finalFolder = originFolder;
@@ -216,7 +218,7 @@ export function SkillsDialog({
           skillName,
         );
         if (!renameResult.success) {
-          toast.error(renameResult.error ?? "重命名失败");
+          toast.error(renameResult.error ?? t("skills.renameFailed"));
           return;
         }
         if (renameResult.folder) {
@@ -229,10 +231,10 @@ export function SkillsDialog({
           editorMarkdown,
         );
         if (!writeResult.success) {
-          toast.error(writeResult.error ?? "保存失败");
+          toast.error(writeResult.error ?? t("skills.saveFailed"));
           return;
         }
-        toast.success("技能已更新");
+        toast.success(t("skills.skillUpdated"));
       }
 
       setEditorOpen(false);
@@ -249,10 +251,10 @@ export function SkillsDialog({
     try {
       await window.api.skills.deleteSkillFolders(workspaceSkillTarget, [...selected]);
       await reload();
-      toast.success("已删除选中的技能目录");
+      toast.success(t("skills.deletedSelectedSkills"));
       setDeleteConfirm(null);
     } catch {
-      toast.error("删除失败");
+      toast.error(t("skills.deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -265,15 +267,15 @@ export function SkillsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex max-h-[min(92vh,56rem)] w-[min(96vw,88rem)] max-w-[88rem] flex-col overflow-hidden p-0">
-          <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
+        <DialogContent className="flex max-h-[min(92vh,56rem)] w-[min(96vw,88rem)] max-w-352 flex-col overflow-hidden p-0">
+          <DialogHeader className="shrink-0 rounded-t-4xl border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
             <div className="flex items-center gap-3">
               <div className="badge-green inline-flex shrink-0 items-center gap-2 rounded-full border border-status-nominal/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
                 <WandSparkles className="size-3.5" />
-                Skills Workspace
+                {t('skills.workspaceLabel')}
               </div>
               <DialogTitle className="text-xl tracking-[-0.03em]">
-                技能配置
+                {t("skills.title")}
               </DialogTitle>
             </div>
           </DialogHeader>
@@ -286,12 +288,12 @@ export function SkillsDialog({
                   <LibraryBig className="size-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-section-header">Sources</div>
+                  <div className="text-section-header">{t('skills.sourcesLabel')}</div>
                   <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
-                    全局技能来源
+                    {t("skills.globalSources")}
                   </div>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    技能来源已固定为全局目录，仅使用 ~/.open-jarvis/skills。
+                    {t("skills.globalSourcesDesc")}
                   </p>
                 </div>
               </div>
@@ -300,7 +302,7 @@ export function SkillsDialog({
                 <div className="space-y-2 p-3">
                   {sources.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-border/70 px-3 py-8 text-center text-xs text-muted-foreground">
-                      当前仅使用默认全局技能来源。
+                      {t("skills.defaultSourceOnly")}
                     </div>
                   )}
                   {sources.map((source) => (
@@ -322,12 +324,12 @@ export function SkillsDialog({
                     <FolderTree className="size-5" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-section-header">Global</div>
+                    <div className="text-section-header">{t('skills.globalLabel')}</div>
                     <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
-                      技能目录（卡片分页）
+                      {t("skills.skillFoldersPaginated")}
                     </div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      点击卡片直接编辑，支持多选删除与分页浏览。新增技能在独立子弹窗中完成。
+                      {t("skills.skillFoldersDesc")}
                     </p>
                   </div>
                 </div>
@@ -342,7 +344,7 @@ export function SkillsDialog({
                     onClick={() => void handleImport()}
                   >
                     <Sparkles className="mr-1 size-3.5" />
-                    从磁盘导入
+                    {t("skills.importFromDisk")}
                   </Button>
                   <Button
                     type="button"
@@ -352,7 +354,7 @@ export function SkillsDialog({
                     onClick={openCreateEditor}
                   >
                     <SquarePen className="mr-1 size-3.5" />
-                    新增技能
+                    {t("skills.newSkill")}
                   </Button>
                 </div>
               </div>
@@ -363,7 +365,7 @@ export function SkillsDialog({
                   <Input
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="搜索技能目录名"
+                    placeholder={t("skills.searchSkillName")}
                     className="h-10 rounded-2xl pl-9 text-xs"
                   />
                 </div>
@@ -371,7 +373,7 @@ export function SkillsDialog({
 
               <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span>
-                  匹配 {filteredFolders.length} / {folders.length} 个技能目录，已选 {selectedCount} 个
+                  {t("skills.matchCount", { filtered: filteredFolders.length, total: folders.length, selected: selectedCount })}
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
@@ -382,7 +384,7 @@ export function SkillsDialog({
                     disabled={pagedFolders.length === 0 || busy || !workspaceReady}
                     onClick={toggleSelectPage}
                   >
-                    {allCurrentPageSelected ? "取消本页全选" : "本页全选"}
+                    {allCurrentPageSelected ? t("skills.deselectPageAll") : t("skills.selectPageAll")}
                   </Button>
                   <Button
                     type="button"
@@ -392,7 +394,7 @@ export function SkillsDialog({
                     disabled={busy || selectedCount === 0 || !workspaceReady}
                     onClick={() => setDeleteConfirm({ type: "folders" })}
                   >
-                    删除选中
+                    {t("skills.deleteSelected")}
                   </Button>
                 </div>
               </div>
@@ -400,15 +402,15 @@ export function SkillsDialog({
               <div className="app-subtle-scroll mt-3 min-h-0 flex-1 overflow-y-auto rounded-[22px] border border-border/70 bg-background/35 p-3">
                 {!workspaceReady ? (
                   <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
-                    请先在设置中选择全局工作区，随后即可导入、编辑和新建技能。
+                    {t("skills.selectWorkspaceFirst")}
                   </div>
                 ) : folders.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
-                    当前全局目录还没有技能目录。
+                    {t("skills.noSkillFolders")}
                   </div>
                 ) : filteredFolders.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border/70 px-3 py-16 text-center text-xs text-muted-foreground">
-                    没有匹配的技能目录，请尝试其他关键词。
+                    {t("skills.noMatchingSkills")}
                   </div>
                 ) : (
                   <div key={currentPage} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 animate-soft-fade">
@@ -419,7 +421,7 @@ export function SkillsDialog({
                           key={folderName}
                           type="button"
                           className={cn(
-                            "group flex min-h-[162px] flex-col items-start rounded-[18px] border border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_86%,transparent),color-mix(in_srgb,var(--background-elevated)_74%,transparent))] p-4 text-left transition-colors hover:border-primary/24 hover:bg-background-interactive/55",
+                            "group flex min-h-40.5 flex-col items-start rounded-[18px] border border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_86%,transparent),color-mix(in_srgb,var(--background-elevated)_74%,transparent))] p-4 text-left transition-colors hover:border-primary/24 hover:bg-background-interactive/55",
                             highlightedCard === folderName && "animate-card-highlight",
                           )}
                           onClick={() => void openEditEditor(folderName)}
@@ -437,13 +439,13 @@ export function SkillsDialog({
                             />
                           </div>
                           <div className="mt-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                            SKILL
+                            {t('skills.skillTag')}
                           </div>
                           <p className="mt-2 line-clamp-4 text-xs leading-5 text-muted-foreground">
-                            点击卡片打开编辑弹窗，修改目录名与 SKILL.md 内容。
+                            {t("skills.cardHint")}
                           </p>
                           <div className="mt-4 text-[11px] font-medium text-primary opacity-85 transition-opacity group-hover:opacity-100">
-                            打开编辑
+                            {t("skills.openEditor")}
                           </div>
                         </button>
                       );
@@ -454,7 +456,7 @@ export function SkillsDialog({
 
               <div className="mt-3 flex shrink-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
                 <div className="text-xs text-muted-foreground">
-                  第 {Math.min(currentPage, totalPages)} / {totalPages} 页
+                  {t("skills.pageInfo", { current: Math.min(currentPage, totalPages), total: totalPages })}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -466,7 +468,7 @@ export function SkillsDialog({
                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   >
                     <ChevronLeft className="size-3.5" />
-                    上一页
+                    {t("skills.prevPage")}
                   </Button>
                   <Button
                     type="button"
@@ -478,7 +480,7 @@ export function SkillsDialog({
                       setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                     }
                   >
-                    下一页
+                    {t("skills.nextPage")}
                     <ChevronRight className="size-3.5" />
                   </Button>
                 </div>
@@ -492,52 +494,52 @@ export function SkillsDialog({
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="flex max-h-[min(88vh,48rem)] w-[min(96vw,56rem)] max-w-3xl flex-col overflow-hidden p-0">
-          <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-5 py-5 pr-16 sm:pr-20">
+          <DialogHeader className="shrink-0 rounded-t-4xl border-b border-border/60 px-5 py-5 pr-16 sm:pr-20">
             <DialogTitle>
-              {editorMode === "create" ? "新增技能" : "编辑技能"}
+              {editorMode === "create" ? t("skills.createTitle") : t("skills.editTitle")}
             </DialogTitle>
           </DialogHeader>
 
           <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
-            <ScrollArea className="min-h-0 flex-1 rounded-[24px] border border-border/80 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_88%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))]">
+            <ScrollArea className="min-h-0 flex-1 rounded-3xl border border-border/80 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_88%,transparent),color-mix(in_srgb,var(--background-elevated)_82%,transparent))]">
               <div className="flex flex-col gap-4 p-4 sm:p-5">
                 <div className="flex items-start gap-3">
                   <div className="icon-green flex size-10 shrink-0 items-center justify-center rounded-[16px] border border-border/70 shadow-[0_8px_18px_color-mix(in_srgb,var(--status-nominal)_7%,transparent),inset_0_1px_0_color-mix(in_srgb,#fff_12%,transparent)]">
                     <SquarePen className="size-4.5" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-section-header">Editor</div>
+                    <div className="text-section-header">{t('skills.editorLabel')}</div>
                     <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
-                      {editorMode === "create" ? "新建技能内容" : "编辑技能内容"}
+                      {editorMode === "create" ? t("skills.newSkillContent") : t("skills.editSkillContent")}
                     </div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      修改技能目录名与 SKILL.md 内容。保存时会同步创建、重命名目录并写入文档。
+                      {t("skills.editorDesc")}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">技能目录名</label>
+                  <label className="text-sm font-medium text-foreground">{t("skills.skillFolderName")}</label>
                   <Input
                     value={editorName}
                     onChange={(event) => setEditorName(event.target.value)}
-                    placeholder="技能目录名（将规范为小写与连字符）"
+                    placeholder={t("skills.skillFolderNamePlaceholder")}
                     className="rounded-2xl border-border/80 bg-background/80 text-xs font-mono"
                     disabled={busy || editorLoading}
                   />
                 </div>
 
                 <div className="flex flex-col space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">SKILL.md 内容</label>
-                  <ScrollArea className="rounded-[24px] border border-border/85 bg-background/88 shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--border)_35%,transparent)]">
+                  <label className="text-sm font-medium text-foreground">{t("skills.skillMdContent")}</label>
+                  <ScrollArea className="rounded-3xl border border-border/85 bg-background/88 shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent),0_0_0_1px_color-mix(in_srgb,var(--border)_35%,transparent)]">
                     <textarea
                       value={editorMarkdown}
                       onChange={(event) => setEditorMarkdown(event.target.value)}
-                      placeholder={editorLoading ? "加载中..." : "SKILL.md 内容"}
+                      placeholder={editorLoading ? t("skills.loadingPlaceholder") : t("skills.skillMdContent")}
                       disabled={busy || editorLoading}
                       className={cn(
                         textAreaClassName,
-                        "min-h-[360px] resize-none border-0 bg-transparent shadow-none",
+                        "min-h-90 resize-none border-0 bg-transparent shadow-none",
                       )}
                     />
                   </ScrollArea>
@@ -553,14 +555,14 @@ export function SkillsDialog({
               onClick={() => setEditorOpen(false)}
               disabled={busy}
             >
-              取消
+              {t("common:cancel")}
             </Button>
             <Button
               type="button"
               disabled={busy || editorLoading || !editorName.trim()}
               onClick={() => void handleSaveEditor()}
             >
-              保存
+              {t("common:save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -572,10 +574,10 @@ export function SkillsDialog({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>确认删除技能？</DialogTitle>
+            <DialogTitle>{t("skills.confirmDeleteSkills")}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            {`将永久删除所选的 ${selectedCount} 个技能目录及其中的文件，此操作不可恢复。`}
+            {t("skills.deleteSkillsWarning", { count: selectedCount })}
           </p>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
@@ -583,14 +585,14 @@ export function SkillsDialog({
               variant="secondary"
               onClick={() => setDeleteConfirm(null)}
             >
-              取消
+              {t("common:cancel")}
             </Button>
             <Button
               type="button"
               variant="destructive"
               onClick={() => void handleConfirmDelete()}
             >
-              删除
+              {t("common:delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

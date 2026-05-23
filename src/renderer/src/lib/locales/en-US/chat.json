@@ -1,0 +1,227 @@
+{
+  "you": "You",
+  "queued": "Queued",
+  "editAndResend": "Edit and resend",
+  "deleteMessage": "Delete this message",
+  "resendMessage": "Resend this message",
+  "copyAsMarkdown": "Copy as Markdown",
+  "editHint": "Canceling will not delete subsequent messages. Press Cmd/Ctrl + Enter to send directly.",
+  "editPlaceholder": "Edit this message and resend",
+  "toolLabels": {
+    "readFile": "Read File",
+    "writeFile": "Write File",
+    "editFile": "Edit File",
+    "ls": "List Directory",
+    "glob": "Find Files",
+    "grep": "Search Content",
+    "execute": "Execute Command",
+    "writeTodos": "Update Tasks",
+    "task": "Sub-agent Task"
+  },
+  "toolResults": {
+    "readLines": "Read {{count}} lines",
+    "fileCount": "{{count}} files",
+    "folderCount": "{{count}} folders",
+    "matchCount": "Found {{count}} matches",
+    "filesWithMatches": "{{matchCount}} matches in {{count}} files"
+  },
+  "toolStatus": {
+    "pendingApproval": "Pending Approval",
+    "running": "Running",
+    "success": "Success",
+    "error": "Error",
+    "synced": "Synced",
+    "completed": "Completed"
+  },
+  "approval": {
+    "reject": "Reject",
+    "approveAndExecute": "Approve and Execute",
+    "approveInFooter": "Please approve or reject in the fixed bar at the bottom of the conversation area.",
+    "waitingForConfirmation": "Waiting for your confirmation:",
+    "approvalPaused": "The main process or sub-agent has paused; it will continue and summarize results after you approve or reject these tool calls.",
+    "allowWorkspaceSimilar": "Allow similar commands in this workspace going forward",
+    "approveThisTime": "Approve this time",
+    "waitingApproval": "Waiting for Approval",
+    "autoApproval": "Auto Approval",
+    "manualApproval": "Manual Approval",
+    "autoApprovalTitle": "Currently in auto-approval mode; click to switch to manual approval",
+    "manualApprovalTitle": "Currently in manual approval mode; click to switch to auto-approval",
+    "multipleToolCalls": "{{name}} and {{count}} other tool calls"
+  },
+  "parameters": "Parameters",
+  "rawParameters": "Raw Parameters",
+  "rawResult": "Raw Result",
+  "fileEdit": {
+    "writeLines": "Write {{count}} lines to {{name}}",
+    "removeLines": "- {{count}} lines",
+    "addLines": "+ {{count}} lines"
+  },
+  "grep": {
+    "moreMatches": "{{count}} more matches",
+    "moreFiles": "{{count}} more files with matches"
+  },
+  "fileList": {
+    "moreItems": "{{count}} more items"
+  },
+  "command": {
+    "ended": "Command ended",
+    "endedNoOutput": "Command ended (no output)"
+  },
+  "task": {
+    "completed": "Task completed",
+    "fileSaved": "File saved",
+    "mediaRead": "Media file read"
+  },
+  "streaming": {
+    "tip1": "Cross-referencing context, messages, tool results, and thread state to minimize unnecessary back-and-forth.",
+    "tip2": "Will first compress the most valuable next step, then decide whether to continue searching, modifying, or verifying.",
+    "tip3": "If the issue has converged to a local slice, will prioritize small changes and verify immediately.",
+    "tip4": "Will continuously organize clues, risks, and completed actions during processing, rather than only outputting intermediate fragments.",
+    "tip5": "If this round involves tool chains, file changes, and the context window, their mutual impact scope will be synchronized.",
+    "tip6": "Currently displaying processing status tips; actual results will continue streaming via messages and tool calls.",
+    "pushingTodo": "Pushing: {{content}}",
+    "completedSteps": "{{count}} processing steps completed; will prioritize closing remaining actions and verification loops next.",
+    "remainingSteps": "{{count}} steps remaining; continuing in dependency order without uncontrolled expansion.",
+    "workspaceContext": "Leveraging file relationships and recent changes in workspace {{name}} to guide next actions.",
+    "workspaceFiles": "{{count}} file nodes visible in the current workspace; prioritizing falsifiable local clues.",
+    "referencedPaths": "Prioritizing the {{count}} file paths you referenced to avoid context drift and redundant searches.",
+    "recentTools": "Currently chaining tools like {{tools}} to compress search, modification, and verification into the same round.",
+    "currentModel": "{{label}} is handling this round of reasoning, tool calls, and result organization.",
+    "messageCount": "{{count}} messages accumulated in the current thread; state will continue from existing context without restarting.",
+    "autoApprovalMode": "Currently in auto-approval mode; low-risk actions proceed directly, reducing workflow interruptions.",
+    "manualApprovalMode": "Currently in manual approval mode; high-impact tools pause at confirmation points for clear execution boundaries.",
+    "pendingApproval": "Workflow paused at {{name}} confirmation point; will continue summarizing after approval or rejection.",
+    "processing": "Processing",
+    "paused": "Paused",
+    "cancelling": "Cancelling",
+    "stopGeneration": "Stop generation",
+    "interruptSend": "Interrupt send (queued; will auto-submit after current reply completes)",
+    "jarvisWorking": "Jarvis is working",
+    "live": "Live"
+  },
+  "emptyState": {
+    "newSession": "New Session",
+    "startFromWorkspace": "Start driving toward a clear outcome from this workspace",
+    "connectedWorkspace": "You've connected a workspace. Jarvis can now read code, modify files, execute commands, and organize the process into trackable results.",
+    "selectWorkspace": "Please select a workspace folder",
+    "agentNeedsWorkspace": "The agent needs a workspace to create and modify files",
+    "chooseWorkspace": "Choose Workspace",
+    "currentDir": "Current directory: {{folder}}",
+    "trySuggestion": "Try: \"Review this module\"",
+    "orSuggestion": "Or: \"Help me fix and verify\""
+  },
+  "error": {
+    "agentError": "Agent Error",
+    "tryResend": "You can try sending a new message to continue the conversation.",
+    "closeError": "Close error",
+    "contextWindowFull": "Context window is full (approx. {{usedK}}K / {{maxK}}K tokens). The conversation is too long; please start a new session to continue.",
+    "rateLimited": "Too many requests. Please wait before sending another message.",
+    "authFailed": "Authentication failed. Please check your API key in settings."
+  },
+  "deleteConfirm": {
+    "title": "Confirm delete message?",
+    "description": "This will delete the {{role}} message and all subsequent messages. This action cannot be undone.",
+    "targetMessage": "Target message",
+    "user": "User",
+    "assistant": "Assistant",
+    "hasToolCalls": "This message contains tool calls.",
+    "noTextContent": "This message has no displayable text content."
+  },
+  "toast": {
+    "messageDeleted": "Message deleted",
+    "resendNotFound": "Message to resend not found. Please switch sessions and try again.",
+    "resendFailed": "Failed to resend message. Please try again later.",
+    "editNotFound": "Message to edit not found. Please switch sessions and try again.",
+    "editSendFailed": "Failed to send edited message. Please try again later.",
+    "deleteNotFound": "Message to delete not found. Please switch sessions and try again.",
+    "deleteFailed": "Failed to delete message. Please try again later."
+  },
+  "selectWorkspaceFirst": "Please select a workspace folder before sending a message.",
+  "copyMarkdown": "Copy Markdown",
+  "copyMarkdownTitle": "Copy all messages in this session as Markdown (including tool calls and results)",
+  "clickToRemove": "Click to remove",
+  "inputPlaceholder": {
+    "idle": "Type a message... Enter to send, Shift+Enter for new line, @ to reference files",
+    "loading": "Type to interrupt... Enter to queue, will auto-submit after current reply completes"
+  },
+  "chatTodos": {
+    "title": "Jarvis Tasks",
+    "completedCount": "{{count}} tasks completed"
+  },
+  "contextUsage": {
+    "contextWindow": "Context Window",
+    "normal": "Normal",
+    "critical": "Critical",
+    "warning": "Warning",
+    "moderate": "Moderate",
+    "waiting": "Waiting",
+    "estimated": "Estimated",
+    "tokenDetails": "Token Usage Details",
+    "input": "Input",
+    "output": "Output",
+    "total": "Total",
+    "cache": "Cache",
+    "cacheHit": "Cache Hit",
+    "cacheCreation": "Cache Creation",
+    "noCacheTokens": "No-cache tokens",
+    "visibleEstimate": "Visible messages estimate",
+    "hiddenPromptEstimate": "Hidden Prompt estimate",
+    "compressionEstimate": "Compression summary estimate",
+    "referencedPathsSupplement": "Referenced paths supplement",
+    "compressionSummary": "Compression summary",
+    "systemPrompt": "system prompt",
+    "filesystemPrompt": "filesystem prompt",
+    "waitFirstResponse": "Will display after first response",
+    "waitFirstResponseShort": "Waiting for first response",
+    "lastUpdated": "Last updated: ",
+    "estimateNote": "Current input tokens use real-time estimates, including visible messages and hidden prompts; this can reflect the latest context usage faster after session compression."
+  },
+  "markdown": {
+    "you": "You",
+    "tool": "Tool",
+    "result": "Result"
+  },
+  "workspacePicker": {
+    "selectWorkspace": "Select Workspace",
+    "workspaceFolder": "Workspace Folder",
+    "agentReadWrite": "The agent will read and write files in this folder.",
+    "changeFolder": "Change Folder",
+    "selectFolderDesc": "Select the agent's working directory. Files will be read from and written to this location.",
+    "selectFolder": "Select Folder",
+    "clickToOpen": "Click to open",
+    "clickToView": "Click to view",
+    "moreLines": "{{count}} more lines",
+    "cannotPreview": "Cannot preview: {{error}}"
+  },
+  "modelSwitcher": {
+    "selectModel": "Select Model",
+    "provider": "Provider",
+    "models": "Models",
+    "needApiKey": "Using {{name}} requires an API key",
+    "configureApiKey": "Configure API Key",
+    "needCustomModel": "Please add at least one custom model configuration (Base URL and Model ID)",
+    "setupModel": "Set Up Model",
+    "noAvailableModels": "No models available",
+    "editApiKey": "Edit API Key",
+    "customModel": "Custom Model"
+  },
+  "thinkingSection": {
+    "thinking": "Thinking",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "emptyContent": "*Thinking content is empty*",
+    "summaryFallback": "Thinking complete. Click to expand for details."
+  },
+  "thinkBlock": {
+    "thinkingInProgress": "Thinking...",
+    "thinkingProcess": "Thinking process",
+    "thinkSummaryFallback": "Thinking complete. Click to expand and view details.",
+    "thinkContentEmpty": "*Thinking content is empty*"
+  },
+  "inlineMedia": {
+    "cannotPreview": "Cannot preview",
+    "clickToViewPdf": "Click to view",
+    "cannotReadFile": "Cannot read file",
+    "loadFailed": "Load failed"
+  }
+}

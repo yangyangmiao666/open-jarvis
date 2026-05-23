@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Boxes, Cable, Sparkles, Wrench, Orbit, Network, Download, Upload, AlertTriangle, ShieldCheck } from "lucide-react";
 import {
   Dialog,
@@ -16,6 +17,7 @@ import { OpenAICompatibleDialog } from "./OpenAICompatibleDialog";
 import { MCPConfigDialog } from "./MCPConfigDialog";
 import { SkillsDialog } from "../panels/SkillsDialog";
 import { ProxyConfigDialog } from "./ProxyConfigDialog";
+import { LanguageSelector } from "./LanguageSelector";
 import type { SettingsOpenRequest, GlobalConfigImportResult } from "@/types";
 
 interface SettingsHubDialogProps {
@@ -80,6 +82,7 @@ export function SettingsHubDialog({
   onOpenChange,
   request,
 }: SettingsHubDialogProps): React.JSX.Element {
+  const { t } = useTranslation("settings");
   const [openAICompatibleOpen, setOpenAICompatibleOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
@@ -141,7 +144,7 @@ export function SettingsHubDialog({
                 Control Center
               </div>
               <DialogTitle className="text-xl tracking-[-0.03em]">
-                设置中枢
+                {t('settingsHub.title')}
               </DialogTitle>
             </div>
           </DialogHeader>
@@ -151,36 +154,36 @@ export function SettingsHubDialog({
               <SettingsCard
                 icon={Boxes}
                 eyebrow="Models"
-                title="自定义模型配置"
-                description="管理 OpenAI 兼容接口、私有网关和本地部署模型，保存后模型列表会自动刷新。"
-                actionLabel="打开模型配置"
+                title={t('settingsHub.customModelConfig')}
+                description={t('settingsHub.customModelDesc')}
+                actionLabel={t('settingsHub.openModelConfig')}
                 onAction={() => setOpenAICompatibleOpen(true)}
                 accent="blue"
               />
               <SettingsCard
                 icon={Network}
                 eyebrow="Proxy"
-                title="代理配置"
-                description="配置 HTTP、HTTPS 或 SOCKS 代理。保存后会立即更新主进程网络请求，不再依赖手改 .env。"
-                actionLabel="打开代理配置"
+                title={t('settingsHub.proxyConfig')}
+                description={t('settingsHub.proxyDesc')}
+                actionLabel={t('settingsHub.openProxyConfig')}
                 onAction={() => setProxyOpen(true)}
                 accent="amber"
               />
               <SettingsCard
                 icon={Wrench}
                 eyebrow="Skills"
-                title="技能配置"
-                description="维护全局技能目录，统一处理导入、新建和编辑。固定目录为 ~/.open-jarvis/skills。"
-                actionLabel="打开技能配置"
+                title={t('settingsHub.skillsConfig')}
+                description={t('settingsHub.skillsDesc')}
+                actionLabel={t('settingsHub.openSkillsConfig')}
                 onAction={() => setSkillsOpen(true)}
                 accent="green"
               />
               <SettingsCard
                 icon={Cable}
                 eyebrow="MCP"
-                title="MCP 配置"
-                description="管理 MCP Server 列表，并配置所有会话默认启用的工具能力。"
-                actionLabel="打开 MCP 配置"
+                title={t('settingsHub.mcpConfig')}
+                description={t('settingsHub.mcpDesc')}
+                actionLabel={t('settingsHub.openMcpConfig')}
                 onAction={() => setMcpOpen(true)}
                 accent="purple"
               />
@@ -191,7 +194,7 @@ export function SettingsHubDialog({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
                   <Orbit className="h-3.5 w-3.5" />
-                  <span>全局配置</span>
+                  <span>{t('settingsHub.globalConfig')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -204,7 +207,7 @@ export function SettingsHubDialog({
                     }}
                   >
                     <Download className="h-3.5 w-3.5" />
-                    导出全部
+                    {t('settingsHub.exportAll')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -216,10 +219,11 @@ export function SettingsHubDialog({
                     }}
                   >
                     <Upload className="h-3.5 w-3.5" />
-                    导入全部
+                    {t('settingsHub.importAll')}
                   </Button>
                 </div>
               </div>
+              <LanguageSelector />
             </div>
           </div>
         </DialogContent>
@@ -231,18 +235,18 @@ export function SettingsHubDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Download className="h-4.5 w-4.5 text-primary" />
-              导出全局配置
+              {t('exportDialog.title')}
             </DialogTitle>
             <DialogDescription>
-              将所有配置（模型、代理、MCP、技能）导出为 JSON 文件，方便备份或迁移到其他设备。
+              {t('exportDialog.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-between rounded-xl border border-[var(--border-muted)] px-4 py-3">
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="h-4 w-4 text-[var(--status-nominal)]" />
               <div>
-                <div className="text-sm font-medium">包含 API 密钥</div>
-                <div className="text-xs text-[var(--text-tertiary)]">导出文件将包含所有已保存的密钥</div>
+                <div className="text-sm font-medium">{t('exportDialog.includeApiKeys')}</div>
+                <div className="text-xs text-[var(--text-tertiary)]">{t('exportDialog.includeApiKeysDesc')}</div>
               </div>
             </div>
             <Switch
@@ -253,15 +257,15 @@ export function SettingsHubDialog({
           {!includeApiKeys && (
             <div className="flex items-start gap-2 rounded-lg bg-[var(--background-elevated)] px-3 py-2 text-xs text-[var(--text-tertiary)]">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--status-warning)]" />
-              <span>API 密钥不会包含在导出文件中，导入后需重新配置密钥。</span>
+              <span>{t('exportDialog.noApiKeysWarning')}</span>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setExportDialogOpen(false)} disabled={exporting}>
-              取消
+              {t('common:cancel')}
             </Button>
             <Button onClick={handleExport} disabled={exporting}>
-              {exporting ? "导出中…" : "导出"}
+              {exporting ? t('exportDialog.exporting') : t('exportDialog.export')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -273,10 +277,10 @@ export function SettingsHubDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-4.5 w-4.5 text-primary" />
-              导入全局配置
+              {t('importDialog.title')}
             </DialogTitle>
             <DialogDescription>
-              从 JSON 文件导入配置。选择合并模式保留现有配置，或替换模式覆盖全部。
+              {t('importDialog.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
@@ -297,8 +301,8 @@ export function SettingsHubDialog({
                 {importMode === "merge" && <div className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />}
               </div>
               <div>
-                <div className="text-sm font-medium">合并</div>
-                <div className="text-xs text-[var(--text-tertiary)]">保留现有配置，仅添加或更新导入的项</div>
+                <div className="text-sm font-medium">{t('importDialog.merge')}</div>
+                <div className="text-xs text-[var(--text-tertiary)]">{t('importDialog.mergeDesc')}</div>
               </div>
             </button>
             <button
@@ -318,23 +322,23 @@ export function SettingsHubDialog({
                 {importMode === "replace" && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
               </div>
               <div>
-                <div className="text-sm font-medium">替换</div>
-                <div className="text-xs text-[var(--text-tertiary)]">清除所有现有配置，用导入数据完全覆盖</div>
+                <div className="text-sm font-medium">{t('importDialog.replace')}</div>
+                <div className="text-xs text-[var(--text-tertiary)]">{t('importDialog.replaceDesc')}</div>
               </div>
             </button>
           </div>
           {importMode === "replace" && (
             <div className="flex items-start gap-2 rounded-lg bg-[color-mix(in_srgb,var(--status-warning)_10%,transparent)] px-3 py-2 text-xs text-[var(--status-warning)]">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>替换模式将删除所有现有配置，此操作不可撤销。</span>
+              <span>{t('importDialog.replaceWarning')}</span>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={importing}>
-              取消
+              {t('common:cancel')}
             </Button>
             <Button onClick={handleImport} disabled={importing} variant={importMode === "replace" ? "destructive" : "default"}>
-              {importing ? "导入中…" : "导入"}
+              {importing ? t('importDialog.importing') : t('importDialog.import')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -344,33 +348,33 @@ export function SettingsHubDialog({
       <Dialog open={importResultOpen} onOpenChange={setImportResultOpen}>
         <DialogContent className="w-[min(96vw,24rem)]">
           <DialogHeader>
-            <DialogTitle>导入完成</DialogTitle>
+            <DialogTitle>{t('importResult.title')}</DialogTitle>
             <DialogDescription>
-              配置已成功导入，模型列表已刷新。
+              {t('importResult.description')}
             </DialogDescription>
           </DialogHeader>
           {importResult && (
             <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--border-muted)] px-4 py-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-[var(--text-secondary)]">模型配置</span>
-                <span className="font-medium">{importResult.profilesImported} 项</span>
+                <span className="text-[var(--text-secondary)]">{t('importResult.modelConfig')}</span>
+                <span className="font-medium">{importResult.profilesImported} {t('importResult.items')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--text-secondary)]">MCP 服务器</span>
-                <span className="font-medium">{importResult.serversImported} 项</span>
+                <span className="text-[var(--text-secondary)]">{t('importResult.mcpServers')}</span>
+                <span className="font-medium">{importResult.serversImported} {t('importResult.items')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--text-secondary)]">技能</span>
-                <span className="font-medium">{importResult.skillsImported} 项</span>
+                <span className="text-[var(--text-secondary)]">{t('importResult.skills')}</span>
+                <span className="font-medium">{importResult.skillsImported} {t('importResult.items')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--text-secondary)]">代理配置</span>
-                <span className="font-medium">{importResult.proxyUpdated ? "已更新" : "未变更"}</span>
+                <span className="text-[var(--text-secondary)]">{t('importResult.proxyConfig')}</span>
+                <span className="font-medium">{importResult.proxyUpdated ? t('importResult.updated') : t('importResult.unchanged')}</span>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button onClick={() => setImportResultOpen(false)}>确定</Button>
+            <Button onClick={() => setImportResultOpen(false)}>{t('common:confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowDown,
   ArrowUp,
@@ -26,16 +27,16 @@ import {
 type SortColumn = "path" | "size" | "created" | "modified";
 type SortMode = "asc" | "desc" | "default";
 
-const COLS: {
+const COL_CONFIG: {
   id: SortColumn;
-  label: string;
+  labelKey: string;
   min: number;
   defaultWidth: number;
 }[] = [
-  { id: "path", label: "名称", min: 120, defaultWidth: 220 },
-  { id: "size", label: "大小", min: 56, defaultWidth: 72 },
-  { id: "created", label: "创建时间", min: 152, defaultWidth: 168 },
-  { id: "modified", label: "更新时间", min: 152, defaultWidth: 168 },
+  { id: "path", labelKey: "fileListTable.columnName", min: 120, defaultWidth: 220 },
+  { id: "size", labelKey: "fileListTable.columnSize", min: 56, defaultWidth: 72 },
+  { id: "created", labelKey: "fileListTable.columnCreated", min: 152, defaultWidth: 168 },
+  { id: "modified", labelKey: "fileListTable.columnModified", min: 152, defaultWidth: 168 },
 ];
 
 function formatSize(n?: number): string {
@@ -128,6 +129,7 @@ export function WorkspaceFileListTable({
   files,
   workspacePath,
 }: WorkspaceFileListTableProps): React.JSX.Element {
+  const { t } = useTranslation("panels");
   const { currentThreadId } = useAppStore();
   const threadState = useThreadState(currentThreadId);
   const openFile = threadState?.openFile;
@@ -138,7 +140,7 @@ export function WorkspaceFileListTable({
 
   const [widths, setWidths] = useState<Record<SortColumn, number>>(
     () =>
-      Object.fromEntries(COLS.map((c) => [c.id, c.defaultWidth])) as Record<
+      Object.fromEntries(COL_CONFIG.map((c) => [c.id, c.defaultWidth])) as Record<
         SortColumn,
         number
       >,
@@ -156,7 +158,6 @@ export function WorkspaceFileListTable({
   );
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpanded(new Set());
   }, [filesIdentity]);
 
@@ -165,7 +166,6 @@ export function WorkspaceFileListTable({
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw) as Partial<Record<SortColumn, number>>;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWidths((w) => ({ ...w, ...parsed }));
     } catch {
       /* ignore */
@@ -180,7 +180,6 @@ export function WorkspaceFileListTable({
         col: SortColumn | null;
         mode: SortMode;
       };
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSortColumn(parsed.col);
 
       setSortMode(parsed.mode ?? "default");
@@ -216,7 +215,7 @@ export function WorkspaceFileListTable({
   );
 
   const totalTableWidth = useMemo(
-    () => COLS.reduce((sum, c) => sum + widths[c.id], 0),
+    () => COL_CONFIG.reduce((sum, c) => sum + widths[c.id], 0),
     [widths],
   );
 
@@ -245,7 +244,7 @@ export function WorkspaceFileListTable({
         const r = resizeRef.current;
         if (!r) return;
         const delta = ev.clientX - r.startX;
-        const def = COLS.find((c) => c.id === r.col)!;
+        const def = COL_CONFIG.find((c) => c.id === r.col)!;
         const next = Math.max(def.min, r.startW + delta);
         setWidths((w) => ({ ...w, [r.col]: next }));
       };
@@ -298,13 +297,13 @@ export function WorkspaceFileListTable({
         style={{ width: totalTableWidth }}
       >
         <colgroup>
-          {COLS.map((col) => (
+          {COL_CONFIG.map((col) => (
             <col key={col.id} style={{ width: widths[col.id] }} />
           ))}
         </colgroup>
         <thead>
           <tr className="border-b border-border bg-muted/40">
-            {COLS.map((col) => (
+            {COL_CONFIG.map((col) => (
               <th
                 key={col.id}
                 style={{ minWidth: col.min }}
@@ -315,12 +314,12 @@ export function WorkspaceFileListTable({
                   className="flex w-full min-w-0 items-center gap-1 pr-3 hover:text-foreground"
                   onClick={() => onHeaderClick(col.id)}
                 >
-                  <span className="truncate">{col.label}</span>
+                  <span className="truncate">{t(col.labelKey)}</span>
                   <SortIcon col={col.id} />
                 </button>
                 <button
                   type="button"
-                  aria-label={`调整「${col.label}」列宽`}
+                  aria-label={t("fileListTable.resizeColumnAriaLabel", { label: t(col.labelKey) })}
                   className="absolute top-0 right-0 z-10 flex h-full w-4 cursor-col-resize items-center justify-center border-0 bg-transparent p-0 hover:bg-primary/25"
                   onMouseDown={(e) => onResizeStart(col.id, e)}
                 >

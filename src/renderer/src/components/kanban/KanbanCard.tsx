@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatRelativeTime, truncate } from "@/lib/utils";
 import { useThreadStream } from "@/lib/thread-context";
+import { useTranslation } from "react-i18next";
 import type { Thread, Subagent } from "@/types";
 
 type KanbanStatus = "pending" | "in_progress" | "interrupted" | "done";
@@ -39,6 +40,7 @@ export function ThreadKanbanCard({
   status,
   onClick,
 }: ThreadCardProps): React.JSX.Element {
+  const { t } = useTranslation('kanban');
   return (
     <Card
       className={cn(
@@ -62,7 +64,7 @@ export function ThreadKanbanCard({
               </span>
               {status === "done" && (
                 <Badge variant="nominal" className="shrink-0 text-[9px]">
-                  完成
+                  {t('card.completed')}
                 </Badge>
               )}
             </div>
@@ -82,6 +84,7 @@ export function SubagentKanbanCard({
   parentThread,
   onClick,
 }: SubagentCardProps): React.JSX.Element {
+  const { t } = useTranslation('kanban');
   const isDone =
     subagent.status === "completed" || subagent.status === "failed";
 
@@ -115,7 +118,7 @@ export function SubagentKanbanCard({
                   }
                   className="shrink-0 text-[9px]"
                 >
-                  {subagent.status === "failed" ? "失败" : "完成"}
+                  {subagent.status === "failed" ? t('card.failed') : t('card.completed')}
                 </Badge>
               )}
             </div>

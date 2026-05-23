@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { useObjectUrlFromBase64 } from "@/lib/media-blob";
 
@@ -11,6 +12,7 @@ export function PDFViewer({
   filePath,
   base64Content,
 }: PDFViewerProps): React.JSX.Element {
+  const { t } = useTranslation("tabs");
   const fileName = filePath.split("/").pop() || filePath;
   const blobUrl = useObjectUrlFromBase64(base64Content, "application/pdf");
   const dataUrl = `data:application/pdf;base64,${base64Content}`;
@@ -29,7 +31,7 @@ export function PDFViewer({
         <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs text-muted-foreground">
           <span className="truncate">{fileName}</span>
           <span className="shrink-0 text-muted-foreground/50">•</span>
-          <span className="shrink-0">PDF 文档</span>
+          <span className="shrink-0">{t("pdfViewer.document")}</span>
         </div>
 
         <Button
@@ -39,7 +41,7 @@ export function PDFViewer({
           className="h-7 shrink-0 gap-1 px-2"
         >
           <ExternalLink className="size-3" />
-          <span className="text-xs">下载</span>
+          <span className="text-xs">{t("pdfViewer.download")}</span>
         </Button>
       </div>
 
@@ -53,7 +55,7 @@ export function PDFViewer({
       </div>
 
       <p className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-1.5 text-center text-[10px] text-muted-foreground">
-        若内嵌预览空白，请使用右上角下载后用系统阅读器打开。
+        {t("pdfViewer.blankPreviewHint")}
       </p>
     </div>
   );

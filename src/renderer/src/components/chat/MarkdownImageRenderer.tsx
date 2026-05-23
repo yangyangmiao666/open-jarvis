@@ -1,6 +1,7 @@
 import { getFileType } from "@/lib/file-types";
 import { InlineImagePreview } from "./InlineImagePreview";
 import { InlineMediaPreview } from "./InlineMediaPreview";
+import { useTranslation } from "react-i18next";
 
 interface MarkdownImageRendererProps {
   src?: string;
@@ -15,6 +16,7 @@ export function MarkdownImageRenderer({
   threadId,
   onOpenFile,
 }: MarkdownImageRendererProps): React.JSX.Element {
+  const { t } = useTranslation('chat');
   if (!src) return <img alt={alt} />;
 
   // Remote URLs and data: URLs render as standard images
@@ -74,7 +76,7 @@ export function MarkdownImageRenderer({
       className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background-elevated px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-background-interactive/62"
     >
       <span className="truncate">{fileName}</span>
-      <span className="text-[10px] opacity-60">点击打开</span>
+      <span className="text-[10px] opacity-60">{t('workspacePicker.clickToOpen')}</span>
     </button>
   );
 }

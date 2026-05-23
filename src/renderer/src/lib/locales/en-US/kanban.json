@@ -1,0 +1,22 @@
+{
+  "title": "Sessions & Sub-agents Overview",
+  "overviewLabel": "Overview",
+  "sessionCount": "{{count}} sessions",
+  "columns": {
+    "pending": "Pending",
+    "inProgress": "In Progress",
+    "interrupted": "Blocked",
+    "done": "Completed"
+  },
+  "noItems": "No items",
+  "header": {
+    "active": "{{count}} active",
+    "idle": "Idle",
+    "hideSubagents": "Hide sub-agents",
+    "showSubagents": "Show sub-agents"
+  },
+  "card": {
+    "completed": "Done",
+    "failed": "Failed"
+  }
+}

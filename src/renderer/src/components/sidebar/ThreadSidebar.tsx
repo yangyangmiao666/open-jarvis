@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Plus,
   MessageSquare,
@@ -86,6 +87,7 @@ function ThreadListItem({
   onEditingTitleChange: (value: string) => void;
   onToggleBulk: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation('sidebar');
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -158,12 +160,12 @@ function ThreadListItem({
       <ContextMenuContent>
         <ContextMenuItem onClick={onStartEditing}>
           <Pencil className="size-4 mr-2" />
-          重命名
+          {t('rename')}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDelete}>
           <Trash2 className="size-4 mr-2" />
-          删除
+          {t('common:delete')}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
@@ -177,6 +179,7 @@ interface ThreadSidebarProps {
 export function ThreadSidebar({
   onOpenSettings,
 }: ThreadSidebarProps): React.JSX.Element {
+  const { t } = useTranslation('sidebar');
   const {
     threads,
     currentThreadId,
@@ -226,7 +229,7 @@ export function ThreadSidebar({
       return;
     }
 
-    await createThread({ title: `新会话 ${new Date().toLocaleDateString()}` });
+    await createThread({ title: t('common:newSessionWithDate', { date: new Date().toLocaleDateString() }) });
   };
 
   const toggleBulk = (threadId: string): void => {
@@ -266,7 +269,7 @@ export function ThreadSidebar({
 
   return (
     <aside className="flex h-full w-full flex-col overflow-hidden bg-transparent">
-      {/* 品牌区：紧贴标题栏下缘，在「红绿灯区域以下 ~ 本区分割线」之间垂直居中 */}
+      {/* Brand area */}
       <div className="app-sidebar-brand app-hairline flex min-h-[5.4rem] shrink-0 items-center gap-3 px-3 py-4">
         <div
           className="icon-purple app-premium-surface flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.45rem] shadow-none"
@@ -287,7 +290,7 @@ export function ThreadSidebar({
             </p>
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            对话、文件与工具流的统一工作台
+            {t('workspaceDescription')}
           </p>
         </div>
       </div>
@@ -301,7 +304,7 @@ export function ThreadSidebar({
             onClick={handleNewThread}
           >
             <Plus className="size-4" />
-            新会话
+            {t('newSession')}
           </Button>
           {!bulkMode && (
             <Button
@@ -310,7 +313,7 @@ export function ThreadSidebar({
               className="h-9 shrink-0 rounded-2xl px-3 text-xs"
               onClick={() => setBulkMode(true)}
             >
-              多选
+              {t('multiSelect')}
             </Button>
           )}
           {bulkMode ? (
@@ -330,8 +333,8 @@ export function ThreadSidebar({
               }}
             >
               {threads.length > 0 && selectedIds.size === threads.length
-                ? "取消全选"
-                : "全选"}
+                ? t('deselectAll')
+                : t('selectAll')}
             </Button>
           ) : null}
         </div>
@@ -343,7 +346,7 @@ export function ThreadSidebar({
               className="h-9 flex-1 rounded-2xl px-3 text-xs"
               onClick={exitBulkMode}
             >
-              完成
+              {t('done')}
             </Button>
             <Button
               variant="destructive"
@@ -352,7 +355,7 @@ export function ThreadSidebar({
               disabled={selectedIds.size === 0}
               onClick={() => handleBulkDeleteRequest()}
             >
-              删除 ({selectedIds.size})
+              {t('deleteCount', { count: selectedIds.size })}
             </Button>
           </div>
         ) : null}
@@ -386,7 +389,7 @@ export function ThreadSidebar({
 
           {threads.length === 0 && (
             <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-              暂无会话
+              {t('noSessions')}
             </div>
           )}
         </div>
@@ -402,7 +405,7 @@ export function ThreadSidebar({
             onClick={() => setShowKanbanView(true)}
           >
             <LayoutGrid className="size-4" />
-            总览
+            {t('overview')}
           </Button>
           <Button
             type="button"
@@ -410,7 +413,7 @@ export function ThreadSidebar({
             size="icon"
             className="size-9 shrink-0 rounded-2xl"
             onClick={() => onOpenSettings()}
-            title="打开设置"
+            title={t('openSettings')}
           >
             <Settings className="size-4" />
           </Button>
@@ -435,14 +438,14 @@ export function ThreadSidebar({
           <DialogHeader>
             <DialogTitle>
               {deleteConfirm?.type === "bulk"
-                ? "确认删除多个会话？"
-                : "确认删除会话？"}
+                ? t('confirmDeleteSessions')
+                : t('confirmDeleteSession')}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {deleteConfirm?.type === "bulk"
-              ? `将永久删除所选的 ${selectedIds.size} 个会话及其消息记录，此操作不可恢复。`
-              : "将永久删除该会话及其消息记录，此操作不可恢复。"}
+              ? t('deleteSessionsWarning', { count: selectedIds.size })
+              : t('deleteSessionWarning')}
           </p>
           <DialogFooter className="gap-3 sm:gap-3">
             <Button
@@ -450,14 +453,14 @@ export function ThreadSidebar({
               variant="secondary"
               onClick={() => setDeleteConfirm(null)}
             >
-              取消
+              {t('common:cancel')}
             </Button>
             <Button
               type="button"
               variant="destructive"
               onClick={() => void executeConfirmedDelete()}
             >
-              删除
+              {t('common:delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

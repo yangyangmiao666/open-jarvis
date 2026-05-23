@@ -2,6 +2,7 @@ import { FileText } from "lucide-react";
 import type { FileType } from "@/lib/file-types";
 import { useInlineMedia } from "@/lib/inline-media";
 import { InlineImagePreview } from "./InlineImagePreview";
+import { useTranslation } from "react-i18next";
 
 interface InlineMediaPreviewProps {
   threadId: string;
@@ -82,6 +83,7 @@ function InlineVideoPreview({
     filePath,
     mimeType,
   );
+  const { t } = useTranslation('chat');
 
   return (
     <div ref={ref} className="inline-block max-w-full">
@@ -90,7 +92,7 @@ function InlineVideoPreview({
       )}
       {error && (
         <div className="rounded-lg border border-border bg-background-elevated px-3 py-2 text-xs text-muted-foreground">
-          无法预览: {error}
+          {t('inlineMedia.cannotPreview')}: {error}
         </div>
       )}
       {url && (
@@ -121,6 +123,7 @@ function InlineAudioPreview({
     filePath,
     mimeType,
   );
+  const { t } = useTranslation("chat");
 
   return (
     <div ref={ref}>
@@ -129,7 +132,7 @@ function InlineAudioPreview({
       )}
       {error && (
         <div className="rounded-lg border border-border bg-background-elevated px-3 py-2 text-xs text-muted-foreground">
-          无法预览: {error}
+          {t("inlineMedia.cannotPreview")}: {error}
         </div>
       )}
       {url && (
@@ -147,6 +150,7 @@ function InlinePdfPlaceholder({
   onClick?: () => void;
 }) {
   const fileName = filePath.split(/[/\\]/).pop() || filePath;
+  const { t } = useTranslation('chat');
   return (
     <button
       onClick={onClick}
@@ -154,7 +158,7 @@ function InlinePdfPlaceholder({
     >
       <FileText className="size-4" />
       <span className="truncate">{fileName}</span>
-      <span className="text-[10px]">点击查看</span>
+      <span className="text-[10px]">{t('inlineMedia.clickToViewPdf')}</span>
     </button>
   );
 }

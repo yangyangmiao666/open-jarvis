@@ -1,4 +1,5 @@
 import type { Message } from "@/types";
+import i18n from "@/lib/locales";
 
 function stringifyContent(m: Message): string {
   if (typeof m.content === "string") return m.content;
@@ -29,7 +30,7 @@ export function singleMessageToMarkdown(
   if (message.role === "user") {
     const t = stringifyContent(message).trim();
     if (!includeRoleHeading) return t;
-    return `## 你\n\n${t}`.trim();
+    return `## ${i18n.t("chat:markdown.you")}\n\n${t}`.trim();
   }
   if (message.role === "assistant") {
     const parts: string[] = includeRoleHeading ? ["## Jarvis"] : [];
@@ -45,7 +46,7 @@ export function singleMessageToMarkdown(
       for (const tc of message.tool_calls) {
         parts.push(
           "",
-          `**工具** \`${tc.name}\``,
+          `**${i18n.t("chat:markdown.tool")}** \`${tc.name}\``,
           "",
           "```json",
           JSON.stringify(tc.args, null, 2),
@@ -55,7 +56,7 @@ export function singleMessageToMarkdown(
         if (res !== undefined) {
           parts.push(
             "",
-            "**结果**",
+            `**${i18n.t("chat:markdown.result")}**`,
             "",
             "```",
             formatToolResultBody(res.content),

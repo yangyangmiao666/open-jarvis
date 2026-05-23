@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   Check,
@@ -64,9 +65,7 @@ const PROVIDER_ICONS: Record<ProviderId, React.FC<{ className?: string }>> = {
 };
 
 // Fallback providers in case the backend hasn't loaded them yet
-const FALLBACK_PROVIDERS: Provider[] = [
-  { id: "openai_compatible", name: "自定义模型", hasApiKey: false },
-];
+// Note: defined inside the component to access i18n t()
 
 interface ModelSwitcherProps {
   threadId: string;
@@ -77,11 +76,16 @@ export function ModelSwitcher({
   threadId,
   onOpenSettings,
 }: ModelSwitcherProps): React.JSX.Element {
+  const { t } = useTranslation("chat");
   const [open, setOpen] = useState(false);
   const [selectedProviderId, setSelectedProviderId] =
     useState<ProviderId | null>(null);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [apiKeyProvider, setApiKeyProvider] = useState<Provider | null>(null);
+
+  const FALLBACK_PROVIDERS: Provider[] = [
+    { id: "openai_compatible", name: t("modelSwitcher.customModel"), hasApiKey: false },
+  ];
 
   const { models, providers, loadModels, loadProviders } = useAppStore();
   const { currentModel, setCurrentModel } = useCurrentThread(threadId);
@@ -169,7 +173,7 @@ export function ModelSwitcher({
                 </span>
               </>
             ) : (
-              <span>选择模型</span>
+              <span>{t("modelSwitcher.selectModel")}</span>
             )}
             <ChevronDown className="size-3" />
           </Button>
@@ -184,7 +188,7 @@ export function ModelSwitcher({
             {/* Provider column */}
               <div className="w-[168px] border-r border-border/70 bg-muted/25 p-3">
               <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                提供商
+                {t("modelSwitcher.provider")}
               </div>
               <div className="space-y-0.5">
                 {displayProviders.map((provider) => {
@@ -214,7 +218,7 @@ export function ModelSwitcher({
             {/* Models column */}
               <div className="flex-1 p-3">
               <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                模型
+                {t("modelSwitcher.models")}
               </div>
 
               {selectedProvider &&
@@ -223,13 +227,13 @@ export function ModelSwitcher({
                 <div className="flex h-[180px] flex-col items-center justify-center px-6 text-center">
                   <Key className="size-6 text-muted-foreground mb-2" />
                   <p className="text-xs text-muted-foreground mb-3">
-                    使用 {selectedProvider.name} 需要配置 API 密钥
+                    {t("modelSwitcher.needApiKey", { name: selectedProvider.name })}
                   </p>
                   <Button
                     size="sm"
                     onClick={() => handleConfigureApiKey(selectedProvider)}
                   >
-                    配置 API 密钥
+                    {t("modelSwitcher.configureApiKey")}
                   </Button>
                 </div>
               ) : selectedProvider?.id === "openai_compatible" &&
@@ -237,7 +241,7 @@ export function ModelSwitcher({
                 <div className="flex h-[180px] flex-col items-center justify-center px-6 text-center">
                   <Key className="size-6 text-muted-foreground mb-2" />
                   <p className="text-xs text-muted-foreground mb-3">
-                    请添加至少一项自定义模型配置（接口地址与模型 ID）
+                    {t("modelSwitcher.needCustomModel")}
                   </p>
                   <Button
                     size="sm"
@@ -246,7 +250,7 @@ export function ModelSwitcher({
                       setOpen(false);
                     }}
                   >
-                    设置大模型
+                    {t("modelSwitcher.setupModel")}
                   </Button>
                 </div>
               ) : (
@@ -290,7 +294,7 @@ export function ModelSwitcher({
 
                     {filteredModels.length === 0 && (
                       <p className="text-xs text-muted-foreground px-2 py-4">
-                        暂无可用模型
+                        {t("modelSwitcher.noAvailableModels")}
                       </p>
                     )}
                   </div>
@@ -304,8 +308,8 @@ export function ModelSwitcher({
                       <Key className="size-3.5" />
                       <span>
                         {selectedProvider.id === "openai_compatible"
-                          ? "设置大模型"
-                          : "编辑 API 密钥"}
+                          ? t("modelSwitcher.setupModel")
+                          : t("modelSwitcher.editApiKey")}
                       </span>
                     </button>
                   )}

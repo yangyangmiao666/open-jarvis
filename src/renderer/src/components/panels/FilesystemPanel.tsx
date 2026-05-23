@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {useTranslation} from "react-i18next";
 import {ChevronDown, ChevronRight, File, Folder, FolderOpen, Loader2, RefreshCw,} from "lucide-react";
 import {ScrollArea} from "@/components/ui/scroll-area";
 import {Button} from "@/components/ui/button";
@@ -8,6 +9,7 @@ import {useThreadState} from "@/lib/thread-context";
 import type {FileInfo} from "@/types";
 
 export function FilesystemPanel() {
+  const { t } = useTranslation('panels');
   const { currentThreadId } = useAppStore();
   const threadState = useThreadState(currentThreadId);
   const workspaceFiles = threadState?.workspaceFiles ?? [];
@@ -144,7 +146,7 @@ export function FilesystemPanel() {
       }
 
       // Use normalized path in the file info for consistent tree lookups
-      tree.get(parentPath)!.push({
+      tree.get(parentPath)?.push({
         ...file,
         path: normalized,
       });
@@ -160,7 +162,7 @@ export function FilesystemPanel() {
         if (!tree.has(parentPath)) {
           tree.set(parentPath, []);
         }
-        tree.get(parentPath)!.push({
+        tree.get(parentPath)?.push({
           path: dir,
           is_dir: true,
         });
@@ -245,15 +247,15 @@ export function FilesystemPanel() {
     return (
       <div className="flex flex-col h-full">
         <div className="p-4 border-b border-border">
-          <span className="text-section-header">工作区</span>
+          <span className="text-section-header">{t('filesystemPanel.workspace')}</span>
         </div>
         <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
           <FolderOpen className="size-12 mb-4 text-muted-foreground opacity-50" />
           <span className="text-sm font-medium mb-2">
-            No workspace selected
+            {t('filesystemPanel.noWorkspaceSelected')}
           </span>
           <span className="text-xs text-muted-foreground mb-4">
-            Select a folder for the agent to work in
+            {t('filesystemPanel.selectFolderHint')}
           </span>
           <Button
             variant="default"
@@ -267,7 +269,7 @@ export function FilesystemPanel() {
             ) : (
               <FolderOpen className="size-4 mr-2" />
             )}
-            Select Folder
+            {t('filesystemPanel.selectFolder')}
           </Button>
         </div>
       </div>
@@ -278,10 +280,10 @@ export function FilesystemPanel() {
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
-          <span className="text-section-header">工作区</span>
+          <span className="text-section-header">{t('filesystemPanel.workspace')}</span>
           <div className="flex items-center gap-2">
             <span
-              className="text-[10px] text-muted-foreground truncate max-w-[80px]"
+              className="text-[10px] text-muted-foreground truncate max-w-20"
               title={workspacePath}
             >
               {workspacePath.split("/").pop()}
@@ -292,7 +294,7 @@ export function FilesystemPanel() {
               onClick={handleRefresh}
               disabled={loading}
               className="h-6 w-6"
-              title="刷新文件列表"
+              title={t('filesystemPanel.refreshFiles')}
             >
               {loading ? (
                 <Loader2 className="size-3 animate-spin" />
@@ -306,9 +308,9 @@ export function FilesystemPanel() {
               onClick={handleSelectFolder}
               disabled={loading || !currentThreadId}
               className="h-6 px-2 text-xs"
-              title="更换工作区文件夹"
+              title={t('filesystemPanel.changeWorkspace')}
             >
-              更换
+              {t('filesystemPanel.changeFolder')}
             </Button>
           </div>
         </div>
@@ -319,9 +321,9 @@ export function FilesystemPanel() {
           {rootItems.length === 0 ? (
             <div className="flex flex-col items-center text-center text-sm text-muted-foreground py-8 px-4">
               <FolderOpen className="size-8 mb-2 opacity-50" />
-              <span>工作区为空</span>
+              <span>{t('filesystemPanel.workspaceEmpty')}</span>
               <span className="text-xs mt-1 opacity-75">
-                智能体创建文件后将显示在这里
+                {t('filesystemPanel.workspaceEmptyHint')}
               </span>
             </div>
           ) : (

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/lib/store";
 import {
   useAllThreadStates,
@@ -35,6 +36,7 @@ function getThreadKanbanStatus(
 }
 
 export function KanbanView(): React.JSX.Element {
+  const { t } = useTranslation('kanban');
   const { threads, selectThread, showSubagentsInKanban } = useAppStore();
   const allThreadStates = useAllThreadStates();
   const loadingStates = useAllStreamLoadingStates();
@@ -112,11 +114,11 @@ export function KanbanView(): React.JSX.Element {
     return result;
   }, [threads, allThreadStates, showSubagentsInKanban]);
 
-  const columnData: { status: KanbanStatus; title: string }[] = [
-    { status: "pending", title: "待处理" },
-    { status: "in_progress", title: "进行中" },
-    { status: "interrupted", title: "阻塞" },
-    { status: "done", title: "已完成" },
+  const columnData: { status: KanbanStatus; titleKey: string }[] = [
+    { status: "pending", titleKey: "columns.pending" },
+    { status: "in_progress", titleKey: "columns.inProgress" },
+    { status: "interrupted", titleKey: "columns.interrupted" },
+    { status: "done", titleKey: "columns.done" },
   ];
 
   return (
@@ -125,19 +127,19 @@ export function KanbanView(): React.JSX.Element {
       <div className="app-hairline shrink-0 border-b border-border/50 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background-elevated)_76%,transparent),color-mix(in_srgb,var(--background)_36%,transparent))] px-4 py-4 backdrop-blur-lg">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-section-header">Overview</div>
+            <div className="text-section-header">{t('overviewLabel')}</div>
             <div className="text-xl font-semibold tracking-[-0.03em] text-foreground">
-              会话与子智能体总览
+              {t('title')}
             </div>
           </div>
           <div className="rounded-full border border-primary/18 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_14%,transparent),color-mix(in_srgb,var(--background-elevated)_80%,transparent))] px-3 py-1 text-xs text-muted-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_10%,transparent)]">
-            {threads.length} 个会话
+            {t('sessionCount', { count: threads.length })}
           </div>
         </div>
       </div>
       <div className="flex-1 overflow-x-auto px-4 py-4">
         <div className="flex h-full min-w-max gap-4">
-          {columnData.map(({ status, title }) => {
+          {columnData.map(({ status, titleKey }) => {
             const threadItems = categorizedThreads[status];
             const subagentItems = categorizedSubagents[status];
             const totalCount = threadItems.length + subagentItems.length;
@@ -145,7 +147,7 @@ export function KanbanView(): React.JSX.Element {
             return (
               <KanbanColumn
                 key={status}
-                title={title}
+                title={t(titleKey)}
                 status={status}
                 count={totalCount}
               >
@@ -167,7 +169,7 @@ export function KanbanView(): React.JSX.Element {
                 ))}
                 {totalCount === 0 && (
                   <div className="rounded-2xl border border-dashed border-border/70 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground backdrop-blur-sm">
-                    暂无条目
+                    {t('noItems')}
                   </div>
                 )}
               </KanbanColumn>

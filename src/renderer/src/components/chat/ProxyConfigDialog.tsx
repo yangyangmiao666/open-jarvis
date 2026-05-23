@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Network, Save, RotateCcw } from "lucide-react";
 import {
   Dialog,
@@ -28,6 +29,7 @@ export function ProxyConfigDialog({
   open,
   onOpenChange,
 }: ProxyConfigDialogProps): React.JSX.Element {
+  const { t } = useTranslation("settings");
   const [config, setConfig] = useState<ProxyConfig>(emptyConfig);
   const [saving, setSaving] = useState(false);
   const [successFlash, setSuccessFlash] = useState<"save" | "reset" | null>(null);
@@ -48,11 +50,11 @@ export function ProxyConfigDialog({
     try {
       const saved = await window.api.settings.setProxyConfig(config);
       setConfig(saved);
-      toast.success("代理配置已保存并立即生效");
+      toast.success(t("proxyConfig.savedAndActive"));
       setSuccessFlash("save");
       setTimeout(() => setSuccessFlash(null), 360);
     } catch {
-      toast.error("保存失败");
+      toast.error(t("proxyConfig.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -63,11 +65,11 @@ export function ProxyConfigDialog({
     try {
       const saved = await window.api.settings.setProxyConfig(emptyConfig);
       setConfig(saved);
-      toast.success("代理配置已清空");
+      toast.success(t("proxyConfig.cleared"));
       setSuccessFlash("reset");
       setTimeout(() => setSuccessFlash(null), 360);
     } catch {
-      toast.error("重置失败");
+      toast.error(t("proxyConfig.resetFailed"));
     } finally {
       setSaving(false);
     }
@@ -83,11 +85,11 @@ export function ProxyConfigDialog({
               Proxy
             </div>
             <DialogTitle className="text-xl tracking-[-0.03em]">
-              代理配置
+              {t("proxyConfig.title")}
             </DialogTitle>
           </div>
           <p className="text-sm leading-6 text-muted-foreground">
-            保存后会写入应用环境配置，并立即更新主进程中的全局网络代理。通常只填 HTTPS 代理即可。
+            {t("proxyConfig.description")}
           </p>
         </DialogHeader>
 
@@ -95,39 +97,39 @@ export function ProxyConfigDialog({
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="proxy-https" className="text-sm font-medium">
-                HTTPS 代理
+                {t("proxyConfig.httpsProxy")}
               </label>
               <Input
                 id="proxy-https"
                 value={config.httpsProxy}
                 onChange={(event) => updateField("httpsProxy", event.target.value)}
-                placeholder="例如：http://127.0.0.1:7890"
+                placeholder={t("proxyConfig.httpsProxyPlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
               <label htmlFor="proxy-http" className="text-sm font-medium">
-                HTTP 代理
+                {t("proxyConfig.httpProxy")}
               </label>
               <Input
                 id="proxy-http"
                 value={config.httpProxy}
                 onChange={(event) => updateField("httpProxy", event.target.value)}
-                placeholder="例如：http://127.0.0.1:7890"
+                placeholder={t("proxyConfig.httpProxyPlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
               <label htmlFor="proxy-all" className="text-sm font-medium">
-                ALL_PROXY
+                {t("proxyConfig.allProxy")}
               </label>
               <Input
                 id="proxy-all"
                 value={config.allProxy}
                 onChange={(event) => updateField("allProxy", event.target.value)}
-                placeholder="例如：socks5://127.0.0.1:7891"
+                placeholder={t("proxyConfig.allProxyPlaceholder")}
               />
             </div>
             <div className="rounded-2xl border border-border/70 bg-background/35 px-4 py-3 text-xs leading-6 text-muted-foreground">
-              当前实现会在有任一代理地址时自动写入 NODE_USE_ENV_PROXY=1，方便子进程和部分运行时保持一致。
+              {t("proxyConfig.autoNodeProxy")}
             </div>
           </div>
         </div>
@@ -141,7 +143,7 @@ export function ProxyConfigDialog({
             className={cn(successFlash === "reset" && "animate-button-success")}
           >
             <RotateCcw className="size-4" />
-            清空
+            {t("proxyConfig.clear")}
           </Button>
           <Button
             type="button"
@@ -150,7 +152,7 @@ export function ProxyConfigDialog({
             className={cn(successFlash === "save" && "animate-button-success")}
           >
             <Save className="size-4" />
-            保存
+            {t("common:save")}
           </Button>
         </DialogFooter>
       </DialogContent>

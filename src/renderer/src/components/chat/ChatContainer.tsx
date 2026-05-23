@@ -10,6 +10,8 @@ import {
   Shield,
   ShieldCheck,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/lib/locales";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/lib/store";
@@ -35,12 +37,12 @@ import { messagesToMarkdown } from "@/lib/chat-markdown";
 import { toast } from "@/components/ui/toast";
 
 const STREAMING_BASE_TIPS = [
-  "正在交叉阅读上下文、消息、工具结果和线程状态，尽量减少无效来回。",
-  "会先压缩出最有价值的下一步，再决定是继续搜索、修改还是验证。",
-  "如果发现问题已经收敛到局部切片，会优先做小改动并立即验证。",
-  "处理过程中会持续整理线索、风险和已完成动作，而不是只输出中间碎片。",
-  "如果本轮涉及工具链、文件改动和上下文窗口，会同步约束它们之间的影响范围。",
-  "当前展示的是处理中状态提示，真实结果仍会按消息和工具调用继续流式输出。",
+  i18n.t('streaming.tip1', { ns: 'chat' }),
+  i18n.t('streaming.tip2', { ns: 'chat' }),
+  i18n.t('streaming.tip3', { ns: 'chat' }),
+  i18n.t('streaming.tip4', { ns: 'chat' }),
+  i18n.t('streaming.tip5', { ns: 'chat' }),
+  i18n.t('streaming.tip6', { ns: 'chat' }),
 ];
 
 function buildStreamingTips(params: {
@@ -77,37 +79,37 @@ function buildStreamingTips(params: {
 
   const tips = [
     activeTodo
-      ? `正在推进：${truncate(activeTodo.content.replace(/\s+/g, " "), 46)}`
+      ? i18n.t('streaming.pushingTodo', { ns: 'chat', content: truncate(activeTodo.content.replace(/\s+/g, " "), 46) })
       : null,
     completedCount > 0
-      ? `已经完成 ${completedCount} 个处理步骤，接下来会优先收束剩余动作与验证闭环。`
+      ? i18n.t('streaming.completedSteps', { ns: 'chat', count: completedCount })
       : null,
     queuedCount > 1
-      ? `后面还有 ${queuedCount - 1} 个待推进步骤，当前按依赖顺序继续，不会无序扩散。`
+      ? i18n.t('streaming.remainingSteps', { ns: 'chat', count: queuedCount - 1 })
       : null,
     workspaceName
-      ? `正在结合工作区 ${workspaceName} 的文件关系与最近改动推进行为判断。`
+      ? i18n.t('streaming.workspaceContext', { ns: 'chat', name: workspaceName })
       : null,
     workspaceName && workspaceFileCount > 0
-      ? `当前工作区可见 ${workspaceFileCount} 个文件节点，会优先利用可证伪的局部线索。`
+      ? i18n.t('streaming.workspaceFiles', { ns: 'chat', count: workspaceFileCount })
       : null,
     referencedPaths.length > 0
-      ? `会优先使用你引用的 ${referencedPaths.length} 个文件路径，避免上下文偏移和重复搜索。`
+      ? i18n.t('streaming.referencedPaths', { ns: 'chat', count: referencedPaths.length })
       : null,
     toolSummary.length > 0
-      ? `最近正在串联 ${toolSummary.join("、")} 等工具，把搜索、修改和验证压进同一轮处理。`
+      ? i18n.t('streaming.recentTools', { ns: 'chat', tools: toolSummary.join("、") })
       : null,
     currentModelLabel
-      ? `当前由 ${currentModelLabel} 负责本轮推理、工具调用和结果整理。`
+      ? i18n.t('streaming.currentModel', { ns: 'chat', label: currentModelLabel })
       : null,
     messageCount > 3
-      ? `当前线程已累计 ${messageCount} 条消息，状态会沿着现有上下文继续推进，不会从头重算。`
+      ? i18n.t('streaming.messageCount', { ns: 'chat', count: messageCount })
       : null,
     approvalMode === "auto"
-      ? "当前是自动审批模式，低风险动作会直接继续，减少流程停顿。"
-      : "当前是人工审批模式，高影响工具会停在确认点，保证执行边界清晰。",
+      ? i18n.t('streaming.autoApprovalMode', { ns: 'chat' })
+      : i18n.t('streaming.manualApprovalMode', { ns: 'chat' }),
     pendingApprovalName
-      ? `流程当前停在 ${pendingApprovalName} 的确认点，批准或拒绝后会继续汇总后续结果。`
+      ? i18n.t('streaming.pendingApproval', { ns: 'chat', name: pendingApprovalName })
       : null,
     ...STREAMING_BASE_TIPS,
   ].filter((tip): tip is string => Boolean(tip));
@@ -138,6 +140,7 @@ export function ChatContainer({
   threadId,
   onOpenSettings,
 }: ChatContainerProps): React.JSX.Element {
+  const { t } = useTranslation('chat');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mentionListRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -496,7 +499,7 @@ export function ChatContainer({
         : 0;
   const pendingApprovalLabel =
     pendingApprovalCount > 1 && pendingApproval
-      ? `${pendingApproval.tool_call.name} 等 ${pendingApprovalCount} 个工具调用`
+      ? t('approval.multipleToolCalls', { name: pendingApproval.tool_call.name, count: pendingApprovalCount })
       : pendingApproval?.tool_call?.name;
 
   const streamingTips = useMemo(
@@ -569,11 +572,11 @@ export function ChatContainer({
     if (!md) return;
     try {
       await navigator.clipboard.writeText(md);
-      toast.success("已复制到剪贴板");
+      toast.success(t('toast.copiedToClipboard', { ns: 'common' }));
     } catch {
-      toast.error("复制失败");
+      toast.error(t('toast.copyFailed', { ns: 'common' }));
     }
-  }, [displayMessages, toolResults]);
+  }, [displayMessages, t, toolResults]);
 
   // Get the actual scrollable viewport element from Radix ScrollArea
   const getViewport = useCallback((): HTMLDivElement | null => {
@@ -679,7 +682,7 @@ export function ChatContainer({
       if (!messageText.trim() || !stream) return;
 
       if (!workspacePath) {
-        setError("发送消息前请先选择工作区文件夹。");
+        setError(t('selectWorkspaceFirst'));
         return;
       }
 
@@ -714,10 +717,10 @@ export function ChatContainer({
       appendMessage(userMessage);
 
       if (isFirstMessage) {
-        const currentThread = threads.find((t) => t.thread_id === threadId);
+        const currentThread = threads.find((th) => th.thread_id === threadId);
         const hasDefaultTitle =
           Boolean(currentThread?.title?.startsWith("Thread ")) ||
-          Boolean(currentThread?.title?.startsWith("新会话 "));
+          Boolean(currentThread?.title?.startsWith(t('emptyState.newSession')));
         if (hasDefaultTitle) {
           generateTitleForFirstMessage(threadId, messageText);
         }
@@ -741,25 +744,7 @@ export function ChatContainer({
       );
       setReferencedPaths([]);
     },
-    [
-      appendMessage,
-      clearError,
-      currentModel,
-      enqueueInterruption,
-      generateTitleForFirstMessage,
-      isLoading,
-      pendingApproval,
-      referencedPaths,
-      setError,
-      setInput,
-      setPendingApproval,
-      stream,
-      threadError,
-      threadId,
-      threadMessages.length,
-      threads,
-      workspacePath,
-    ],
+    [appendMessage, clearError, currentModel, enqueueInterruption, generateTitleForFirstMessage, isLoading, pendingApproval, referencedPaths, setError, setInput, setPendingApproval, stream, t, threadError, threadId, threadMessages.length, threads, workspacePath],
   );
 
   const handleDismissError = (): void => {
@@ -817,25 +802,13 @@ export function ChatContainer({
       } catch (error) {
         console.error("[ChatContainer] Failed to resend message:", error);
         if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
-          setError("未找到要重发的消息。请切换会话后重试。");
+          setError(t('toast.resendNotFound'));
           return;
         }
-        setError("重发消息失败，请稍后再试。");
+        setError(t('toast.resendFailed'));
       }
     },
-    [
-      clearError,
-      extractMessageText,
-      isLoading,
-      setError,
-      setMessages,
-      setPendingApproval,
-      setPendingApprovals,
-      setTodos,
-      submitUserMessage,
-      threadMessages,
-      rewindThreadToMessage,
-    ],
+    [isLoading, extractMessageText, rewindThreadToMessage, setMessages, threadMessages, setPendingApprovals, setPendingApproval, setTodos, clearError, submitUserMessage, setError, t],
   );
 
   const handleEditMessage = useCallback(
@@ -889,28 +862,15 @@ export function ChatContainer({
       } catch (error) {
         console.error("[ChatContainer] Failed to submit edited message:", error);
         if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
-          setError("未找到要编辑的消息。请切换会话后重试。");
+          setError(t('toast.editNotFound'));
         } else {
-          setError("编辑后发送失败，请稍后再试。");
+          setError(t('toast.editSendFailed'));
         }
       } finally {
         setIsSubmittingEdit(false);
       }
     },
-    [
-      clearError,
-      editingDraft,
-      isLoading,
-      isSubmittingEdit,
-      rewindThreadToMessage,
-      setError,
-      setMessages,
-      setPendingApproval,
-      setPendingApprovals,
-      setTodos,
-      submitUserMessage,
-      threadMessages,
-    ],
+    [clearError, editingDraft, isLoading, isSubmittingEdit, rewindThreadToMessage, setError, setMessages, setPendingApproval, setPendingApprovals, setTodos, submitUserMessage, t, threadMessages],
   );
 
   const handleDeleteMessage = useCallback(
@@ -935,27 +895,17 @@ export function ChatContainer({
       setReferencedPaths([]);
       clearError();
       setDeleteConfirmMessage(null);
-      toast.success("消息已删除");
+      toast.success(t('toast.messageDeleted'));
     } catch (error) {
       console.error("[ChatContainer] Failed to delete message:", error);
       setDeleteConfirmMessage(null);
       if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
-        setError("未找到要删除的消息。请切换会话后重试。");
+        setError(t('toast.deleteNotFound'));
         return;
       }
-      setError("删除消息失败，请稍后再试。");
+      setError(t('toast.deleteFailed'));
     }
-  }, [
-    clearError,
-    deleteConfirmMessage,
-    rewindThreadToMessage,
-    setError,
-    setMessages,
-    setPendingApproval,
-    setPendingApprovals,
-    setTodos,
-    threadMessages,
-  ]);
+  }, [clearError, deleteConfirmMessage, rewindThreadToMessage, setError, setMessages, setPendingApproval, setPendingApprovals, setTodos, t, threadMessages]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (mentionOpen && mentionCandidates.length > 0) {
@@ -1047,28 +997,27 @@ export function ChatContainer({
                 <div className="relative flex flex-col items-center gap-4">
                   <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background-elevated px-3 py-1 text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
                     <span className="size-1.5 rounded-full bg-foreground" />
-                    新会话
+                    {t('emptyState.newSession')}
                   </div>
                   {workspacePath ? (
                     <>
                       <div className="space-y-3">
                         <div className="text-2xl font-semibold tracking-[-0.04em] text-foreground sm:text-[2rem]">
-                          从这个工作区开始推进一个明确结果
+                          {t('emptyState.startFromWorkspace')}
                         </div>
                         <div className="mx-auto max-w-xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-                          你已经连接了工作区，Jarvis
-                          现在可以直接阅读代码、修改文件、执行命令，并把过程整理成可追踪的结果。
+                          {t('emptyState.connectedWorkspace')}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
                         <span className="rounded-full border border-border bg-background-elevated px-3 py-1.5">
-                          当前目录: {workspacePath.split("/").pop()}
+                          {t('emptyState.currentDir', { folder: workspacePath.split("/").pop() })}
                         </span>
                         <span className="rounded-full border border-border bg-background-elevated px-3 py-1.5">
-                          试试: "梳理这个模块"
+                          {t('emptyState.trySuggestion')}
                         </span>
                         <span className="rounded-full border border-border bg-background-elevated px-3 py-1.5">
-                          或者: "帮我改并验证"
+                          {t('emptyState.orSuggestion')}
                         </span>
                       </div>
                     </>
@@ -1076,10 +1025,10 @@ export function ChatContainer({
                     <div className="space-y-4 text-center text-sm">
                       <div className="space-y-1">
                         <span className="text-base font-medium text-status-warning">
-                          请选择工作区文件夹
+                          {t('emptyState.selectWorkspace')}
                         </span>
                         <span className="mt-1 block text-xs opacity-80">
-                          智能体需要工作区才能创建与修改文件
+                          {t('emptyState.agentNeedsWorkspace')}
                         </span>
                       </div>
                       <button
@@ -1089,7 +1038,7 @@ export function ChatContainer({
                       >
                         <Folder className="size-3.5" />
                         <span className="max-w-30 truncate">
-                          选择工作区
+                          {t('emptyState.chooseWorkspace')}
                         </span>
                       </button>
                     </div>
@@ -1136,19 +1085,19 @@ export function ChatContainer({
                 <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-destructive text-sm">
-                    智能体错误
+                    {t('error.agentError')}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1 wrap-break-word">
                     {threadError}
                   </div>
                   <div className="text-xs text-muted-foreground mt-2">
-                    可尝试发送新消息以继续对话。
+                    {t('error.tryResend')}
                   </div>
                 </div>
                 <button
                   onClick={handleDismissError}
                   className="shrink-0 rounded p-1 hover:bg-destructive/20 transition-colors"
-                  aria-label="关闭错误"
+                  aria-label={t('error.closeError')}
                 >
                   <X className="size-4 text-muted-foreground" />
                 </button>
@@ -1175,13 +1124,13 @@ export function ChatContainer({
                   <ShieldAlert className="mt-0.5 size-4 shrink-0 text-status-warning" />
                   <div className="min-w-0">
                     <div className="font-medium text-foreground">
-                      等待你确认：
+                      {t('approval.waitingForConfirmation')}
                       {pendingApprovalCount > 1
-                        ? `${pendingApproval.tool_call.name} 等 ${pendingApprovalCount} 个工具调用`
+                        ? t('approval.multipleToolCalls', { name: pendingApproval.tool_call.name, count: pendingApprovalCount })
                         : pendingApproval.tool_call.name}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground break-all">
-                      主进程或子智能体已暂停；批准或拒绝这些工具调用后才会继续并汇总结果。
+                      {t('approval.approvalPaused')}
                     </div>
                   </div>
                 </div>
@@ -1193,7 +1142,7 @@ export function ChatContainer({
                   size="sm"
                   onClick={() => void handleApprovalDecision("reject")}
                 >
-                  拒绝
+                  {t('approval.reject')}
                 </Button>
                 <Button
                   type="button"
@@ -1205,14 +1154,14 @@ export function ChatContainer({
                     })
                   }
                 >
-                  允许此工作区后续类似命令
+                  {t('approval.allowWorkspaceSimilar')}
                 </Button>
                 <Button
                   type="button"
                   size="sm"
                   onClick={() => void handleApprovalDecision("approve")}
                 >
-                  本次批准
+                  {t('approval.approveThisTime')}
                 </Button>
               </div>
             </div>
@@ -1235,7 +1184,7 @@ export function ChatContainer({
               <div className="animate-soft-fade flex items-center gap-3 overflow-hidden rounded-[18px] border border-border bg-background-elevated px-3 py-2 shadow-none">
                 <div className="min-w-0 flex-1">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
-                    Jarvis is working
+                    {t('streaming.jarvisWorking')}
                   </div>
                   <div className="streaming-tip-viewport mt-1">
                     <div
@@ -1247,7 +1196,7 @@ export function ChatContainer({
                   </div>
                 </div>
                 <div className="hidden shrink-0 rounded-full border border-border bg-background-elevated px-2 py-1 text-[10px] font-medium text-muted-foreground sm:block">
-                  {pendingApproval ? "已暂停" : isCancelling ? "取消中" : "处理中"}
+                  {pendingApproval ? t('streaming.paused') : isCancelling ? t('streaming.cancelling') : t('streaming.processing')}
                 </div>
               </div>
             )}
@@ -1263,7 +1212,7 @@ export function ChatContainer({
                     className={cn(
                       "inline-flex items-center gap-1 rounded-full border border-border bg-background-elevated px-2.5 py-1 text-[11px] font-mono text-muted-foreground hover:bg-background-interactive",
                     )}
-                    title="点击移除"
+                    title={t('clickToRemove')}
                   >
                     {p}
                     <X className="size-3 shrink-0" />
@@ -1293,8 +1242,8 @@ export function ChatContainer({
                   onKeyDown={handleKeyDown}
                   placeholder={
                     isLoading
-                      ? "输入消息插嘴… Enter 排队发送，等当前回复完成后自动提交"
-                      : "输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件"
+                      ? t('inputPlaceholder.loading')
+                      : t('inputPlaceholder.idle')
                   }
                   className="chat-input-scrollbar block min-w-0 w-full resize-none border-0 bg-transparent px-4 py-3.5 pr-2 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none"
                   rows={1}
@@ -1341,7 +1290,7 @@ export function ChatContainer({
                     size="icon"
                     className="rounded-full"
                     onClick={() => void handleCancel()}
-                    title="停止生成"
+                    title={t('streaming.stopGeneration')}
                   >
                     <Square className="size-4" />
                   </Button>
@@ -1353,7 +1302,7 @@ export function ChatContainer({
                     size="icon"
                     disabled={!input.trim()}
                     className="rounded-full"
-                    title="插嘴发送（排队等待当前回复完成后自动提交）"
+                    title={t('streaming.interruptSend')}
                   >
                     <Send className="size-4" />
                   </Button>
@@ -1387,8 +1336,8 @@ export function ChatContainer({
                   onClick={() => void handleApprovalModeToggle()}
                   title={
                     approvalMode === "auto"
-                      ? "当前为自动通过审批，点击切换为人工审批"
-                      : "当前为人工审批，点击切换为自动通过"
+                      ? t('approval.autoApprovalTitle')
+                      : t('approval.manualApprovalTitle')
                   }
                 >
                   {approvalMode === "auto" ? (
@@ -1396,7 +1345,7 @@ export function ChatContainer({
                   ) : (
                     <Shield className="size-3.5" />
                   )}
-                  {approvalMode === "auto" ? "自动审批" : "人工审批"}
+                  {approvalMode === "auto" ? t('approval.autoApproval') : t('approval.manualApproval')}
                 </Button>
                 <div className="h-4 w-px shrink-0 bg-border" />
                 <Button
@@ -1406,10 +1355,10 @@ export function ChatContainer({
                   className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs text-muted-foreground hover:translate-y-0"
                   disabled={displayMessages.length === 0}
                   onClick={() => void copyConversationMarkdown()}
-                  title="复制当前会话全部消息为 Markdown（含工具调用与结果）"
+                  title={t('copyMarkdownTitle')}
                 >
                   <Copy className="size-3.5" />
-                  复制 Markdown
+                  {t('copyMarkdown')}
                 </Button>
                 <div className="h-4 w-px shrink-0 bg-border" />
                 <ContextUsageIndicator
@@ -1430,7 +1379,7 @@ export function ChatContainer({
               {pendingApproval && (
                 <span className="inline-flex items-center gap-2 rounded-full border border-status-warning/30 bg-status-warning/10 px-3 py-1 text-status-warning">
                   <ShieldAlert className="size-3.5" />
-                  等待审批
+                  {t('approval.waitingApproval')}
                 </span>
               )}
             </div>
@@ -1448,16 +1397,15 @@ export function ChatContainer({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>确认删除消息？</DialogTitle>
+            <DialogTitle>{t('deleteConfirm.title')}</DialogTitle>
             <DialogDescription>
-              将删除这条{deleteConfirmMessage?.role === "user" ? "用户" : "助手"}
-              消息及其后续对话记录，此操作不可恢复。
+              {t('deleteConfirm.description', { role: deleteConfirmMessage?.role === "user" ? t('deleteConfirm.user') : t('deleteConfirm.assistant') })}
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-2xl border border-border/60 bg-background-elevated px-4 py-3 text-sm text-muted-foreground">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-foreground/70">
               <PencilLine className="size-3.5" />
-              目标消息
+              {t('deleteConfirm.targetMessage')}
             </div>
             <p className="whitespace-pre-wrap wrap-break-word text-foreground/85">
               {truncate(
@@ -1468,8 +1416,8 @@ export function ChatContainer({
                   created_at: new Date(),
                 }) ||
                   (deleteConfirmMessage?.tool_calls?.length
-                    ? "这是一条包含工具调用的消息。"
-                    : "这条消息没有可展示的文本内容。"),
+                    ? t('deleteConfirm.hasToolCalls')
+                    : t('deleteConfirm.noTextContent')),
                 160,
               )}
             </p>
@@ -1480,14 +1428,14 @@ export function ChatContainer({
               variant="secondary"
               onClick={() => setDeleteConfirmMessage(null)}
             >
-              取消
+              {t('cancel', { ns: 'common' })}
             </Button>
             <Button
               type="button"
               variant="destructive"
               onClick={() => void executeConfirmedDelete()}
             >
-              删除
+              {t('delete', { ns: 'common' })}
             </Button>
           </DialogFooter>
         </DialogContent>

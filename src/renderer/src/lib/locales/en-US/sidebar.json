@@ -1,0 +1,17 @@
+{
+  "newSession": "New Session",
+  "multiSelect": "Multi-select",
+  "selectAll": "Select All",
+  "deselectAll": "Deselect All",
+  "done": "Done",
+  "deleteCount": "Delete ({{count}})",
+  "rename": "Rename",
+  "overview": "Overview",
+  "openSettings": "Open Settings",
+  "noSessions": "No sessions yet",
+  "confirmDeleteSession": "Confirm delete session?",
+  "confirmDeleteSessions": "Confirm delete multiple sessions?",
+  "deleteSessionWarning": "This session and its message history will be permanently deleted. This action cannot be undone.",
+  "deleteSessionsWarning": "The selected {{count}} sessions and their message history will be permanently deleted. This action cannot be undone.",
+  "workspaceDescription": "Unified workspace for conversations, files, and tool workflows"
+}

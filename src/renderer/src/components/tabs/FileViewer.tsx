@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Loader2, AlertCircle, FileCode } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useCurrentThread } from "@/lib/thread-context";
 import { getFileType, isBinaryFile } from "@/lib/file-types";
 import { CodeViewer } from "./CodeViewer";
@@ -17,6 +18,7 @@ export function FileViewer({
   filePath,
   threadId,
 }: FileViewerProps): React.JSX.Element | null {
+  const { t } = useTranslation('tabs');
   const { fileContents, setFileContents } = useCurrentThread(threadId);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function FileViewer({
             setBinaryContent(result.content);
             setFileSize(result.size);
           } else {
-            setError(result.error || "读取文件失败");
+            setError(result.error || t('fileViewer.readFileFailed'));
           }
         } else {
           // Read as text file
@@ -72,18 +74,18 @@ export function FileViewer({
             setFileContents(filePath, result.content);
             setFileSize(result.size);
           } else {
-            setError(result.error || "读取文件失败");
+            setError(result.error || t('fileViewer.readFileFailed'));
           }
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "读取文件失败");
+        setError(e instanceof Error ? e.message : t('fileViewer.readFileFailed'));
       } finally {
         setIsLoading(false);
       }
     }
 
     loadFile();
-  }, [threadId, filePath, content, binaryContent, setFileContents, isBinary]);
+  }, [threadId, filePath, content, binaryContent, setFileContents, isBinary, t]);
 
   if (isLoading) {
     return (
@@ -93,8 +95,8 @@ export function FileViewer({
             <Loader2 className="size-5 animate-spin" />
           </div>
           <div className="space-y-1">
-            <div className="text-base font-medium text-foreground">正在载入文件</div>
-            <div className="text-sm">准备预览 {fileName}</div>
+            <div className="text-base font-medium text-foreground">{t('fileViewer.loadingFile')}</div>
+            <div className="text-sm">{t('fileViewer.preparingPreview', { fileName })}</div>
           </div>
         </div>
       </div>
@@ -108,7 +110,7 @@ export function FileViewer({
           <AlertCircle className="size-10 text-status-critical" />
           <div className="text-center">
             <div className="mb-1 font-medium text-foreground">
-              无法载入文件
+              {t('fileViewer.cannotLoadFile')}
             </div>
             <div className="text-sm">{error}</div>
           </div>
@@ -122,8 +124,8 @@ export function FileViewer({
       <div className="flex flex-1 items-center justify-center p-8 text-muted-foreground">
         <div className="app-flat-surface flex flex-col items-center gap-3 rounded-[28px] px-8 py-10 text-center">
           <FileCode className="size-8 text-primary/80" />
-          <div className="text-base font-medium text-foreground">暂无可显示内容</div>
-          <div className="text-sm">该文件当前没有可预览的数据。</div>
+          <div className="text-base font-medium text-foreground">{t('fileViewer.noContent')}</div>
+          <div className="text-sm">{t('fileViewer.noContentHint')}</div>
         </div>
       </div>
     );

@@ -1,0 +1,80 @@
+{
+  "sections": {
+    "tasks": "Tasks",
+    "files": "Files",
+    "subagents": "Sub-agents"
+  },
+  "filesBadge": "{{count}} files",
+  "taskStatus": {
+    "pending": "Pending",
+    "inProgress": "In Progress",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "subagentStatus": {
+    "pending": "Pending",
+    "running": "Running",
+    "completed": "Completed",
+    "failed": "Failed"
+  },
+  "tasks": {
+    "noTasks": "No tasks yet",
+    "noTasksHint": "Tasks will appear here when the agent creates them",
+    "progress": "Progress",
+    "completedLabel": "Completed ({{count}})"
+  },
+  "files": {
+    "noFolderLinked": "No folder linked",
+    "treeView": "Tree",
+    "listView": "List",
+    "openFolder": "Open",
+    "openFolderTitle": "Open {{path}}",
+    "noFolderToOpen": "No workspace folder to open",
+    "sync": "Sync",
+    "syncToTitle": "Sync to {{path}}",
+    "syncToDisk": "Sync files to disk",
+    "changeFolder": "Change",
+    "changeFolderTitle": "Change folder",
+    "linkFolder": "Link",
+    "linkFolderTitle": "Link sync folder",
+    "noWorkspaceFiles": "No workspace files",
+    "linkedFolder": "Linked: {{name}}",
+    "linkFolderHint": "Click \"Link\" to set a sync folder"
+  },
+  "subagents": {
+    "noSubagents": "No sub-agent tasks",
+    "noSubagentsHint": "Sub-agents will appear here when created",
+    "approvalWaiting": "Tool calls are awaiting approval; related sub-tasks will remain \"Running\" until you approve or reject them in the conversation area."
+  },
+  "filesystemPanel": {
+    "workspace": "Workspace",
+    "noWorkspaceSelected": "No workspace selected",
+    "selectFolderHint": "Select a folder for the agent to work in",
+    "selectFolder": "Select Folder",
+    "refreshFiles": "Refresh file list",
+    "changeWorkspace": "Change workspace folder",
+    "changeFolder": "Change",
+    "workspaceEmpty": "Workspace is empty",
+    "workspaceEmptyHint": "Files will appear here after the agent creates them"
+  },
+  "fileListTable": {
+    "columnName": "Name",
+    "columnSize": "Size",
+    "columnCreated": "Created",
+    "columnModified": "Modified",
+    "resizeColumnAriaLabel": "Resize \"{{label}}\" column"
+  },
+  "subagentPanel": {
+    "headerTitle": "Sub-agents",
+    "activeCount": "{{count}} active",
+    "totalCount": "{{count}} total",
+    "noSubagents": "No sub-agent tasks",
+    "noSubagentsHint": "Sub-agents will appear here when spawned",
+    "approvalWaiting": "Tool calls are awaiting approval; related sub-tasks will remain \"Running\" until you approve or reject them in the conversation area.",
+    "statusPending": "Pending",
+    "statusRunning": "Running",
+    "statusDone": "Done",
+    "statusFailed": "Failed",
+    "completedCount": "{{count}} completed"
+  }
+}

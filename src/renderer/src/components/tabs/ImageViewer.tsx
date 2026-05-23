@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useObjectUrlFromBase64 } from "@/lib/media-blob";
 import { ZoomIn, ZoomOut, Maximize2, RotateCw, Hand } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ export function ImageViewer({
   base64Content,
   mimeType,
 }: ImageViewerProps): React.JSX.Element {
+  const { t } = useTranslation("tabs");
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
@@ -50,7 +52,7 @@ export function ImageViewer({
         frameRef.current = null;
       }
     };
-  }, [zoom, rotation]);
+  }, [zoom, rotation, applyTransform]);
 
   const handleZoomIn = (): void => {
     const newZoom = Math.min(zoom + 25, 400);
@@ -119,13 +121,13 @@ export function ImageViewer({
         <div className="flex items-center gap-2 text-xs text-muted-foreground overflow-hidden">
           <span className="truncate">{fileName}</span>
           <span className="text-muted-foreground/50">•</span>
-          <span>图片</span>
+          <span>{t("imageViewer.image")}</span>
           {canPan && (
             <>
               <span className="text-muted-foreground/50">•</span>
               <span className="flex items-center gap-1">
                 <Hand className="size-3" />
-                拖动查看
+                {t("imageViewer.dragToView")}
               </span>
             </>
           )}
@@ -142,7 +144,7 @@ export function ImageViewer({
             <ZoomOut className="size-4" />
           </Button>
 
-          <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
+          <span className="text-xs text-muted-foreground min-w-12 text-center">
             {zoom}%
           </span>
 

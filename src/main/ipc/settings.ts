@@ -1,10 +1,10 @@
-import type { IpcMain } from "electron";
-import { BrowserWindow, dialog } from "electron";
+import type {IpcMain} from "electron";
+import {BrowserWindow, dialog} from "electron";
 import * as fs from "fs/promises";
-import { applyGlobalProxyDispatcher, getProxyConfigFromEnv } from "../proxy-config";
-import { getProxyConfig, setProxyConfig } from "../storage";
-import { exportGlobalConfig, importGlobalConfig } from "../global-config";
-import type { ProxyConfig, GlobalConfigExport, GlobalConfigImportMode } from "../types";
+import {applyGlobalProxyDispatcher, getProxyConfigFromEnv} from "../proxy-config";
+import {getProxyConfig, setProxyConfig} from "../storage";
+import {exportGlobalConfig, importGlobalConfig} from "../global-config";
+import type {GlobalConfigExport, GlobalConfigImportMode, ProxyConfig} from "../types";
 
 export function registerSettingsHandlers(ipcMain: IpcMain): void {
   ipcMain.handle("settings:getProxyConfig", (): ProxyConfig => {
@@ -33,7 +33,7 @@ export function registerSettingsHandlers(ipcMain: IpcMain): void {
       }
 
       const result = await dialog.showSaveDialog(window, {
-        title: "导出全局配置",
+        title: "Export Configuration",
         defaultPath: `open-jarvis-config-${new Date().toISOString().slice(0, 10)}.json`,
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
@@ -71,7 +71,7 @@ export function registerSettingsHandlers(ipcMain: IpcMain): void {
       }
 
       const result = await dialog.showOpenDialog(window, {
-        title: "导入全局配置",
+        title: "Import Configuration",
         filters: [{ name: "JSON", extensions: ["json"] }],
         properties: ["openFile"],
       });
@@ -83,8 +83,7 @@ export function registerSettingsHandlers(ipcMain: IpcMain): void {
       try {
         const raw = await fs.readFile(result.filePaths[0], "utf-8");
         const data = JSON.parse(raw);
-        const importResult = await importGlobalConfig(data as GlobalConfigExport, mode);
-        return importResult;
+        return await importGlobalConfig(data as GlobalConfigExport, mode);
       } catch (e) {
         return {
           success: false,

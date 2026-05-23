@@ -1,0 +1,30 @@
+{
+  "agentTab": "智能体",
+  "closeTab": "关闭",
+  "closeOtherTabs": "关闭其他标签",
+  "closeAllTabs": "全部关闭",
+  "fileViewer": {
+    "loadingFile": "正在载入文件",
+    "preparingPreview": "准备预览 {{fileName}}",
+    "cannotLoadFile": "无法载入文件",
+    "readFileFailed": "读取文件失败",
+    "noContent": "暂无可显示内容",
+    "noContentHint": "该文件当前没有可预览的数据。"
+  },
+  "pdfViewer": {
+    "pdfDocument": "PDF 文档",
+    "download": "下载",
+    "blankPreviewHint": "若内嵌预览空白，请使用右上角下载后用系统阅读器打开。"
+  },
+  "codeViewer": {
+    "charCount": "{{count}} 字符",
+    "previewLineCount": "{{count}} 行（预览）",
+    "plainText": "纯文本",
+    "truncationHint": "文件较大，仅预览前 {{maxChars}} 字符以降低卡顿；完整内容请用外部表格软件打开。",
+    "lineCount": "{{count}} 行"
+  },
+  "imageViewer": {
+    "image": "图片",
+    "dragToView": "拖动查看"
+  }
+}

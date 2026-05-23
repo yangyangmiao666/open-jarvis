@@ -923,7 +923,7 @@ function getModelInstance(
 
   if (typeof model !== "string" || model.trim().length === 0) {
     throw new Error(
-      "No custom model configured. Please add a model in 设置中枢 > 自定义模型配置.",
+      "No custom model configured. Please add a model in Settings > Custom Model Config.",
     );
   }
 

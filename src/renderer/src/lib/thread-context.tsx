@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import i18n from "@/lib/locales";
 
 /* eslint-disable react-refresh/only-export-components */
 import { useStream } from "@langchain/langgraph-sdk/react";
@@ -435,12 +436,12 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       const [, usedTokens, maxTokens] = contextWindowMatch;
       const usedK = Math.round(parseInt(usedTokens) / 1000);
       const maxK = Math.round(parseInt(maxTokens) / 1000);
-      return `上下文窗口已满（约 ${usedK}K / ${maxK}K tokens）。对话过长，请新建会话后继续。`;
+      return i18n.t("chat:error.contextWindowFull", { usedK, maxK });
     }
 
     // Check for rate limit errors
     if (errorMessage.includes("rate_limit") || errorMessage.includes("429")) {
-      return "请求过于频繁，请稍后再发送消息。";
+      return i18n.t("chat:error.rateLimited");
     }
 
     // Check for authentication errors
@@ -449,7 +450,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       errorMessage.includes("invalid_api_key") ||
       errorMessage.includes("authentication")
     ) {
-      return "认证失败，请在设置中检查 API 密钥。";
+      return i18n.t("chat:error.authFailed");
     }
 
     // Return the original message for other errors

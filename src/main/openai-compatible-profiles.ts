@@ -61,7 +61,7 @@ export function upsertOpenAICompatibleProfile(
   const nameTrim = profile.name.trim();
   const next: OpenAICompatibleProfile = {
     id,
-    name: nameTrim || modelTrim || "自定义模型",
+    name: nameTrim || modelTrim || "Custom Model",
     baseUrl: profile.baseUrl.trim(),
     apiKey: profile.apiKey,
     model: modelTrim,

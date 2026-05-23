@@ -1,4 +1,5 @@
 import { Bot, X, FileCode, FileText, FileJson, File } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useThreadState, type OpenFile } from "@/lib/thread-context";
@@ -19,6 +20,7 @@ export function TabBar({
   className,
   threadId: propThreadId,
 }: TabBarProps): React.JSX.Element | null {
+  const { t } = useTranslation('tabs');
   const { currentThreadId } = useAppStore();
   const threadId = propThreadId ?? currentThreadId;
   const threadState = useThreadState(threadId);
@@ -54,7 +56,7 @@ export function TabBar({
         )}
       >
         <Bot className={cn("size-4", activeTab === "agent" ? "text-status-accent" : "text-muted-foreground")} />
-        <span>智能体</span>
+        <span>{t('agentTab')}</span>
       </button>
 
       {/* File Tabs */}
@@ -93,6 +95,7 @@ function FileTab({
   onCloseOthers,
   onCloseAll,
 }: FileTabProps): React.JSX.Element {
+  const { t } = useTranslation('tabs');
   const handleClose = (e: React.MouseEvent): void => {
     e.stopPropagation();
     onClose();
@@ -142,10 +145,10 @@ function FileTab({
         </button>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <ContextMenuItem onClick={onClose}>关闭</ContextMenuItem>
-        <ContextMenuItem onClick={onCloseOthers}>关闭其他标签</ContextMenuItem>
+        <ContextMenuItem onClick={onClose}>{t('closeTab')}</ContextMenuItem>
+        <ContextMenuItem onClick={onCloseOthers}>{t('closeOtherTabs')}</ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={onCloseAll}>全部关闭</ContextMenuItem>
+        <ContextMenuItem onClick={onCloseAll}>{t('closeAllTabs')}</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );

@@ -1,0 +1,22 @@
+{
+  "title": "会话与子智能体总览",
+  "overviewLabel": "Overview",
+  "sessionCount": "{{count}} 个会话",
+  "columns": {
+    "pending": "待处理",
+    "inProgress": "进行中",
+    "interrupted": "阻塞",
+    "done": "已完成"
+  },
+  "noItems": "暂无条目",
+  "header": {
+    "active": "{{count}} 活跃",
+    "idle": "空闲",
+    "hideSubagents": "隐藏子智能体",
+    "showSubagents": "显示子智能体"
+  },
+  "card": {
+    "completed": "完成",
+    "failed": "失败"
+  }
+}

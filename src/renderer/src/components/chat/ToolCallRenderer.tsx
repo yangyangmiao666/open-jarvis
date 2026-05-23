@@ -15,7 +15,8 @@ import {
   File,
   Folder,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ToolCall, Todo } from "@/types";
@@ -53,16 +54,17 @@ const TOOL_ICONS: Record<
   task: GitBranch,
 };
 
-const TOOL_LABELS: Record<string, string> = {
-  read_file: "读取文件",
-  write_file: "写入文件",
-  edit_file: "编辑文件",
-  ls: "列出目录",
-  glob: "查找文件",
-  grep: "搜索内容",
-  execute: "执行命令",
-  write_todos: "更新任务",
-  task: "子智能体任务",
+// Tool label keys for i18n lookup
+const TOOL_LABEL_KEYS: Record<string, string> = {
+  read_file: "readFile",
+  write_file: "writeFile",
+  edit_file: "editFile",
+  ls: "ls",
+  glob: "glob",
+  grep: "grep",
+  execute: "execute",
+  write_todos: "writeTodos",
+  task: "task",
 };
 
 // Tools whose results are shown in the UI panels and don't need verbose display
@@ -123,9 +125,11 @@ function TodosDisplay({ todos }: { todos: Todo[] }): React.JSX.Element {
 function FileListDisplay({
   files,
   isGlob,
+  t,
 }: {
   files: string[] | Array<{ path: string; is_dir?: boolean }>;
   isGlob?: boolean;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }): React.JSX.Element {
   const items = files.slice(0, 15); // Limit display
   const hasMore = files.length > 15;
@@ -150,7 +154,7 @@ function FileListDisplay({
       })}
       {hasMore && (
         <div className="text-xs text-muted-foreground mt-1">
-          … 还有 {files.length - 15} 项
+          … {t('fileList.moreItems', { count: files.length - 15 })}
         </div>
       )}
     </div>
@@ -160,8 +164,10 @@ function FileListDisplay({
 // Render grep results nicely
 function GrepResultsDisplay({
   matches,
+  t,
 }: {
   matches: Array<{ path: string; line?: number; text?: string }>;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }): React.JSX.Element {
   const grouped = matches.reduce(
     (acc, match) => {
@@ -196,7 +202,7 @@ function GrepResultsDisplay({
             ))}
             {grouped[path].length > 3 && (
               <div className="text-muted-foreground">
-                另有 {grouped[path].length - 3} 处匹配
+                {t('grep.moreMatches', { count: grouped[path].length - 3 })}
               </div>
             )}
           </div>
@@ -204,7 +210,7 @@ function GrepResultsDisplay({
       ))}
       {hasMore && (
         <div className="text-xs text-muted-foreground">
-          … 另有 {Object.keys(grouped).length - 5} 个文件含匹配
+          … {t('grep.moreFiles', { count: Object.keys(grouped).length - 5 })}
         </div>
       )}
     </div>
@@ -214,8 +220,10 @@ function GrepResultsDisplay({
 // Render edit/write file summary
 function FileEditSummary({
   args,
+  t,
 }: {
   args: Record<string, unknown>;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }): React.JSX.Element | null {
   const path = (args.path || args.file_path) as string;
   const content = args.content as string | undefined;
@@ -228,12 +236,12 @@ function FileEditSummary({
       <div className="text-xs space-y-2">
         <div className="flex items-center gap-1.5 text-status-critical">
           <span className="rounded-full border border-status-critical/20 bg-status-critical/10 px-1.5 py-0.5 font-mono">
-            − {oldStr.split("\n").length} 行
+            {t('fileEdit.removeLines', { count: oldStr.split("\n").length })}
           </span>
         </div>
         <div className="flex items-center gap-1.5 text-status-nominal">
           <span className="rounded-full border border-status-nominal/20 bg-status-nominal/10 px-1.5 py-0.5 font-mono">
-            + {newStr.split("\n").length} 行
+            {t('fileEdit.addLines', { count: newStr.split("\n").length })}
           </span>
         </div>
       </div>
@@ -244,7 +252,7 @@ function FileEditSummary({
     const lines = content.split("\n").length;
     return (
       <div className="text-xs text-muted-foreground">
-        向 {getFileName(path)} 写入 {lines} 行
+        {t('fileEdit.writeLines', { name: getFileName(path), count: lines })}
       </div>
     );
   }
@@ -319,10 +327,22 @@ export function ToolCallRenderer({
   threadId,
   onOpenFile,
 }: ToolCallRendererProps): React.JSX.Element | null {
+  const { t } = useTranslation('chat');
   // Defensive: ensure args is always an object
   const args = toolCall?.args || {};
 
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const toolLabels = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(TOOL_LABEL_KEYS).map(([key, labelKey]) => [
+          key,
+          t(`toolLabels.${labelKey}`),
+        ]),
+      ),
+    [t],
+  );
 
   // Bail out if no toolCall
   if (!toolCall) {
@@ -330,7 +350,7 @@ export function ToolCallRenderer({
   }
 
   const Icon = TOOL_ICONS[toolCall.name] || Terminal;
-  const label = TOOL_LABELS[toolCall.name] || toolCall.name;
+  const label = toolLabels[toolCall.name] || toolCall.name;
   const isPanelSynced = PANEL_SYNCED_TOOLS.has(toolCall.name);
 
   const handleApprove = (e: React.MouseEvent): void => {
@@ -376,7 +396,7 @@ export function ToolCallRenderer({
 
       case "edit_file":
       case "write_file": {
-        return <FileEditSummary args={args} />;
+        return <FileEditSummary args={args} t={t} />;
       }
 
       case "execute": {
@@ -423,7 +443,7 @@ export function ToolCallRenderer({
             <div className="space-y-2">
               <div className="text-xs text-status-nominal flex items-center gap-1.5">
                 <CheckCircle2 className="size-3" />
-                <span>已读取媒体文件</span>
+                <span>{t('task.mediaRead')}</span>
               </div>
               <InlineMediaPreview
                 threadId={threadId}
@@ -442,7 +462,7 @@ export function ToolCallRenderer({
           <div className="space-y-2">
             <div className="text-xs text-status-nominal flex items-center gap-1.5">
               <CheckCircle2 className="size-3" />
-              <span>已读 {lines} 行</span>
+              <span>{t('toolResults.readLines', { count: lines })}</span>
             </div>
             <ShikiCodePreview
               content={content}
@@ -465,11 +485,11 @@ export function ToolCallRenderer({
               <div className="text-xs text-status-nominal flex items-center gap-1.5">
                 <CheckCircle2 className="size-3" />
                 <span>
-                  {files} 个文件
-                  {dirs > 0 ? `，${dirs} 个文件夹` : ""}
+                  {t('toolResults.fileCount', { count: files })}
+                  {dirs > 0 ? `，${t('toolResults.folderCount', { count: dirs })}` : ""}
                 </span>
               </div>
-              <FileListDisplay files={result} />
+              <FileListDisplay files={result} t={t} />
             </div>
           );
         }
@@ -482,9 +502,9 @@ export function ToolCallRenderer({
             <div className="space-y-2">
               <div className="text-xs text-status-nominal flex items-center gap-1.5">
                 <CheckCircle2 className="size-3" />
-                <span>找到 {result.length} 项匹配</span>
+                <span>{t('toolResults.matchCount', { count: result.length })}</span>
               </div>
-              <FileListDisplay files={result} />
+              <FileListDisplay files={result} t={t} />
             </div>
           );
         }
@@ -500,10 +520,10 @@ export function ToolCallRenderer({
               <div className="text-xs text-status-nominal flex items-center gap-1.5">
                 <CheckCircle2 className="size-3" />
                 <span>
-                  {fileCount} 个文件中 {result.length} 处匹配
+                  {t('toolResults.filesWithMatches', { count: fileCount, matchCount: result.length })}
                 </span>
               </div>
-              <GrepResultsDisplay matches={result} />
+              <GrepResultsDisplay matches={result} t={t} />
             </div>
           );
         }
@@ -518,7 +538,7 @@ export function ToolCallRenderer({
           return (
             <div className="text-xs text-status-nominal flex items-center gap-1.5">
               <CheckCircle2 className="size-3" />
-              <span>命令已结束</span>
+              <span>{t('command.ended')}</span>
             </div>
           );
         }
@@ -528,7 +548,7 @@ export function ToolCallRenderer({
             <div className="space-y-2">
               <div className="text-xs text-status-nominal flex items-center gap-1.5">
                 <CheckCircle2 className="size-3" />
-                <span>命令已结束</span>
+                <span>{t('command.ended')}</span>
               </div>
               <pre className="text-xs font-mono bg-background rounded-sm p-2 overflow-auto max-h-32 text-muted-foreground whitespace-pre-wrap break-all">
                 {output.slice(0, 500)}
@@ -540,7 +560,7 @@ export function ToolCallRenderer({
         return (
           <div className="text-xs text-status-nominal flex items-center gap-1.5">
             <CheckCircle2 className="size-3" />
-            <span>命令已结束（无输出）</span>
+            <span>{t('command.endedNoOutput')}</span>
           </div>
         );
       }
@@ -555,7 +575,7 @@ export function ToolCallRenderer({
         const fileName = getFileName(filePath);
         const fileTypeInfo = getFileType(fileName);
         const isMedia = ["image", "video", "audio", "pdf"].includes(fileTypeInfo.type);
-        const resultText = typeof result === "string" && result.trim() ? result : "文件已保存";
+        const resultText = typeof result === "string" && result.trim() ? result : t('task.fileSaved');
 
         return (
           <div className="space-y-2">
@@ -583,7 +603,7 @@ export function ToolCallRenderer({
             <div className="space-y-2">
               <div className="text-xs text-status-nominal flex items-center gap-1.5">
                 <CheckCircle2 className="size-3" />
-                <span>任务已完成</span>
+                <span>{t('task.completed')}</span>
               </div>
               <div className="text-xs text-muted-foreground pl-5 line-clamp-3">
                 {result.slice(0, 500)}
@@ -595,7 +615,7 @@ export function ToolCallRenderer({
         return (
           <div className="text-xs text-status-nominal flex items-center gap-1.5">
             <CheckCircle2 className="size-3" />
-            <span>任务已完成</span>
+            <span>{t('task.completed')}</span>
           </div>
         );
       }
@@ -617,7 +637,7 @@ export function ToolCallRenderer({
         return (
           <div className="text-xs text-status-nominal flex items-center gap-1.5">
             <CheckCircle2 className="size-3" />
-            <span>已完成</span>
+            <span>{t('toolStatus.completed')}</span>
           </div>
         );
       }
@@ -673,13 +693,13 @@ export function ToolCallRenderer({
 
           {needsApproval && (
             <Badge variant="warning" className="ml-auto shrink-0">
-              待审批
+              {t('toolStatus.pendingApproval')}
             </Badge>
           )}
 
           {!needsApproval && result === undefined && (
             <Badge variant="outline" className="ml-auto shrink-0 animate-pulse">
-              运行中
+              {t('toolStatus.running')}
             </Badge>
           )}
 
@@ -688,13 +708,13 @@ export function ToolCallRenderer({
               variant={isError ? "critical" : "nominal"}
               className="ml-auto shrink-0"
             >
-              {isError ? "错误" : "成功"}
+              {isError ? t('toolStatus.error') : t('toolStatus.success')}
             </Badge>
           )}
 
           {isPanelSynced && !needsApproval && (
             <Badge variant="outline" className="shrink-0 text-[9px]">
-              已同步
+              {t('toolStatus.synced')}
             </Badge>
           )}
         </button>
@@ -707,7 +727,7 @@ export function ToolCallRenderer({
 
             {/* Arguments */}
             <div>
-              <div className="text-section-header text-[10px] mb-1">参数</div>
+              <div className="text-section-header text-[10px] mb-1">{t('parameters')}</div>
               <pre className="max-h-24 overflow-auto rounded-xl border border-border bg-background-interactive p-2 text-xs font-mono">
                 {JSON.stringify(args, null, 2)}
               </pre>
@@ -719,18 +739,18 @@ export function ToolCallRenderer({
                   className="rounded-full border border-border bg-background-elevated px-3 py-1.5 text-xs text-foreground transition-all hover:bg-background-interactive"
                   onClick={handleReject}
                 >
-                  拒绝
+                  {t('approval.reject')}
                 </button>
                 <button
                   className="rounded-full border border-border bg-foreground px-3 py-1.5 text-xs text-background transition-all hover:bg-foreground/90"
                   onClick={handleApprove}
                 >
-                  批准并执行
+                  {t('approval.approveAndExecute')}
                 </button>
               </div>
             ) : (
               <p className="text-[11px] text-muted-foreground">
-                请在对话区底部固定栏批准或拒绝。
+                {t('approval.approveInFooter')}
               </p>
             )}
           </div>
@@ -745,7 +765,7 @@ export function ToolCallRenderer({
 
             {/* Raw Arguments */}
             <div className="overflow-hidden w-full">
-              <div className="text-section-header mb-1">原始参数</div>
+              <div className="text-section-header mb-1">{t('rawParameters')}</div>
               <pre className="max-h-48 w-full overflow-auto rounded-xl border border-border bg-background-interactive p-2 text-xs font-mono whitespace-pre-wrap break-all">
                 {JSON.stringify(args, null, 2)}
               </pre>
@@ -754,7 +774,7 @@ export function ToolCallRenderer({
             {/* Raw Result */}
             {result !== undefined && (
               <div className="overflow-hidden w-full">
-                <div className="text-section-header mb-1">原始结果</div>
+                <div className="text-section-header mb-1">{t('rawResult')}</div>
                 <pre
                   className={cn(
                     "max-h-48 w-full overflow-auto rounded-xl p-2 text-xs font-mono whitespace-pre-wrap break-all",

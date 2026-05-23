@@ -38,13 +38,13 @@ const store = new Store({
 
 // Provider configurations
 const PROVIDERS: Omit<Provider, "hasApiKey">[] = [
-  { id: "openai_compatible", name: "自定义模型" },
+  { id: "openai_compatible", name: "Custom Model" },
 ];
 
 function profileToModelConfig(p: OpenAICompatibleProfile): ModelConfig {
   return {
     id: `oac:${p.id}`,
-    name: p.name || `自定义 (${p.model})`,
+    name: p.name || `Custom (${p.model})`,
     provider: "openai_compatible",
     model: p.model,
     apiFormat: p.apiFormat === "anthropic" ? "anthropic" : "openai",

@@ -1,6 +1,7 @@
 import { getFileType, getFileIcon } from "@/lib/file-types";
 import { InlineImagePreview } from "./InlineImagePreview";
 import { InlineMediaPreview } from "./InlineMediaPreview";
+import { useTranslation } from "react-i18next";
 
 interface MarkdownLinkRendererProps {
   href?: string;
@@ -15,6 +16,7 @@ export function MarkdownLinkRenderer({
   threadId,
   onOpenFile,
 }: MarkdownLinkRendererProps): React.JSX.Element {
+  const { t } = useTranslation('chat');
   if (!href) return <span>{children}</span>;
 
   const isLocalPath =
@@ -80,7 +82,7 @@ export function MarkdownLinkRenderer({
     >
       <span className="text-base">{icon}</span>
       <span className="max-w-[200px] truncate text-foreground">{fileName}</span>
-      <span className="text-[10px] text-muted-foreground">点击打开</span>
+      <span className="text-[10px] text-muted-foreground">{t('workspacePicker.clickToOpen')}</span>
     </button>
   );
 }

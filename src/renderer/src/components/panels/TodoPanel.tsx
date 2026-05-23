@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   Circle,
@@ -18,30 +19,31 @@ const STATUS_CONFIG = {
   pending: {
     icon: Circle,
     badge: "outline" as const,
-    label: "PENDING",
+    statusKey: "pending" as const,
     color: "text-muted-foreground",
   },
   in_progress: {
     icon: Clock,
     badge: "info" as const,
-    label: "IN PROGRESS",
+    statusKey: "inProgress" as const,
     color: "text-status-info",
   },
   completed: {
     icon: CheckCircle2,
     badge: "nominal" as const,
-    label: "DONE",
+    statusKey: "completed" as const,
     color: "text-status-nominal",
   },
   cancelled: {
     icon: XCircle,
     badge: "critical" as const,
-    label: "CANCELLED",
+    statusKey: "cancelled" as const,
     color: "text-muted-foreground",
   },
 };
 
 export function TodoPanel(): React.JSX.Element {
+  const { t } = useTranslation('panels');
   const { currentThreadId } = useAppStore();
   const threadState = useThreadState(currentThreadId);
   const todos = threadState?.todos ?? [];
@@ -68,7 +70,7 @@ export function TodoPanel(): React.JSX.Element {
       {/* Progress Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-section-header">PROGRESS</span>
+          <span className="text-section-header">{t('tasks.progress').toUpperCase()}</span>
           <span className="text-data text-sm">
             {done}/{total}
           </span>
@@ -86,7 +88,7 @@ export function TodoPanel(): React.JSX.Element {
         <div className="p-4 space-y-2">
           {!hasAnyTodos ? (
             <div className="text-center text-sm text-muted-foreground py-8">
-              No tasks yet
+              {t('tasks.noTasks')}
             </div>
           ) : (
             <>
@@ -103,7 +105,7 @@ export function TodoPanel(): React.JSX.Element {
                       <ChevronRight className="size-3.5" />
                     )}
                     <span className="uppercase tracking-wider font-medium">
-                      Completed ({doneItems.length})
+                      {t('tasks.completedLabel', { count: doneItems.length })}
                     </span>
                   </button>
                   {completedExpanded && (
@@ -142,6 +144,7 @@ export function TodoPanel(): React.JSX.Element {
 }
 
 function TodoItem({ todo }: { todo: Todo }): React.JSX.Element {
+  const { t } = useTranslation('panels');
   const config = STATUS_CONFIG[todo.status];
   const Icon = config.icon;
 
@@ -166,7 +169,7 @@ function TodoItem({ todo }: { todo: Todo }): React.JSX.Element {
         </div>
       </div>
       <Badge variant={config.badge} className="shrink-0">
-        {config.label}
+        {t(`taskStatus.${config.statusKey}`)}
       </Badge>
     </div>
   );

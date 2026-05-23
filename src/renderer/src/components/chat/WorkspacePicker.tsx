@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { useCurrentThread } from "@/lib/thread-context";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface WorkspacePickerProps {
   threadId: string;
@@ -21,6 +22,7 @@ export function WorkspacePicker({
     useCurrentThread(threadId);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation('chat');
 
   // Load workspace path and files for current thread
   useEffect(() => {
@@ -68,7 +70,7 @@ export function WorkspacePicker({
         >
           <Folder className="size-3.5" />
           <span className="max-w-[120px] truncate">
-            {workspacePath ? folderName : "选择工作区"}
+            {workspacePath ? folderName : t('workspacePicker.selectWorkspace')}
           </span>
           <ChevronDown className="size-3 opacity-50" />
         </Button>
@@ -76,7 +78,7 @@ export function WorkspacePicker({
       <PopoverContent className="w-80 rounded-[24px] p-4 shadow-none" align="start">
         <div className="space-y-3">
           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            工作区文件夹
+            {t('workspacePicker.workspaceFolder')}
           </div>
 
           {workspacePath ? (
@@ -88,7 +90,7 @@ export function WorkspacePicker({
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                智能体将在此文件夹中读写文件。
+                {t('workspacePicker.agentReadWrite')}
               </p>
               <Button
                 variant="outline"
@@ -97,13 +99,13 @@ export function WorkspacePicker({
                 onClick={handleSelectFolder}
                 disabled={loading}
               >
-                更换文件夹
+                {t('workspacePicker.changeFolder')}
               </Button>
             </div>
           ) : (
             <div className="space-y-2">
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                请选择智能体的工作目录，文件将直接读写至该位置。
+                {t('workspacePicker.selectFolderDesc')}
               </p>
               <Button
                 variant="default"
@@ -113,7 +115,7 @@ export function WorkspacePicker({
                 disabled={loading}
               >
                 <Folder className="size-3.5 mr-1.5" />
-                选择文件夹
+                {t('workspacePicker.selectFolder')}
               </Button>
             </div>
           )}

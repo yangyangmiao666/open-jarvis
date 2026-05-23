@@ -1,0 +1,29 @@
+{
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "save": "Save",
+  "confirm": "OK",
+  "close": "Close",
+  "add": "Add",
+  "edit": "Edit",
+  "search": "Search",
+  "export": "Export",
+  "import": "Import",
+  "copy": "Copy",
+  "send": "Send",
+  "relativeTime": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} minutes ago",
+    "hoursAgo": "{{count}} hours ago",
+    "daysAgo": "{{count}} days ago"
+  },
+  "newSessionWithDate": "New Session {{date}}",
+  "toast": {
+    "copiedToClipboard": "Copied to clipboard",
+    "copyFailed": "Copy failed"
+  },
+  "switchToLight": "Switch to light mode",
+  "switchToDark": "Switch to dark mode",
+  "selectOrNewSession": "Select or create a session to start",
+  "initializing": "Initializing..."
+}

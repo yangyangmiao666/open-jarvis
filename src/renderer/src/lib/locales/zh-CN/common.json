@@ -1,0 +1,29 @@
+{
+  "cancel": "取消",
+  "delete": "删除",
+  "save": "保存",
+  "confirm": "确定",
+  "close": "关闭",
+  "add": "添加",
+  "edit": "编辑",
+  "search": "搜索",
+  "export": "导出",
+  "import": "导入",
+  "copy": "复制",
+  "send": "发送",
+  "relativeTime": {
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}} 分钟前",
+    "hoursAgo": "{{count}} 小时前",
+    "daysAgo": "{{count}} 天前"
+  },
+  "newSessionWithDate": "新会话 {{date}}",
+  "toast": {
+    "copiedToClipboard": "已复制到剪贴板",
+    "copyFailed": "复制失败"
+  },
+  "switchToLight": "切换为亮色",
+  "switchToDark": "切换为深色",
+  "selectOrNewSession": "请选择或新建会话以开始",
+  "initializing": "正在初始化…"
+}

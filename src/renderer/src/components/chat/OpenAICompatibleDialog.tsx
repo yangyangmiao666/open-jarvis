@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Trash2, Pencil, Copy, Boxes, Sparkles, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -81,26 +82,28 @@ function normalizeReasoningContentMode(
 
 function formatReasoningContentMode(
   mode?: OpenAICompatibleProfile["reasoningContent"],
+  t?: (key: string) => string,
 ): string {
   switch (mode) {
     case "enabled":
-      return "总是回传";
+      return t ? t("openAICompatible.reasoningAlways") : "Always pass back";
     case "disabled":
-      return "关闭";
+      return t ? t("openAICompatible.reasoningDisabled") : "Off";
     case "auto":
     default:
-      return "自动";
+      return t ? t("openAICompatible.reasoningAuto") : "Auto";
   }
 }
 
 function buildDuplicateProfile(
   profile: OpenAICompatibleProfile,
+  t: (key: string, options?: Record<string, unknown>) => string,
 ): Omit<OpenAICompatibleProfile, "id"> & { id?: string } {
-  const baseName = profile.name?.trim() || profile.model.trim() || "自定义模型";
+  const baseName = profile.name?.trim() || profile.model.trim() || t("openAICompatible.customModel");
   return {
     ...profile,
     id: undefined,
-    name: `${baseName} 副本`,
+    name: t("openAICompatible.duplicateName", { name: baseName }),
   };
 }
 
@@ -110,6 +113,7 @@ export function OpenAICompatibleDialog({
   onSaved,
   initialProfileId,
 }: OpenAICompatibleDialogProps): React.JSX.Element {
+  const { t } = useTranslation("settings");
   const [profiles, setProfiles] = useState<OpenAICompatibleProfile[]>([]);
   const [showApiKey, setShowApiKey] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<OpenAICompatibleProfile | null>(
@@ -160,7 +164,7 @@ export function OpenAICompatibleDialog({
   const handleSave = async (): Promise<void> => {
     if (!editing) return;
     if (!editing.baseUrl.trim() || !editing.model.trim()) {
-      toast.error("请填写接口地址和模型 ID");
+      toast.error(t("openAICompatible.fillBaseUrlAndModel"));
       return;
     }
     try {
@@ -171,9 +175,9 @@ export function OpenAICompatibleDialog({
       if (matched) {
         setEditing({ ...matched });
       }
-      toast.success("模型配置已保存");
+      toast.success(t("openAICompatible.saved"));
     } catch (e) {
-      toast.error("保存失败");
+      toast.error(t("openAICompatible.saveFailed"));
     }
   };
 
@@ -184,30 +188,30 @@ export function OpenAICompatibleDialog({
       await load();
       onSaved();
       setDeleteTarget(null);
-      toast.success("模型配置已删除");
+      toast.success(t("openAICompatible.deleted"));
     } catch (e) {
-      toast.error("删除失败");
+      toast.error(t("openAICompatible.deleteFailed"));
     }
   };
 
   const handleDuplicate = (profile: OpenAICompatibleProfile): void => {
     setShowApiKey(false);
-    setEditing(buildDuplicateProfile(profile));
-    toast.success("已复制为新配置草稿，保存后生效");
+    setEditing(buildDuplicateProfile(profile, t));
+    toast.success(t("openAICompatible.duplicatedDraft"));
   };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex max-h-[min(92vh,54rem)] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0">
-        <DialogHeader className="shrink-0 rounded-t-[32px] border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
+        <DialogHeader className="shrink-0 rounded-t-4xl border-b border-border/60 px-6 py-5 pr-16 sm:px-7 sm:pr-20">
           <div className="flex items-center gap-3">
             <div className="badge-blue inline-flex shrink-0 items-center gap-2 rounded-full border border-status-info/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
               <Boxes className="size-3.5" />
-              Models Workspace
+              {t('openAICompatible.modelsWorkspace')}
             </div>
             <DialogTitle className="text-xl tracking-[-0.03em]">
-              自定义模型配置
+              {t('openAICompatible.title')}
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -217,12 +221,12 @@ export function OpenAICompatibleDialog({
           <section className="app-flat-surface flex min-h-0 min-w-0 flex-col gap-4 rounded-[26px] border border-border/70 px-5 py-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="text-section-header">Profiles</div>
+                <div className="text-section-header">{t('openAICompatible.profiles')}</div>
                 <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
-                  已有配置
+                  {t('openAICompatible.existingConfigs')}
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  查看、编辑和删除当前已经接入的自定义模型配置，支持 OpenAI 格式和 Anthropic 格式接口。
+                  {t('openAICompatible.existingConfigsDesc')}
                 </p>
               </div>
               <Button
@@ -233,7 +237,7 @@ export function OpenAICompatibleDialog({
                 onClick={() => setEditing(emptyForm())}
               >
                 <Plus className="size-4" />
-                添加配置
+                {t('openAICompatible.addConfig')}
               </Button>
             </div>
 
@@ -241,7 +245,7 @@ export function OpenAICompatibleDialog({
               <div className="space-y-2 p-3">
                 {profiles.length === 0 && !editing && (
                   <div className="rounded-2xl border border-dashed border-border/70 px-3 py-8 text-center text-xs text-muted-foreground">
-                    暂无配置
+                    {t('openAICompatible.noConfigs')}
                   </div>
                 )}
                 {profiles.map((p) => (
@@ -255,25 +259,25 @@ export function OpenAICompatibleDialog({
                         {p.baseUrl}
                       </div>
                       <div className="text-muted-foreground truncate font-mono">
-                        模型：{p.model}
+                        {t('openAICompatible.model')}{p.model}
                       </div>
                       <div className="text-muted-foreground truncate font-mono">
-                        格式：{p.apiFormat === "anthropic" ? "Anthropic" : "OpenAI"}
+                        {t('openAICompatible.format')}{p.apiFormat === "anthropic" ? "Anthropic" : "OpenAI"}
                       </div>
                       <div className="text-muted-foreground truncate font-mono">
-                        思考：
+                        {t('openAICompatible.thinking')}
                         {p.thinkingType === "enabled"
-                          ? `开启 / ${formatThinkingEffort(p.thinkingEffort)}`
-                          : "关闭"}
+                          ? t('openAICompatible.thinkingOn', { effort: formatThinkingEffort(p.thinkingEffort) })
+                          : t('openAICompatible.thinkingOff')}
                       </div>
                       <div className="text-muted-foreground truncate font-mono">
-                        推理回传：{formatReasoningContentMode(p.reasoningContent)}
+                        {t('openAICompatible.reasoningPassback')}{formatReasoningContentMode(p.reasoningContent, t)}
                       </div>
                       <div className="text-muted-foreground truncate font-mono">
-                        上下文：
+                        {t('openAICompatible.context')}
                         {typeof p.contextWindow === "number"
                           ? p.contextWindow.toLocaleString()
-                          : "自动推断"}
+                          : t('openAICompatible.autoInfer')}
                       </div>
                     </div>
                     <Button
@@ -281,7 +285,7 @@ export function OpenAICompatibleDialog({
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0 rounded-xl"
-                      title="复制配置"
+                      title={t('openAICompatible.copyConfig')}
                       onClick={() => handleDuplicate(p)}
                     >
                       <Copy className="size-3.5" />
@@ -291,7 +295,7 @@ export function OpenAICompatibleDialog({
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0 rounded-xl"
-                      title="编辑配置"
+                      title={t('openAICompatible.editConfig')}
                       onClick={() => setEditing({ ...p })}
                     >
                       <Pencil className="size-3.5" />
@@ -301,7 +305,7 @@ export function OpenAICompatibleDialog({
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0 rounded-xl text-destructive"
-                      title="删除配置"
+                      title={t('openAICompatible.deleteConfig')}
                       onClick={() => setDeleteTarget(p)}
                     >
                       <Trash2 className="size-3.5" />
@@ -319,7 +323,7 @@ export function OpenAICompatibleDialog({
           )}>
             {!editing && (
               <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                点击左侧配置编辑，或点击添加配置按钮
+                {t('openAICompatible.clickToEditOrAdd')}
               </div>
             )}
             {editing && (
@@ -329,12 +333,12 @@ export function OpenAICompatibleDialog({
                 <Sparkles className="size-5" />
               </div>
               <div className="min-w-0">
-                <div className="text-section-header">Editor</div>
+                <div className="text-section-header">{t('openAICompatible.editor')}</div>
                 <div className="mt-1 text-base font-semibold tracking-[-0.02em] text-foreground">
-                  {editing?.id ? "编辑配置" : "新增配置"}
+                  {editing?.id ? t('openAICompatible.editConfigTitle') : t('openAICompatible.newConfigTitle')}
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  填写请求格式、Base URL、API 密钥、模型 ID、思考参数和上下文窗口；保存后会立即进入模型列表，并同步用于上下文窗口展示与压缩阈值计算。
+                  {t('openAICompatible.editorDesc')}
                 </p>
               </div>
             </div>
@@ -343,7 +347,7 @@ export function OpenAICompatibleDialog({
             <div className="space-y-4">
               <div className="space-y-1">
                 <label htmlFor="oac-format" className="text-sm font-medium">
-                  请求格式
+                  {t('openAICompatible.requestFormat')}
                 </label>
                 <select
                   id="oac-format"
@@ -361,12 +365,12 @@ export function OpenAICompatibleDialog({
                   <option value="anthropic">Anthropic</option>
                 </select>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  选择你的网关兼容的请求体格式。OpenAI 格式会发送 `thinking` 和 `reasoning_effort`；Anthropic 格式会发送 `thinking` 和 `output_config.effort`，其历史 thinking/signature 由官方 SDK 作为内容块自动保留。
+                  {t('openAICompatible.requestFormatDesc')}
                 </p>
               </div>
               <div className="space-y-1">
                 <label htmlFor="oac-name" className="text-sm font-medium">
-                  显示名称
+                  {t('openAICompatible.displayName')}
                 </label>
                 <Input
                   id="oac-name"
@@ -374,12 +378,12 @@ export function OpenAICompatibleDialog({
                   onChange={(e) =>
                     setEditing({ ...(editing ?? emptyForm()), name: e.target.value })
                   }
-                  placeholder="例如：本地 vLLM"
+                  placeholder={t('openAICompatible.namePlaceholder')}
                 />
               </div>
               <div className="space-y-1">
                 <label htmlFor="oac-base" className="text-sm font-medium">
-                  接口地址（Base URL）
+                  {t('openAICompatible.baseUrl')}
                 </label>
                 <Input
                   id="oac-base"
@@ -389,14 +393,14 @@ export function OpenAICompatibleDialog({
                   }
                   placeholder={
                     editing?.apiFormat === "anthropic"
-                      ? "https://api.example.com"
-                      : "https://api.example.com 或 http://127.0.0.1:11434/v1"
+                      ? t('openAICompatible.baseUrlPlaceholderAnthropic')
+                      : t('openAICompatible.baseUrlPlaceholderOpenAI')
                   }
                 />
               </div>
               <div className="space-y-1">
                 <label htmlFor="oac-key" className="text-sm font-medium">
-                  API 密钥
+                  {t('openAICompatible.apiKey')}
                 </label>
                 <div className="relative">
                   <Input
@@ -406,12 +410,12 @@ export function OpenAICompatibleDialog({
                     onChange={(e) =>
                       setEditing({ ...(editing ?? emptyForm()), apiKey: e.target.value })
                     }
-                    placeholder="可填占位符，若网关不要求密钥"
+                    placeholder={t('openAICompatible.apiKeyPlaceholder')}
                     className="pr-11"
                   />
                   <button
                     type="button"
-                    aria-label={showApiKey ? "隐藏 API 密钥" : "显示 API 密钥"}
+                    aria-label={showApiKey ? t('openAICompatible.hideApiKey') : t('openAICompatible.showApiKey')}
                     onClick={() => setShowApiKey((prev) => !prev)}
                     className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background-interactive/75 hover:text-foreground"
                   >
@@ -423,12 +427,12 @@ export function OpenAICompatibleDialog({
                   </button>
                 </div>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  点击右侧按钮可在明文和点状密钥显示之间切换。
+                  {t('openAICompatible.apiKeyToggleDesc')}
                 </p>
               </div>
               <div className="space-y-1">
                 <label htmlFor="oac-model" className="text-sm font-medium">
-                  模型 ID
+                  {t('openAICompatible.modelId')}
                 </label>
                 <Input
                   id="oac-model"
@@ -436,13 +440,13 @@ export function OpenAICompatibleDialog({
                   onChange={(e) =>
                     setEditing({ ...(editing ?? emptyForm()), model: e.target.value })
                   }
-                  placeholder="例如：gpt-4o、Qwen/Qwen2.5-7B-Instruct"
+                  placeholder={t('openAICompatible.modelIdPlaceholder')}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label htmlFor="oac-thinking-type" className="text-sm font-medium">
-                    思考模式
+                    {t('openAICompatible.thinkingMode')}
                   </label>
                   <select
                     id="oac-thinking-type"
@@ -456,13 +460,13 @@ export function OpenAICompatibleDialog({
                     }
                     className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
                   >
-                    <option value="disabled">关闭</option>
-                    <option value="enabled">开启</option>
+                    <option value="disabled">{t('openAICompatible.thinkingOff')}</option>
+                    <option value="enabled">{t('openAICompatible.thinkingOn', { effort: '' }).replace(/ \/ $/, '')}</option>
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label htmlFor="oac-thinking-effort" className="text-sm font-medium">
-                    思考强度
+                    {t('openAICompatible.thinkingEffort')}
                   </label>
                   <select
                     id="oac-thinking-effort"
@@ -484,14 +488,14 @@ export function OpenAICompatibleDialog({
                 </div>
               </div>
               <p className="text-xs leading-5 text-muted-foreground">
-                会保留 low、medium、high、xhigh/max 这几个编辑档位。发送到兼容网关时，low/medium/high 会归一化到 high，xhigh/max 会归一化到 max。
+                {t('openAICompatible.thinkingEffortDesc')}
               </p>
               <div className="space-y-1">
                 <label
                   htmlFor="oac-reasoning-content"
                   className="text-sm font-medium"
                 >
-                  reasoning_content 回传
+                  {t('openAICompatible.reasoningContent')}
                 </label>
                 <select
                   id="oac-reasoning-content"
@@ -505,14 +509,14 @@ export function OpenAICompatibleDialog({
                   disabled={(editing?.apiFormat ?? "openai") === "anthropic"}
                   className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
                 >
-                  <option value="auto">自动</option>
-                  <option value="enabled">总是回传</option>
-                  <option value="disabled">关闭</option>
+                  <option value="auto">{t('openAICompatible.reasoningAuto')}</option>
+                  <option value="enabled">{t('openAICompatible.reasoningAlways')}</option>
+                  <option value="disabled">{t('openAICompatible.reasoningDisabled')}</option>
                 </select>
                 <p className="text-xs leading-5 text-muted-foreground">
                   {editing?.apiFormat === "anthropic"
-                    ? "Anthropic 模式下官方 SDK 会把历史 thinking/signature 内容块原样回传，这个开关当前不额外介入。"
-                    : "自动模式会在检测到历史工具调用且思考模式开启时回传 assistant.reasoning_content，适合 MiMo 这类要求多轮补回推理内容的 OpenAI 兼容模型。"}
+                    ? t('openAICompatible.reasoningAnthropicDesc')
+                    : t('openAICompatible.reasoningAutoDesc')}
                 </p>
               </div>
               <div className="space-y-1">
@@ -520,7 +524,7 @@ export function OpenAICompatibleDialog({
                   htmlFor="oac-context-window"
                   className="text-sm font-medium"
                 >
-                  上下文窗口
+                  {t('openAICompatible.contextWindow')}
                 </label>
                 <Input
                   id="oac-context-window"
@@ -542,10 +546,10 @@ export function OpenAICompatibleDialog({
                           : undefined,
                     });
                   }}
-                  placeholder="例如：64000、128000、1000000"
+                  placeholder={t('openAICompatible.contextWindowPlaceholder')}
                 />
                 <p className="text-xs leading-5 text-muted-foreground">
-                  建议填写模型真实的最大输入 tokens。DeepSeek、Qwen、GLM、MiniMax 这类自定义模型会优先使用这里的值；不填时才退回自动推断。
+                  {t('openAICompatible.contextWindowDesc')}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 justify-end">
@@ -555,7 +559,7 @@ export function OpenAICompatibleDialog({
                   size="sm"
                   onClick={() => setEditing(null)}
                 >
-                  取消
+                  {t('common:cancel')}
                 </Button>
                 <Button
                   type="button"
@@ -563,7 +567,7 @@ export function OpenAICompatibleDialog({
                   disabled={!editing}
                   onClick={() => void handleSave()}
                 >
-                  保存
+                  {t('common:save')}
                 </Button>
               </div>
             </div>
@@ -583,10 +587,10 @@ export function OpenAICompatibleDialog({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>确认删除模型配置？</DialogTitle>
+            <DialogTitle>{t('openAICompatible.confirmDeleteModel')}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            将删除模型配置“{deleteTarget?.name || deleteTarget?.model || "当前配置"}”，此操作不可恢复。
+            {t('openAICompatible.deleteModelWarning', { name: deleteTarget?.name || deleteTarget?.model || t('openAICompatible.currentConfig') })}
           </p>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
@@ -594,14 +598,14 @@ export function OpenAICompatibleDialog({
               variant="secondary"
               onClick={() => setDeleteTarget(null)}
             >
-              取消
+              {t('common:cancel')}
             </Button>
             <Button
               type="button"
               variant="destructive"
               onClick={() => void handleDelete()}
             >
-              删除
+              {t('common:delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

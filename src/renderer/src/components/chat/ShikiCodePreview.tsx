@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/lib/store";
+import { useTranslation } from "react-i18next";
 import {
   getHighlighter,
   getLanguageFromFilePath,
@@ -19,6 +20,7 @@ export function ShikiCodePreview({
 }: ShikiCodePreviewProps): React.JSX.Element {
   const [html, setHtml] = useState<string | null>(null);
   const colorMode = useAppStore((s) => s.colorMode);
+  const { t } = useTranslation('chat');
   const theme =
     colorMode === "light" ? "github-light-default" : "github-dark-default";
 
@@ -72,7 +74,7 @@ export function ShikiCodePreview({
       </div>
       {hasMore && (
         <div className="px-2 py-1 text-muted-foreground bg-background-elevated border-t border-border text-[10px]">
-          … 还有 {lines.length - maxLines} 行
+          … {t('workspacePicker.moreLines', { count: lines.length - maxLines })}
         </div>
       )}
     </div>

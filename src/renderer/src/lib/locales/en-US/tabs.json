@@ -1,0 +1,30 @@
+{
+  "agentTab": "Agent",
+  "closeTab": "Close",
+  "closeOtherTabs": "Close other tabs",
+  "closeAllTabs": "Close all",
+  "fileViewer": {
+    "loadingFile": "Loading file",
+    "preparingPreview": "Preparing preview for {{fileName}}",
+    "cannotLoadFile": "Cannot load file",
+    "readFileFailed": "Failed to read file",
+    "noContent": "No content to display",
+    "noContentHint": "This file currently has no previewable data."
+  },
+  "pdfViewer": {
+    "pdfDocument": "PDF Document",
+    "download": "Download",
+    "blankPreviewHint": "If the embedded preview is blank, please use the download button in the top right corner and open with a system PDF reader."
+  },
+  "codeViewer": {
+    "charCount": "{{count}} characters",
+    "previewLineCount": "{{count}} lines (preview)",
+    "plainText": "Plain Text",
+    "truncationHint": "The file is large; only the first {{maxChars}} characters are previewed to reduce lag. Open with an external tool for the full content.",
+    "lineCount": "{{count}} lines"
+  },
+  "imageViewer": {
+    "image": "Image",
+    "dragToView": "Drag to view"
+  }
+}

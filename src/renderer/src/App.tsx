@@ -9,8 +9,10 @@ import { WindowTitleBar } from "@/components/WindowTitleBar";
 import { SettingsHubDialog } from "@/components/chat/SettingsHubDialog";
 import { Toaster } from "@/components/ui/toast";
 import { useAppStore } from "@/lib/store";
+import { useTranslation } from "react-i18next";
 import { ThreadProvider } from "@/lib/thread-context";
 import type { SettingsOpenRequest } from "@/types";
+import {t} from "i18next";
 
 // 左侧栏最小宽度（会话列表 + 品牌区）
 const BADGE_MIN_SCREEN_WIDTH = 220;
@@ -104,7 +106,7 @@ function AppShell({
                         />
                       ) : (
                         <div className="flex flex-1 items-center justify-center text-muted-foreground">
-                          请选择或新建会话以开始
+                          {t('selectOrNewSession')}
                         </div>
                       )}
                     </main>
@@ -133,6 +135,7 @@ function AppShell({
 }
 
 function App(): React.JSX.Element {
+  const { t } = useTranslation('common');
   const {
     loadThreads,
     createThread,
@@ -207,7 +210,7 @@ function App(): React.JSX.Element {
         <div className="app-flat-surface animate-scale-in relative rounded-[30px] px-8 py-6 text-center shadow-none">
           <div className="text-section-header">Booting Interface</div>
           <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-foreground">
-            正在初始化…
+            {t('initializing')}
           </div>
         </div>
       </div>

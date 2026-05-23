@@ -1,4 +1,5 @@
 import {memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useTranslation} from "react-i18next";
 import {
   Check,
   CheckCircle2,
@@ -140,6 +141,7 @@ function ResizeHandle({ onDrag }: ResizeHandleProps): React.JSX.Element {
 }
 
 export function RightPanel(): React.JSX.Element {
+  const { t } = useTranslation('panels');
   const { currentThreadId } = useAppStore();
   const threadState = useThreadState(currentThreadId);
   const todos = threadState?.todos ?? [];
@@ -363,7 +365,7 @@ export function RightPanel(): React.JSX.Element {
       {/* TASKS */}
       <div className="flex shrink-0 flex-col border-b border-border/65 bg-background-elevated">
         <SectionHeader
-          title="任务"
+          title={t('sections.tasks')}
           icon={ListTodo}
           badge={todos.length}
           isOpen={tasksOpen}
@@ -385,9 +387,9 @@ export function RightPanel(): React.JSX.Element {
       {/* FILES */}
       <div className="flex shrink-0 flex-col border-b border-border/65 bg-background-elevated">
         <SectionHeader
-          title="文件"
+          title={t('sections.files')}
           icon={FolderTree}
-          badge={workspaceFiles.length > 0 ? `${workspaceFiles.length}个文件` : undefined}
+          badge={workspaceFiles.length > 0 ? t('filesBadge', { count: workspaceFiles.length }) : undefined}
           isOpen={filesOpen}
           onToggle={() => setFilesOpen((prev) => !prev)}
           accent="amber"
@@ -405,7 +407,7 @@ export function RightPanel(): React.JSX.Element {
       {/* AGENTS */}
       <div className="flex shrink-0 flex-col bg-background-elevated">
         <SectionHeader
-          title="子智能体"
+          title={t('sections.subagents')}
           icon={GitBranch}
           badge={subagents.length}
           isOpen={agentsOpen}
@@ -427,30 +429,31 @@ const STATUS_CONFIG = {
   pending: {
     icon: Circle,
     badge: "outline" as const,
-    label: "待处理",
+    statusKey: "pending" as const,
     color: "text-muted-foreground",
   },
   in_progress: {
     icon: Clock,
     badge: "info" as const,
-    label: "进行中",
+    statusKey: "inProgress" as const,
     color: "text-status-info",
   },
   completed: {
     icon: CheckCircle2,
     badge: "nominal" as const,
-    label: "已完成",
+    statusKey: "completed" as const,
     color: "text-status-nominal",
   },
   cancelled: {
     icon: XCircle,
     badge: "critical" as const,
-    label: "已取消",
+    statusKey: "cancelled" as const,
     color: "text-muted-foreground",
   },
 };
 
 function TasksContent(): React.JSX.Element {
+  const { t } = useTranslation('panels');
   const { currentThreadId } = useAppStore();
   const threadState = useThreadState(currentThreadId);
   const todos = threadState?.todos ?? [];
@@ -460,8 +463,8 @@ function TasksContent(): React.JSX.Element {
     return (
       <div className="flex flex-col items-center justify-center px-4 py-8 text-center text-sm text-muted-foreground">
         <ListTodo className="size-8 mb-2 opacity-50" />
-        <span>暂无任务</span>
-        <span className="text-xs mt-1">智能体创建任务后会显示在这里</span>
+        <span>{t('tasks.noTasks')}</span>
+        <span className="text-xs mt-1">{t('tasks.noTasksHint')}</span>
       </div>
     );
   }
@@ -483,7 +486,7 @@ function TasksContent(): React.JSX.Element {
       {/* Progress bar */}
       <div className="border-b border-border/50 p-3">
         <div className="flex items-center justify-between mb-1.5 text-xs">
-          <span className="text-muted-foreground">进度</span>
+          <span className="text-muted-foreground">{t('tasks.progress')}</span>
           <span className="font-mono">
             {done}/{total}
           </span>
@@ -511,7 +514,7 @@ function TasksContent(): React.JSX.Element {
                 <ChevronRight className="size-3.5" />
               )}
               <span className="uppercase tracking-wider font-medium">
-                已完成（{doneItems.length}）
+                {t('tasks.completedLabel', { count: doneItems.length })}
               </span>
             </button>
             {completedExpanded && (
@@ -539,6 +542,7 @@ function TasksContent(): React.JSX.Element {
 }
 
 function TaskItem({ todo }: { todo: Todo }): React.JSX.Element {
+  const { t } = useTranslation('panels');
   const config = STATUS_CONFIG[todo.status];
   const Icon = config.icon;
   const isDone = todo.status === "completed" || todo.status === "cancelled";
@@ -557,13 +561,14 @@ function TaskItem({ todo }: { todo: Todo }): React.JSX.Element {
         {todo.content}
       </span>
       <Badge variant={config.badge} className="shrink-0 text-[10px]">
-        {config.label}
+        {t(`taskStatus.${config.statusKey}`)}
       </Badge>
     </div>
   );
 }
 
 function FilesContent(): React.JSX.Element {
+  const { t } = useTranslation('panels');
   const { currentThreadId } = useAppStore();
   const threadState = useThreadState(currentThreadId);
   const workspaceFiles = threadState?.workspaceFiles ?? [];
@@ -678,13 +683,13 @@ function FilesContent(): React.JSX.Element {
           className="text-[10px] text-muted-foreground truncate flex-1"
           title={workspacePath || undefined}
         >
-          {workspacePath ? workspacePath.split("/").pop() : "未关联文件夹"}
+          {workspacePath ? workspacePath.split('/').pop() : t('files.noFolderLinked')}
         </span>
         {workspaceFiles.length > 0 && (
           <div className="flex shrink-0 overflow-hidden rounded-full border border-border bg-background/60">
             <button
               type="button"
-              title="树形"
+              title={t('files.treeView')}
               className={cn(
                 "px-2 py-1",
                 fileView === "tree"
@@ -697,7 +702,7 @@ function FilesContent(): React.JSX.Element {
             </button>
             <button
               type="button"
-              title="列表"
+              title={t('files.listView')}
               className={cn(
                 "border-l border-border px-2 py-1",
                 fileView === "list"
@@ -716,10 +721,10 @@ function FilesContent(): React.JSX.Element {
           onClick={handleOpenWorkspaceFolder}
           disabled={!workspacePath}
           className="h-7 rounded-full px-2 text-[10px]"
-          title={workspacePath ? `打开 ${workspacePath}` : "暂无工作区文件夹可打开"}
+          title={workspacePath ? t('files.openFolderTitle', { path: workspacePath }) : t('files.noFolderToOpen')}
         >
           <FolderOpen className="size-3" />
-          <span className="ml-1">打开</span>
+          <span className="ml-1">{t('files.openFolder')}</span>
         </Button>
         <Button
           variant="ghost"
@@ -732,11 +737,11 @@ function FilesContent(): React.JSX.Element {
           title={
             workspaceFiles.length > 0
               ? workspacePath
-                ? `同步到 ${workspacePath}`
-                : "将文件同步到磁盘"
+                ? t('files.syncToTitle', { path: workspacePath })
+                : t('files.syncToDisk')
               : workspacePath
-                ? "更换文件夹"
-                : "关联同步文件夹"
+                ? t('files.changeFolderTitle')
+                : t('files.linkFolderTitle')
           }
         >
           {syncing ? (
@@ -750,10 +755,10 @@ function FilesContent(): React.JSX.Element {
           )}
           <span className="ml-1">
             {workspaceFiles.length > 0
-              ? "同步"
+              ? t('files.sync')
               : workspacePath
-                ? "更换"
-                : "关联"}
+                ? t('files.changeFolder')
+                : t('files.linkFolder')}
           </span>
         </Button>
       </div>
@@ -762,11 +767,11 @@ function FilesContent(): React.JSX.Element {
       {workspaceFiles.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center text-sm text-muted-foreground">
           <FolderTree className="size-8 mb-2 opacity-50" />
-          <span>暂无工作区文件</span>
+          <span>{t('files.noWorkspaceFiles')}</span>
           <span className="text-xs mt-1">
             {workspacePath
-              ? `已关联：${workspacePath.split("/").pop()}`
-              : "点击「关联」设置同步文件夹"}
+              ? t('files.linkedFolder', { name: workspacePath.split('/').pop() })
+              : t('files.linkFolderHint')}
           </span>
         </div>
       ) : fileView === "list" ? (
@@ -804,7 +809,6 @@ function FileTree({
   );
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpanded(new Set());
   }, [filesIdentity, fileView]);
 
@@ -988,14 +992,15 @@ function FileIcon({
   }
 }
 
-const SUBAGENT_STATUS_LABEL: Record<string, string> = {
-  pending: "待处理",
-  running: "运行中",
-  completed: "已完成",
-  failed: "失败",
+const SUBAGENT_STATUS_KEY: Record<string, string> = {
+  pending: "pending",
+  running: "running",
+  completed: "completed",
+  failed: "failed",
 };
 
 function AgentsContent(): React.JSX.Element {
+  const { t } = useTranslation('panels');
   const { currentThreadId } = useAppStore();
   const threadState = useThreadState(currentThreadId);
   const subagents = threadState?.subagents ?? [];
@@ -1004,8 +1009,8 @@ function AgentsContent(): React.JSX.Element {
     return (
       <div className="flex flex-col items-center justify-center text-center text-sm text-muted-foreground py-8 px-4">
         <GitBranch className="size-8 mb-2 opacity-50" />
-        <span>暂无子智能体任务</span>
-        <span className="text-xs mt-1">子智能体创建后会显示在这里</span>
+        <span>{t('subagents.noSubagents')}</span>
+        <span className="text-xs mt-1">{t('subagents.noSubagentsHint')}</span>
       </div>
     );
   }
@@ -1032,7 +1037,7 @@ function AgentsContent(): React.JSX.Element {
                   "bg-status-critical/20 text-status-critical",
               )}
             >
-              {SUBAGENT_STATUS_LABEL[agent.status] ?? agent.status}
+              {t(`subagentStatus.${SUBAGENT_STATUS_KEY[agent.status] ?? agent.status}`)}
             </span>
           </div>
           {agent.description && (

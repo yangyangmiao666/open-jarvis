@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useObjectUrlFromBase64 } from "./media-blob";
+import i18n from "@/lib/locales";
 
 interface UseInlineMediaResult {
   url: string | null;
@@ -86,12 +87,12 @@ export function useInlineMedia(
           });
           setBase64(result.content);
         } else {
-          setError(result.error || "无法读取文件");
+          setError(result.error || i18n.t('chat:inlineMedia.cannotReadFile'));
         }
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "加载失败");
+        setError(err instanceof Error ? err.message : i18n.t('chat:inlineMedia.loadFailed'));
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);

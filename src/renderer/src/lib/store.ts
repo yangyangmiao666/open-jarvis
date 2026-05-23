@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import i18n from "@/lib/locales";
 import type { Thread, ModelConfig, Provider } from "@/types";
 
 interface AppState {
@@ -27,6 +28,10 @@ interface AppState {
   colorMode: "light" | "dark";
   setColorMode: (mode: "light" | "dark") => void;
   toggleColorMode: () => void;
+
+  /** 语言 */
+  language: "zh-CN" | "en-US";
+  setLanguage: (lang: "zh-CN" | "en-US") => void;
 
   // Thread actions
   loadThreads: () => Promise<void>;
@@ -78,6 +83,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       ? (localStorage.getItem("openwork-theme") as "light" | "dark") || "light"
       : "light",
 
+  language:
+    typeof window !== "undefined"
+      ? (localStorage.getItem("openwork-language") as "zh-CN" | "en-US") ||
+        "zh-CN"
+      : "zh-CN",
+
   setColorMode: (mode) => {
     document.documentElement.classList.remove("light", "dark");
     document.documentElement.classList.add(mode);
@@ -88,6 +99,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   toggleColorMode: () => {
     const next = get().colorMode === "dark" ? "light" : "dark";
     get().setColorMode(next);
+  },
+
+  setLanguage: (lang) => {
+    localStorage.setItem("openwork-language", lang);
+    i18n.changeLanguage(lang);
+    set({ language: lang });
   },
 
   // Thread actions
@@ -194,7 +211,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (remainingThreads.length === 0) {
         const replacementThread = await window.api.threads.create({
           ...replacementMetadata,
-          title: `新会话 ${new Date().toLocaleDateString()}`,
+          title: i18n.t('common:newSessionWithDate', { date: new Date().toLocaleDateString() }),
         });
         set({
           threads: [replacementThread],

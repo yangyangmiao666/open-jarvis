@@ -1,7 +1,8 @@
-import { memo, useMemo, useState } from "react";
-import { Brain, ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { StreamingMarkdown } from "./StreamingMarkdown";
+import {memo, useMemo, useState} from "react";
+import {Brain, ChevronDown} from "lucide-react";
+import {cn} from "@/lib/utils";
+import {useTranslation} from "react-i18next";
+import {StreamingMarkdown} from "./StreamingMarkdown";
 
 interface ThinkAwareMarkdownProps {
   children: string;
@@ -19,15 +20,15 @@ function summarizeThinkContent(content: string): string {
   const normalized = content
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/`([^`]+)`/g, "$1")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
     .replace(/<[^>]+>/g, " ")
     .replace(/(^|\s)[#>*_~-]+/gm, " ")
     .replace(/\s+/g, " ")
     .trim();
 
   if (!normalized) {
-    return "已完成思考，点击展开查看详情。";
+    return "";
   }
 
   const sentences = normalized
@@ -37,9 +38,7 @@ function summarizeThinkContent(content: string): string {
 
   const selected =
     sentences.length > 0 ? sentences.slice(0, 2).join(" ") : normalized;
-  const clipped =
-    selected.length > 96 ? `${selected.slice(0, 96).trimEnd()}...` : selected;
-  return clipped;
+  return selected.length > 96 ? `${selected.slice(0, 96).trimEnd()}...` : selected;
 }
 
 function parseThinkSegments(input: string, isStreaming: boolean): Segment[] {
@@ -130,6 +129,7 @@ function ThinkBlock({
   threadId,
   onOpenFile,
 }: ThinkBlockProps): React.JSX.Element {
+  const { t } = useTranslation('chat');
   const [expanded, setExpanded] = useState(isStreaming);
   const summary = useMemo(() => summarizeThinkContent(content), [content]);
   const showSummary = !isStreaming && !expanded;
@@ -147,10 +147,12 @@ function ThinkBlock({
           </span>
           <span className="min-w-0 text-left">
             <span className="think-summary-title">
-              {isStreaming ? "思考中" : "思考过程"}
+              {isStreaming ? t('thinkingSection.thinking') : t('thinkingSection.expand')}
             </span>
             {showSummary ? (
-              <span className="think-summary-text">{summary}</span>
+              <span className="think-summary-text">
+                {summary || t('thinkingSection.thinkSummaryFallback')}
+              </span>
             ) : null}
           </span>
         </span>
@@ -163,7 +165,7 @@ function ThinkBlock({
             threadId={threadId}
             onOpenFile={onOpenFile}
           >
-            {content || "*思考内容为空*"}
+            {content || t('thinkingSection.collapse')}
           </StreamingMarkdown>
         </div>
       )}

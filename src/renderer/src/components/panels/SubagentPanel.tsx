@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   Bot,
   Clock,
@@ -53,6 +54,7 @@ function getSubagentTypeBadge(subagentType?: string): string {
 }
 
 export function SubagentPanel(): React.JSX.Element {
+  const { t } = useTranslation("panels");
   const { currentThreadId } = useAppStore();
   const threadState = useThreadState(currentThreadId);
   const subagents = threadState?.subagents ?? [];
@@ -68,22 +70,22 @@ export function SubagentPanel(): React.JSX.Element {
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
-          <span className="text-section-header">SUBAGENTS</span>
+          <span className="text-section-header">{t("subagentPanel.headerTitle")}</span>
           <div className="flex items-center gap-2">
             {runningCount > 0 && (
               <Badge variant="info">
                 <Loader2 className="size-3 mr-1 animate-spin" />
-                {runningCount} ACTIVE
+                {t("subagentPanel.activeCount", { count: runningCount })}
               </Badge>
             )}
-            <Badge variant="outline">{subagents.length} TOTAL</Badge>
+            <Badge variant="outline">{t("subagentPanel.totalCount", { count: subagents.length })}</Badge>
           </div>
         </div>
       </div>
 
       {pendingApproval && runningCount > 0 && (
         <div className="px-4 py-2 text-xs text-amber-700 dark:text-amber-300/90 border-b border-amber-500/25 bg-amber-500/[0.06]">
-          当前有工具调用在等待审批；在对话区批准或拒绝前，相关子任务会保持「运行中」。
+          {t("subagentPanel.approvalWaiting")}
         </div>
       )}
 
@@ -92,9 +94,9 @@ export function SubagentPanel(): React.JSX.Element {
           {subagents.length === 0 ? (
             <div className="text-center text-sm text-muted-foreground py-8">
               <Bot className="size-8 mx-auto mb-2 opacity-50" />
-              No subagent tasks
+              {t("subagentPanel.noSubagents")}
               <div className="text-xs mt-1">
-                Subagents will appear here when spawned
+                {t("subagentPanel.noSubagentsHint")}
               </div>
             </div>
           ) : (
@@ -111,7 +113,7 @@ export function SubagentPanel(): React.JSX.Element {
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <CheckCircle2 className="size-3 text-status-nominal" />
-              {completedCount} completed
+              {t("subagentPanel.completedCount", { count: completedCount })}
             </span>
           </div>
         </div>
@@ -121,6 +123,7 @@ export function SubagentPanel(): React.JSX.Element {
 }
 
 function SubagentCard({ subagent }: { subagent: Subagent }): React.JSX.Element {
+  const { t } = useTranslation("panels");
   const getStatusConfig = (): {
     icon: React.ElementType;
     badge: "outline" | "info" | "nominal" | "critical";
@@ -128,13 +131,13 @@ function SubagentCard({ subagent }: { subagent: Subagent }): React.JSX.Element {
   } => {
     switch (subagent.status) {
       case "pending":
-        return { icon: Clock, badge: "outline" as const, label: "PENDING" };
+        return { icon: Clock, badge: "outline" as const, label: t("subagentPanel.statusPending") };
       case "running":
-        return { icon: Loader2, badge: "info" as const, label: "RUNNING" };
+        return { icon: Loader2, badge: "info" as const, label: t("subagentPanel.statusRunning") };
       case "completed":
-        return { icon: CheckCircle2, badge: "nominal" as const, label: "DONE" };
+        return { icon: CheckCircle2, badge: "nominal" as const, label: t("subagentPanel.statusDone") };
       case "failed":
-        return { icon: XCircle, badge: "critical" as const, label: "FAILED" };
+        return { icon: XCircle, badge: "critical" as const, label: t("subagentPanel.statusFailed") };
     }
   };
 

@@ -1,0 +1,80 @@
+{
+  "sections": {
+    "tasks": "任务",
+    "files": "文件",
+    "subagents": "子智能体"
+  },
+  "filesBadge": "{{count}}个文件",
+  "taskStatus": {
+    "pending": "待处理",
+    "inProgress": "进行中",
+    "completed": "已完成",
+    "cancelled": "已取消"
+  },
+  "subagentStatus": {
+    "pending": "待处理",
+    "running": "运行中",
+    "completed": "已完成",
+    "failed": "失败"
+  },
+  "tasks": {
+    "noTasks": "暂无任务",
+    "noTasksHint": "智能体创建任务后会显示在这里",
+    "progress": "进度",
+    "completedLabel": "已完成（{{count}}）"
+  },
+  "files": {
+    "noFolderLinked": "未关联文件夹",
+    "treeView": "树形",
+    "listView": "列表",
+    "openFolder": "打开",
+    "openFolderTitle": "打开 {{path}}",
+    "noFolderToOpen": "暂无工作区文件夹可打开",
+    "sync": "同步",
+    "syncToTitle": "同步到 {{path}}",
+    "syncToDisk": "将文件同步到磁盘",
+    "changeFolder": "更换",
+    "changeFolderTitle": "更换文件夹",
+    "linkFolder": "关联",
+    "linkFolderTitle": "关联同步文件夹",
+    "noWorkspaceFiles": "暂无工作区文件",
+    "linkedFolder": "已关联：{{name}}",
+    "linkFolderHint": "点击「关联」设置同步文件夹"
+  },
+  "subagents": {
+    "noSubagents": "暂无子智能体任务",
+    "noSubagentsHint": "子智能体创建后会显示在这里",
+    "approvalWaiting": "当前有工具调用在等待审批；在对话区批准或拒绝前，相关子任务会保持「运行中」。"
+  },
+  "filesystemPanel": {
+    "workspace": "工作区",
+    "noWorkspaceSelected": "No workspace selected",
+    "selectFolderHint": "Select a folder for the agent to work in",
+    "selectFolder": "Select Folder",
+    "refreshFiles": "刷新文件列表",
+    "changeWorkspace": "更换工作区文件夹",
+    "changeFolder": "更换",
+    "workspaceEmpty": "工作区为空",
+    "workspaceEmptyHint": "智能体创建文件后将显示在这里"
+  },
+  "fileListTable": {
+    "columnName": "名称",
+    "columnSize": "大小",
+    "columnCreated": "创建时间",
+    "columnModified": "更新时间",
+    "resizeColumnAriaLabel": "调整「{{label}}」列宽"
+  },
+  "subagentPanel": {
+    "headerTitle": "子智能体",
+    "activeCount": "{{count}} 活跃",
+    "totalCount": "{{count}} 总计",
+    "noSubagents": "暂无子智能体任务",
+    "noSubagentsHint": "子智能体创建后会显示在这里",
+    "approvalWaiting": "当前有工具调用在等待审批；在对话区批准或拒绝前，相关子任务会保持「运行中」。",
+    "statusPending": "待处理",
+    "statusRunning": "运行中",
+    "statusDone": "已完成",
+    "statusFailed": "失败",
+    "completedCount": "{{count}} 已完成"
+  }
+}

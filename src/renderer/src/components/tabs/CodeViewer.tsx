@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/lib/store";
 import {
@@ -21,8 +22,8 @@ function countLinesFast(s: string): number {
   return n;
 }
 
-function formatCharCount(n: number): string {
-  if (n < 1024) return `${n} 字符`;
+function formatCharCount(n: number, t: (key: string, options?: Record<string, unknown>) => string): string {
+  if (n < 1024) return t("codeViewer.charCount", { count: n });
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 }
@@ -34,6 +35,7 @@ export function CodeViewer({
   filePath,
   content,
 }: CodeViewerProps): React.JSX.Element {
+  const { t } = useTranslation("tabs");
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
   const colorMode = useAppStore((s) => s.colorMode);
   const shikiTheme =
@@ -68,7 +70,6 @@ export function CodeViewer({
     let cancelled = false;
 
     if (isTabularText) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHighlightedHtml(null);
       return;
     }
@@ -116,17 +117,16 @@ export function CodeViewer({
           <span className="text-muted-foreground/50">•</span>
           <span>
             {tabularPreview.truncated ? "≥ " : ""}
-            {previewLineCount.toLocaleString()} 行（预览）
+            {t("codeViewer.previewLineCount", { count: previewLineCount })}
           </span>
           <span className="text-muted-foreground/50">•</span>
-          <span>{formatCharCount(content.length)}</span>
+          <span>{formatCharCount(content.length, t)}</span>
           <span className="text-muted-foreground/50">•</span>
-          <span className="text-muted-foreground/70">{kind} 纯文本</span>
+          <span className="text-muted-foreground/70">{kind} {t("codeViewer.plainText")}</span>
         </div>
         {tabularPreview.truncated && (
           <div className="shrink-0 border-b border-border bg-status-warning/10 px-4 py-1.5 text-[11px] text-muted-foreground">
-            文件较大，仅预览前 {TABULAR_PREVIEW_MAX_CHARS.toLocaleString()}{" "}
-            字符以降低卡顿；完整内容请用外部表格软件打开。
+            {t("codeViewer.truncationHint", { maxChars: TABULAR_PREVIEW_MAX_CHARS.toLocaleString() })}
           </div>
         )}
         <ScrollArea className="min-h-0 flex-1">
@@ -143,7 +143,7 @@ export function CodeViewer({
       <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background/50 px-4 py-2 text-xs text-muted-foreground">
         <span className="truncate">{filePath}</span>
         <span className="text-muted-foreground/50">•</span>
-        <span>{lineCount.toLocaleString()} 行</span>
+        <span>{t("codeViewer.lineCount", { count: lineCount.toLocaleString() })}</span>
         <span className="text-muted-foreground/50">•</span>
         <span className="text-muted-foreground/70">{language}</span>
       </div>

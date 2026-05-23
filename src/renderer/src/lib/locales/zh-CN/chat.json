@@ -1,0 +1,220 @@
+{
+  "you": "你",
+  "queued": "排队中",
+  "editAndResend": "编辑并重新发送",
+  "deleteMessage": "删除此条消息",
+  "resendMessage": "重发此条消息",
+  "copyAsMarkdown": "复制此条为 Markdown",
+  "editHint": "取消不会删除后续对话。按 Cmd/Ctrl + Enter 可直接发送。",
+  "editPlaceholder": "编辑这条消息后重新发送",
+  "toolLabels": {
+    "readFile": "读取文件",
+    "writeFile": "写入文件",
+    "editFile": "编辑文件",
+    "ls": "列出目录",
+    "glob": "查找文件",
+    "grep": "搜索内容",
+    "execute": "执行命令",
+    "writeTodos": "更新任务",
+    "task": "子智能体任务"
+  },
+  "toolResults": {
+    "readLines": "已读 {{count}} 行",
+    "fileCount": "{{count}} 个文件",
+    "folderCount": "{{count}} 个文件夹",
+    "matchCount": "找到 {{count}} 项匹配",
+    "filesWithMatches": "{{count}} 个文件中 {{matchCount}} 处匹配"
+  },
+  "toolStatus": {
+    "pendingApproval": "待审批",
+    "running": "运行中",
+    "success": "成功",
+    "error": "错误",
+    "synced": "已同步",
+    "completed": "已完成"
+  },
+  "approval": {
+    "reject": "拒绝",
+    "approveAndExecute": "批准并执行",
+    "approveInFooter": "请在对话区底部固定栏批准或拒绝。",
+    "waitingForConfirmation": "等待你确认：",
+    "approvalPaused": "主进程或子智能体已暂停；批准或拒绝这些工具调用后才会继续并汇总结果。",
+    "allowWorkspaceSimilar": "允许此工作区后续类似命令",
+    "approveThisTime": "本次批准",
+    "waitingApproval": "等待审批",
+    "autoApproval": "自动审批",
+    "manualApproval": "人工审批",
+    "autoApprovalTitle": "当前为自动通过审批，点击切换为人工审批",
+    "manualApprovalTitle": "当前为人工审批，点击切换为自动通过",
+    "multipleToolCalls": "{{name}} 等 {{count}} 个工具调用"
+  },
+  "parameters": "参数",
+  "rawParameters": "原始参数",
+  "rawResult": "原始结果",
+  "fileEdit": {
+    "writeLines": "向 {{name}} 写入 {{count}} 行",
+    "removeLines": "− {{count}} 行",
+    "addLines": "+ {{count}} 行"
+  },
+  "grep": {
+    "moreMatches": "另有 {{count}} 处匹配",
+    "moreFiles": "另有 {{count}} 个文件含匹配"
+  },
+  "fileList": {
+    "moreItems": "还有 {{count}} 项"
+  },
+  "command": {
+    "ended": "命令已结束",
+    "endedNoOutput": "命令已结束（无输出）"
+  },
+  "task": {
+    "completed": "任务已完成",
+    "fileSaved": "文件已保存",
+    "mediaRead": "已读取媒体文件"
+  },
+  "streaming": {
+    "tip1": "正在交叉阅读上下文、消息、工具结果和线程状态，尽量减少无效来回。",
+    "tip2": "会先压缩出最有价值的下一步，再决定是继续搜索、修改还是验证。",
+    "tip3": "如果发现问题已经收敛到局部切片，会优先做小改动并立即验证。",
+    "tip4": "处理过程中会持续整理线索、风险和已完成动作，而不是只输出中间碎片。",
+    "tip5": "如果本轮涉及工具链、文件改动和上下文窗口，会同步约束它们之间的影响范围。",
+    "tip6": "当前展示的是处理中状态提示，真实结果仍会按消息和工具调用继续流式输出。",
+    "pushingTodo": "正在推进：{{content}}",
+    "completedSteps": "已经完成 {{count}} 个处理步骤，接下来会优先收束剩余动作与验证闭环。",
+    "remainingSteps": "后面还有 {{count}} 个待推进步骤，当前按依赖顺序继续，不会无序扩散。",
+    "workspaceContext": "正在结合工作区 {{name}} 的文件关系与最近改动推进行为判断。",
+    "workspaceFiles": "当前工作区可见 {{count}} 个文件节点，会优先利用可证伪的局部线索。",
+    "referencedPaths": "会优先使用你引用的 {{count}} 个文件路径，避免上下文偏移和重复搜索。",
+    "recentTools": "最近正在串联 {{tools}} 等工具，把搜索、修改和验证压进同一轮处理。",
+    "currentModel": "当前由 {{label}} 负责本轮推理、工具调用和结果整理。",
+    "messageCount": "当前线程已累计 {{count}} 条消息，状态会沿着现有上下文继续推进，不会从头重算。",
+    "autoApprovalMode": "当前是自动审批模式，低风险动作会直接继续，减少流程停顿。",
+    "manualApprovalMode": "当前是人工审批模式，高影响工具会停在确认点，保证执行边界清晰。",
+    "pendingApproval": "流程当前停在 {{name}} 的确认点，批准或拒绝后会继续汇总后续结果。",
+    "processing": "处理中",
+    "paused": "已暂停",
+    "cancelling": "取消中",
+    "stopGeneration": "停止生成",
+    "interruptSend": "插嘴发送（排队等待当前回复完成后自动提交）",
+    "jarvisWorking": "Jarvis is working",
+    "live": "实时"
+  },
+  "emptyState": {
+    "newSession": "新会话",
+    "startFromWorkspace": "从这个工作区开始推进一个明确结果",
+    "connectedWorkspace": "你已经连接了工作区，Jarvis现在可以直接阅读代码、修改文件、执行命令，并把过程整理成可追踪的结果。",
+    "selectWorkspace": "请选择工作区文件夹",
+    "agentNeedsWorkspace": "智能体需要工作区才能创建与修改文件",
+    "chooseWorkspace": "选择工作区",
+    "currentDir": "当前目录: {{folder}}",
+    "trySuggestion": "试试: \"梳理这个模块\"",
+    "orSuggestion": "或者: \"帮我改并验证\""
+  },
+  "error": {
+    "agentError": "智能体错误",
+    "tryResend": "可尝试发送新消息以继续对话。",
+    "closeError": "关闭错误",
+    "contextWindowFull": "上下文窗口已满（约 {{usedK}}K / {{maxK}}K tokens）。对话过长，请新建会话后继续。",
+    "rateLimited": "请求过于频繁，请稍后再发送消息。",
+    "authFailed": "认证失败，请在设置中检查 API 密钥。"
+  },
+  "deleteConfirm": {
+    "title": "确认删除消息？",
+    "description": "将删除这条{{role}}消息及其后续对话记录，此操作不可恢复。",
+    "targetMessage": "目标消息",
+    "user": "用户",
+    "assistant": "助手",
+    "hasToolCalls": "这是一条包含工具调用的消息。",
+    "noTextContent": "这条消息没有可展示的文本内容。"
+  },
+  "toast": {
+    "messageDeleted": "消息已删除",
+    "resendNotFound": "未找到要重发的消息。请切换会话后重试。",
+    "resendFailed": "重发消息失败，请稍后再试。",
+    "editNotFound": "未找到要编辑的消息。请切换会话后重试。",
+    "editSendFailed": "编辑后发送失败，请稍后再试。",
+    "deleteNotFound": "未找到要删除的消息。请切换会话后重试。",
+    "deleteFailed": "删除消息失败，请稍后再试。"
+  },
+  "selectWorkspaceFirst": "发送消息前请先选择工作区文件夹。",
+  "copyMarkdown": "复制 Markdown",
+  "copyMarkdownTitle": "复制当前会话全部消息为 Markdown（含工具调用与结果）",
+  "clickToRemove": "点击移除",
+  "inputPlaceholder": {
+    "idle": "输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件",
+    "loading": "输入消息插嘴… Enter 排队发送，等当前回复完成后自动提交"
+  },
+  "chatTodos": {
+    "title": "Jarvis的任务",
+    "completedCount": "{{count}} 个任务已完成"
+  },
+  "contextUsage": {
+    "contextWindow": "上下文窗口",
+    "normal": "正常",
+    "critical": "危急",
+    "warning": "警告",
+    "moderate": "中等",
+    "waiting": "等待中",
+    "estimated": "估算",
+    "tokenDetails": "Token 使用详情",
+    "input": "输入",
+    "output": "输出",
+    "total": "总计",
+    "cache": "缓存",
+    "cacheHit": "缓存命中",
+    "cacheCreation": "缓存创建",
+    "noCacheTokens": "无缓存令牌",
+    "visibleEstimate": "可见消息估算",
+    "hiddenPromptEstimate": "隐藏 Prompt 估算",
+    "compressionEstimate": "压缩摘要估算",
+    "referencedPathsSupplement": "引用路径补充",
+    "compressionSummary": "压缩摘要",
+    "systemPrompt": "system prompt",
+    "filesystemPrompt": "filesystem prompt",
+    "waitFirstResponse": "等待首条响应后显示",
+    "waitFirstResponseShort": "等待首条响应",
+    "lastUpdated": "最后更新：",
+    "estimateNote": "当前输入 token 采用实时估算值，已把可见消息和隐藏 prompt 一并算入；这可以在会话压缩后更快反映最新上下文占用。"
+  },
+  "markdown": {
+    "you": "你",
+    "tool": "工具",
+    "result": "结果"
+  },
+  "workspacePicker": {
+    "selectWorkspace": "选择工作区",
+    "workspaceFolder": "工作区文件夹",
+    "agentReadWrite": "智能体将在此文件夹中读写文件。",
+    "changeFolder": "更换文件夹",
+    "selectFolderDesc": "请选择智能体的工作目录，文件将直接读写至该位置。",
+    "selectFolder": "选择文件夹",
+    "clickToOpen": "点击打开",
+    "clickToView": "点击查看",
+    "moreLines": "还有 {{count}} 行",
+    "cannotPreview": "无法预览: {{error}}"
+  },
+  "modelSwitcher": {
+    "selectModel": "选择模型",
+    "provider": "提供商",
+    "models": "模型",
+    "needApiKey": "使用 {{name}} 需要配置 API 密钥",
+    "configureApiKey": "配置 API 密钥",
+    "needCustomModel": "请添加至少一项自定义模型配置（接口地址与模型 ID）",
+    "setupModel": "设置大模型",
+    "noAvailableModels": "暂无可用模型",
+    "editApiKey": "编辑 API 密钥",
+    "customModel": "自定义模型"
+  },
+  "thinkBlock": {
+    "thinkingInProgress": "思考中",
+    "thinkingProcess": "思考过程",
+    "thinkSummaryFallback": "已完成思考，点击展开查看详情。",
+    "thinkContentEmpty": "*思考内容为空*"
+  },
+  "inlineMedia": {
+    "cannotPreview": "无法预览",
+    "clickToViewPdf": "点击查看",
+    "cannotReadFile": "无法读取文件",
+    "loadFailed": "加载失败"
+  }
+}

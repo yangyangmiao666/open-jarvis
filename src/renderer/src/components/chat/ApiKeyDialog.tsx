@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Loader2, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -30,6 +31,7 @@ export function ApiKeyDialog({
   onOpenChange,
   provider,
 }: ApiKeyDialogProps): React.JSX.Element | null {
+  const { t } = useTranslation("settings");
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -59,9 +61,9 @@ export function ApiKeyDialog({
     try {
       await saveApiKey(provider.id, apiKey.trim());
       onOpenChange(false);
-      toast.success("API 密钥已保存");
+      toast.success(t("apiKey.saved"));
     } catch {
-      toast.error("保存失败");
+      toast.error(t("apiKey.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -73,9 +75,9 @@ export function ApiKeyDialog({
     try {
       await deleteApiKey(provider.id);
       onOpenChange(false);
-      toast.success("API 密钥已移除");
+      toast.success(t("apiKey.removed"));
     } catch {
-      toast.error("移除失败");
+      toast.error(t("apiKey.removeFailed"));
     } finally {
       setDeleting(false);
     }
@@ -87,27 +89,27 @@ export function ApiKeyDialog({
         <DialogHeader>
           <DialogTitle>
             {hasExistingKey
-              ? `更新 ${provider.name} API 密钥`
-              : `添加 ${provider.name} API 密钥`}
+              ? t("apiKey.updateKey", { name: provider.name })
+              : t("apiKey.addKey", { name: provider.name })}
           </DialogTitle>
           <DialogDescription>
             {hasExistingKey
-              ? "输入新密钥以替换现有密钥，或使用下方按钮移除。"
-              : `输入 ${provider.name} 的 API 密钥以使用其模型。`}
+              ? t("apiKey.updateDesc")
+              : t("apiKey.addDesc", { name: provider.name })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-6 py-2 md:grid-cols-[0.9fr_1.1fr]">
           <div className="app-flat-surface rounded-[24px] px-5 py-5">
-            <div className="text-section-header">Provider</div>
+            <div className="text-section-header">{t("apiKey.provider")}</div>
             <div className="mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground">
               {provider.name}
             </div>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              使用平台密钥后，这个提供商的模型就可以在当前应用内直接调用。
+              {t("apiKey.providerDesc")}
             </p>
             <div className="mt-5 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-              <div className="text-xs text-muted-foreground">环境变量</div>
+              <div className="text-xs text-muted-foreground">{t("apiKey.envVar")}</div>
               <div className="mt-1 font-mono text-sm text-foreground">{info.envVar}</div>
             </div>
           </div>
@@ -137,8 +139,8 @@ export function ApiKeyDialog({
             </div>
             <p className="text-xs text-muted-foreground">
               {hasExistingKey
-                ? "留空不会覆盖现有密钥。"
-                : "密钥仅保存在本地，不会显示在会话消息里。"}
+                ? t("apiKey.emptyNoOverwrite")
+                : t("apiKey.localOnly")}
             </p>
           </div>
         </div>
@@ -157,7 +159,7 @@ export function ApiKeyDialog({
               ) : (
                 <Trash2 className="size-4 mr-2" />
               )}
-              移除密钥
+              {t("apiKey.removeKey")}
             </Button>
           ) : (
             <div />
@@ -168,14 +170,14 @@ export function ApiKeyDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              取消
+              {t("common:cancel")}
             </Button>
             <Button
               type="button"
               onClick={handleSave}
               disabled={!apiKey.trim() || saving}
             >
-              {saving ? <Loader2 className="size-4 animate-spin" /> : "保存"}
+              {saving ? <Loader2 className="size-4 animate-spin" /> : t("common:save")}
             </Button>
           </div>
         </div>
