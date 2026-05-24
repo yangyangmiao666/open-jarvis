@@ -16,14 +16,14 @@
     "open-jarvis": "./bin/cli.js"
   },
   "author": "Yang-yang Miao",
-  "license": "MIT",
-  "homepage": "https://github.com/langchain-ai/openwork",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/yangyangmiao666/open-jarvis",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/langchain-ai/openwork.git"
+    "url": "git+https://github.com/yangyangmiao666/open-jarvis.git"
   },
   "bugs": {
-    "url": "https://github.com/langchain-ai/openwork/issues"
+    "url": "https://github.com/yangyangmiao666/open-jarvis/issues"
   },
   "keywords": [
     "ai",
