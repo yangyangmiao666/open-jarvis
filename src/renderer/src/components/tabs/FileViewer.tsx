@@ -8,6 +8,7 @@ import { ImageViewer } from "./ImageViewer";
 import { MediaViewer } from "./MediaViewer";
 import { PDFViewer } from "./PDFViewer";
 import { BinaryFileViewer } from "./BinaryFileViewer";
+import { normalizeLocalFilePath } from "@/lib/utils";
 
 interface FileViewerProps {
   filePath: string;
@@ -20,25 +21,26 @@ export function FileViewer({
 }: FileViewerProps): React.JSX.Element | null {
   const { t } = useTranslation('tabs');
   const { fileContents, setFileContents } = useCurrentThread(threadId);
+  const normalizedFilePath = useMemo(() => normalizeLocalFilePath(filePath), [filePath]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [binaryContent, setBinaryContent] = useState<string | null>(null);
   const [fileSize, setFileSize] = useState<number | undefined>();
 
   // Get file type info
-  const fileName = filePath.split("/").pop() || filePath;
+  const fileName = normalizedFilePath.split("/").pop() || normalizedFilePath;
   const fileTypeInfo = useMemo(() => getFileType(fileName), [fileName]);
   const isBinary = useMemo(() => isBinaryFile(fileName), [fileName]);
 
   // Get cached content or load it
-  const content = fileContents[filePath];
+  const content = fileContents[normalizedFilePath];
 
   // Reset state when filePath changes
   useEffect(() => {
     setError(null);
     setBinaryContent(null);
     setFileSize(undefined);
-  }, [filePath]);
+  }, [normalizedFilePath]);
 
   // Load file content (text or binary depending on file type)
   useEffect(() => {
@@ -56,7 +58,7 @@ export function FileViewer({
           // Read as binary file (base64)
           const result = await window.api.workspace.readBinaryFile(
             threadId,
-            filePath,
+            normalizedFilePath,
           );
           if (result.success && result.content !== undefined) {
             setBinaryContent(result.content);
@@ -68,10 +70,10 @@ export function FileViewer({
           // Read as text file
           const result = await window.api.workspace.readFile(
             threadId,
-            filePath,
+            normalizedFilePath,
           );
           if (result.success && result.content !== undefined) {
-            setFileContents(filePath, result.content);
+            setFileContents(normalizedFilePath, result.content);
             setFileSize(result.size);
           } else {
             setError(result.error || t('fileViewer.readFileFailed'));
@@ -85,7 +87,7 @@ export function FileViewer({
     }
 
     loadFile();
-  }, [threadId, filePath, content, binaryContent, setFileContents, isBinary, t]);
+  }, [threadId, normalizedFilePath, content, binaryContent, setFileContents, isBinary, t]);
 
   if (isLoading) {
     return (
@@ -135,7 +137,7 @@ export function FileViewer({
   if (fileTypeInfo.type === "image" && binaryContent) {
     return (
       <ImageViewer
-        filePath={filePath}
+        filePath={normalizedFilePath}
         base64Content={binaryContent}
         mimeType={fileTypeInfo.mimeType || "image/png"}
       />
@@ -145,7 +147,7 @@ export function FileViewer({
   if (fileTypeInfo.type === "video" && binaryContent) {
     return (
       <MediaViewer
-        filePath={filePath}
+        filePath={normalizedFilePath}
         base64Content={binaryContent}
         mimeType={fileTypeInfo.mimeType || "video/mp4"}
         mediaType="video"
@@ -156,7 +158,7 @@ export function FileViewer({
   if (fileTypeInfo.type === "audio" && binaryContent) {
     return (
       <MediaViewer
-        filePath={filePath}
+        filePath={normalizedFilePath}
         base64Content={binaryContent}
         mimeType={fileTypeInfo.mimeType || "audio/mpeg"}
         mediaType="audio"
@@ -165,16 +167,16 @@ export function FileViewer({
   }
 
   if (fileTypeInfo.type === "pdf" && binaryContent) {
-    return <PDFViewer filePath={filePath} base64Content={binaryContent} />;
+    return <PDFViewer filePath={normalizedFilePath} base64Content={binaryContent} />;
   }
 
   if (fileTypeInfo.type === "binary") {
-    return <BinaryFileViewer filePath={filePath} size={fileSize} />;
+    return <BinaryFileViewer filePath={normalizedFilePath} size={fileSize} />;
   }
 
   // Default to code/text viewer
   if (content !== undefined) {
-    return <CodeViewer filePath={filePath} content={content} />;
+    return <CodeViewer filePath={normalizedFilePath} content={content} />;
   }
 
   return null;

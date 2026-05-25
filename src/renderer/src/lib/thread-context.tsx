@@ -88,6 +88,168 @@ function estimateInputTokensForState(state: ThreadState): number {
   return visibleMessageTokens + hiddenPromptTokens + summarizationMessageTokens;
 }
 
+function extractCheckpointTextContent(
+  content:
+    | string
+    | Array<{
+        type?: string;
+        text?: string;
+        content?: string;
+        input_text?: string;
+        output_text?: string;
+      }>
+    | undefined,
+): string {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((block) => {
+        if (!block || typeof block !== "object") {
+          return "";
+        }
+
+        const type = typeof block.type === "string" ? block.type : "";
+        if (type.includes("reasoning") || type.includes("thinking")) {
+          return "";
+        }
+
+        if (typeof block.text === "string") {
+          return block.text;
+        }
+        if (typeof block.content === "string") {
+          return block.content;
+        }
+        if (typeof block.input_text === "string") {
+          return block.input_text;
+        }
+        if (typeof block.output_text === "string") {
+          return block.output_text;
+        }
+        return "";
+      })
+      .filter((value) => value.length > 0)
+      .join("");
+  }
+
+  return "";
+}
+
+function extractCheckpointReasoning(message: Record<string, unknown>): string {
+  const directCandidates: unknown[] = [
+    message.reasoning_content,
+    message.reasoning,
+    message.thinking,
+    message.think,
+  ];
+
+  for (const candidate of directCandidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  const content = message.content;
+  if (Array.isArray(content)) {
+    const reasoningParts = content
+      .map((part) => {
+        if (!part || typeof part !== "object") {
+          return "";
+        }
+
+        const record = part as Record<string, unknown>;
+        const type = typeof record.type === "string" ? record.type : "";
+        const directPartReasoning =
+          record.reasoning_content ??
+          record.reasoning ??
+          record.thinking ??
+          record.think;
+
+        if (
+          typeof directPartReasoning === "string" &&
+          directPartReasoning.trim().length > 0
+        ) {
+          return directPartReasoning.trim();
+        }
+
+        if (type.includes("reasoning") || type.includes("thinking")) {
+          if (
+            typeof record.text === "string" &&
+            record.text.trim().length > 0
+          ) {
+            return record.text.trim();
+          }
+          if (
+            typeof record.content === "string" &&
+            record.content.trim().length > 0
+          ) {
+            return record.content.trim();
+          }
+        }
+
+        return "";
+      })
+      .filter((value) => value.length > 0);
+
+    if (reasoningParts.length > 0) {
+      return reasoningParts.join("\n");
+    }
+  }
+
+  const nestedContainers: unknown[] = [
+    message.additional_kwargs,
+    message.response_metadata,
+    message.metadata,
+  ];
+
+  for (const container of nestedContainers) {
+    if (!container || typeof container !== "object") {
+      continue;
+    }
+
+    const nested = container as Record<string, unknown>;
+    const nestedReasoning =
+      nested.reasoning_content ??
+      nested.reasoning ??
+      nested.thinking ??
+      nested.think;
+    if (
+      typeof nestedReasoning === "string" &&
+      nestedReasoning.trim().length > 0
+    ) {
+      return nestedReasoning.trim();
+    }
+  }
+
+  return "";
+}
+
+function buildCheckpointMessageContent(message: Record<string, unknown>): Message["content"] {
+  const reasoning = extractCheckpointReasoning(message);
+  const content = extractCheckpointTextContent(
+    message.content as
+      | string
+      | Array<{
+          type?: string;
+          text?: string;
+          content?: string;
+          input_text?: string;
+          output_text?: string;
+        }>
+      | undefined,
+  ).trim();
+
+  return [
+    reasoning.length > 0 ? `<think>\n${reasoning}\n</think>` : "",
+    content,
+  ]
+    .filter((value) => value.length > 0)
+    .join("\n")
+    .trim();
+}
+
 // Per-thread state (persisted/restored from checkpoints)
 export interface ThreadState {
   messages: Message[];
@@ -1004,10 +1166,16 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                   else if (msg.type === "tool") role = "tool";
                 }
 
-                let content: Message["content"] = "";
-                if (typeof msg.content === "string") content = msg.content;
-                else if (Array.isArray(msg.content))
-                  content = msg.content as Message["content"];
+                const content: Message["content"] =
+                  role === "assistant"
+                    ? buildCheckpointMessageContent(
+                        msg as Record<string, unknown>,
+                      )
+                    : typeof msg.content === "string"
+                      ? msg.content
+                      : Array.isArray(msg.content)
+                        ? (msg.content as Message["content"])
+                        : "";
 
                 return {
                   id: msg.id || `msg-${index}`,

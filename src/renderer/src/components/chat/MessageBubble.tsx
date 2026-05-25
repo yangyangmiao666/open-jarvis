@@ -16,6 +16,19 @@ interface ToolResultInfo {
   is_error?: boolean;
 }
 
+const RICH_PREVIEW_FENCE_PATTERN = /```(?:html|htm|echarts|echart|chart|mermaid)\b|<(?:echarts|echart|chart|mermaid|html-preview|html_preview|html-render|html_render)\b|<!doctype\s+html\b|<html[\s>]/i;
+
+function hasRichPreviewContent(content: Message["content"]): boolean {
+  if (typeof content === "string") {
+    return RICH_PREVIEW_FENCE_PATTERN.test(content);
+  }
+
+  return content.some(
+    (block) =>
+      typeof block.text === "string" && RICH_PREVIEW_FENCE_PATTERN.test(block.text),
+  );
+}
+
 interface MessageBubbleProps {
   message: Message;
   threadId: string;
@@ -171,6 +184,7 @@ export function MessageBubble({
 
   const content = renderContent();
   const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
+  const hasRichPreview = !isUser && hasRichPreviewContent(message.content);
   const pendingApprovalIds = new Set(
     (pendingApprovals && pendingApprovals.length > 0
       ? pendingApprovals
@@ -393,7 +407,9 @@ export function MessageBubble({
                 className={cn(
                   isUser
                     ? "ml-auto w-fit max-w-full rounded-2xl border-l-2 border-l-status-info/25 border border-border/60 bg-slate-100 px-4 py-3.5 text-foreground dark:border-border/70 dark:bg-slate-800"
-                    : "w-fit max-w-full",
+                    : hasRichPreview
+                      ? "w-full max-w-full"
+                      : "w-fit max-w-full",
                 )}
               >
                 {content}

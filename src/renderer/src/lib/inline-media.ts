@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useObjectUrlFromBase64 } from "./media-blob";
 import i18n from "@/lib/locales";
+import { normalizeLocalFilePath } from "@/lib/utils";
 
 interface UseInlineMediaResult {
   url: string | null;
@@ -35,6 +36,7 @@ export function useInlineMedia(
   options?: { lazy?: boolean },
 ): UseInlineMediaResult {
   const lazy = options?.lazy ?? false;
+  const normalizedFilePath = normalizeLocalFilePath(filePath);
   const [isVisible, setIsVisible] = useState(!lazy);
   const [base64, setBase64] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,7 +64,7 @@ export function useInlineMedia(
   useEffect(() => {
     if (!isVisible) return;
 
-    const cacheKey = getCacheKey(threadId, filePath);
+    const cacheKey = getCacheKey(threadId, normalizedFilePath);
     const cached = mediaCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_MAX_AGE) {
       setBase64(cached.base64);
@@ -75,7 +77,7 @@ export function useInlineMedia(
     setError(null);
 
     window.api.workspace
-      .readBinaryFile(threadId, filePath)
+      .readBinaryFile(threadId, normalizedFilePath)
       .then((result) => {
         if (cancelled) return;
         if (result.success && result.content) {
@@ -101,7 +103,7 @@ export function useInlineMedia(
     return () => {
       cancelled = true;
     };
-  }, [isVisible, threadId, filePath, mimeType]);
+  }, [isVisible, threadId, normalizedFilePath, mimeType]);
 
   const url = useObjectUrlFromBase64(base64, mimeType);
 

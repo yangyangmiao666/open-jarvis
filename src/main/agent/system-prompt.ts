@@ -63,6 +63,13 @@ When delegating to subagents:
 
 All file paths should use fully qualified absolute system paths (e.g., /Users/name/project/src/file.ts).
 
+**Exact file tool argument names:**
+- read_file: use \`file_path\`, optional \`offset\`, optional \`limit\`
+- write_file: use \`file_path\` and \`content\`
+- edit_file: use \`file_path\`, \`old_string\`, \`new_string\`, optional \`replace_all\`
+- ls/glob/grep: use \`path\` for directory/search roots
+- Do not invent alternate argument names such as \`filename\` or \`path\` for write_file/edit_file
+
 ### Shell Tool
 - execute: Run shell commands in the workspace directory
 
@@ -110,6 +117,22 @@ When you generate or reference image files, video files, audio files, or PDFs, y
    \`\`\`
 4. Always display generated files inline — do NOT just mention the file path without the markdown syntax
 5. For non-media files (code, text, etc.), just reference the path as text, do NOT use the image syntax
+
+## Inline HTML, ECharts, and Mermaid Rendering
+
+The chat UI can render HTML, ECharts, and Mermaid directly from assistant messages.
+
+- For charts and data visualization, prefer ECharts and Matplotlib over other charting approaches unless the user explicitly requests a different library.
+- Prefer ECharts first when the chart should be shown directly inside the conversation UI.
+- If the user wants an HTML page, dashboard, widget, or visual artifact displayed in the conversation, output it directly in a fenced \`html\` code block.
+- If the user wants an ECharts chart displayed in the conversation, output it directly in a fenced \`echarts\` code block.
+- If you use Matplotlib, treat it as a file/image generation path: create the chart image and display it inline in the conversation using markdown image syntax.
+- If the user wants a Mermaid diagram displayed in the conversation, output it directly in a fenced \`mermaid\` code block.
+- Do not use XML-like wrapper tags such as \`<echarts>...</echarts>\`, \`<mermaid>...</mermaid>\`, or similar custom tags for inline rendering.
+- Only call \`write_file\` for HTML/chart content when the user explicitly asks to save/export/create a file on disk.
+- When generating an \`echarts\` block for inline rendering, prefer a valid JSON option object so the UI can render it directly.
+- If ECharts can satisfy the request, do not generate a separate chart file just for preview.
+- Do not call \`write_file\` just to preview HTML, charts, or Mermaid diagrams in chat.
 
 ## Code References
 When referencing code, use format: \`file_path:line_number\`

@@ -1,4 +1,5 @@
 import { getFileType, getFileIcon } from "@/lib/file-types";
+import { normalizeLocalFilePath } from "@/lib/utils";
 import { InlineImagePreview } from "./InlineImagePreview";
 import { InlineMediaPreview } from "./InlineMediaPreview";
 import { useTranslation } from "react-i18next";
@@ -19,18 +20,20 @@ export function MarkdownLinkRenderer({
   const { t } = useTranslation('chat');
   if (!href) return <span>{children}</span>;
 
+  const normalizedHref = normalizeLocalFilePath(href);
+
   const isLocalPath =
-    !href.startsWith("http://") &&
-    !href.startsWith("https://") &&
-    !href.startsWith("data:") &&
-    !href.startsWith("blob:") &&
-    !href.startsWith("mailto:") &&
-    !href.startsWith("#");
+    !normalizedHref.startsWith("http://") &&
+    !normalizedHref.startsWith("https://") &&
+    !normalizedHref.startsWith("data:") &&
+    !normalizedHref.startsWith("blob:") &&
+    !normalizedHref.startsWith("mailto:") &&
+    !normalizedHref.startsWith("#");
 
   if (!isLocalPath) {
     return (
       <a
-        href={href}
+        href={normalizedHref}
         target="_blank"
         rel="noopener noreferrer"
         className="text-primary underline underline-offset-2 hover:text-primary/80"
@@ -40,7 +43,7 @@ export function MarkdownLinkRenderer({
     );
   }
 
-  const fileName = href.split(/[/\\]/).pop() || href;
+  const fileName = normalizedHref.split(/[/\\]/).pop() || normalizedHref;
   const fileTypeInfo = getFileType(fileName);
   const icon = getFileIcon(fileName);
 
@@ -49,9 +52,9 @@ export function MarkdownLinkRenderer({
     return (
       <InlineImagePreview
         threadId={threadId}
-        filePath={href}
+        filePath={normalizedHref}
         mimeType={fileTypeInfo.mimeType || "image/png"}
-        onClick={() => onOpenFile?.(href, fileName)}
+        onClick={() => onOpenFile?.(normalizedHref, fileName)}
       />
     );
   }
@@ -66,10 +69,10 @@ export function MarkdownLinkRenderer({
     return (
       <InlineMediaPreview
         threadId={threadId}
-        filePath={href}
+        filePath={normalizedHref}
         fileType={fileTypeInfo.type}
         mimeType={fileTypeInfo.mimeType}
-        onClick={() => onOpenFile?.(href, fileName)}
+        onClick={() => onOpenFile?.(normalizedHref, fileName)}
       />
     );
   }
@@ -77,7 +80,7 @@ export function MarkdownLinkRenderer({
   // For other local files, render as a styled file card
   return (
     <button
-      onClick={() => onOpenFile?.(href, fileName)}
+      onClick={() => onOpenFile?.(normalizedHref, fileName)}
       className="my-1 inline-flex items-center gap-2 rounded-lg border border-border bg-background-elevated px-3 py-2 text-sm transition-colors hover:bg-background-interactive/62 hover:border-primary/30"
     >
       <span className="text-base">{icon}</span>

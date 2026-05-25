@@ -1,0 +1,558 @@
+import {
+  AlertCircle,
+  BarChart3,
+  Copy,
+  Eye,
+  EyeOff,
+  GitBranch,
+  Globe,
+  Maximize2,
+  Search,
+  Sparkles,
+  SquareCode,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import * as echarts from "echarts";
+import mermaid from "mermaid";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "@/lib/toast";
+import i18n from "@/lib/locales";
+
+const HTML_LANGUAGES = new Set(["html", "htm"]);
+const ECHARTS_LANGUAGES = new Set(["echarts", "echart", "chart"]);
+const MERMAID_LANGUAGES = new Set(["mermaid"]);
+
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 3;
+const SCALE_STEP = 0.2;
+
+interface MarkdownRichCodeBlockProps {
+  language?: string;
+  code: string;
+  hideSource?: boolean;
+}
+
+function normalizeLanguage(language?: string): string {
+  return language?.trim().toLowerCase() ?? "";
+}
+
+function buildHtmlDocument(source: string): string {
+  const trimmed = source.trim();
+  if (/<!doctype\s+html/i.test(trimmed) || /<html[\s>]/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: "SF Pro Display", "PingFang SC", sans-serif;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+${source}
+  </body>
+</html>`;
+}
+
+function parseEChartsOption(source: string): { option: echarts.EChartsOption | null; error: string | null } {
+  const trimmed = source.trim();
+  const optionMatch = trimmed.match(/(?:const|let|var)?\s*option\s*=\s*([\s\S]*?);?\s*$/);
+  const candidate = optionMatch?.[1]?.trim() || trimmed;
+
+  try {
+    return {
+      option: JSON.parse(candidate) as echarts.EChartsOption,
+      error: null,
+    };
+  } catch {
+    return {
+      option: null,
+      error: "ECharts 代码块当前需要有效的 JSON option 对象，例如 {\"title\":{\"text\":\"Demo\"},\"xAxis\":{...}}。",
+    };
+  }
+}
+
+function clampScale(nextScale: number): number {
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
+}
+
+interface DiagramViewportState {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+interface DiagramViewportProps {
+  children: React.JSX.Element;
+  minHeight?: number;
+  className?: string;
+  contentClassName?: string;
+  controlsClassName?: string;
+}
+
+function DiagramViewport({
+  children,
+  minHeight = 320,
+  className,
+  contentClassName,
+  controlsClassName,
+}: DiagramViewportProps): React.JSX.Element {
+  const [state, setState] = useState<DiagramViewportState>({
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+  });
+  const dragStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+
+  const zoomBy = (delta: number) => {
+    setState((current) => ({
+      ...current,
+      scale: clampScale(Number((current.scale + delta).toFixed(2))),
+    }));
+  };
+
+  const resetView = () => {
+    setState({ scale: 1, offsetX: 0, offsetY: 0 });
+  };
+
+  return (
+    <div className={cn("relative w-full min-w-0 overflow-hidden rounded-[18px] border border-border/60 bg-white dark:bg-background", className)}>
+      <div className={cn("absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full border border-border/70 bg-background/88 p-1 shadow-sm backdrop-blur-sm", controlsClassName)}>
+        <Button type="button" variant="ghost" size="icon-sm" onClick={() => zoomBy(-SCALE_STEP)} title="缩小">
+          <ZoomOut className="size-3.5" />
+        </Button>
+        <Button type="button" variant="ghost" size="icon-sm" onClick={resetView} title="重置缩放">
+          <Search className="size-3.5" />
+        </Button>
+        <Button type="button" variant="ghost" size="icon-sm" onClick={() => zoomBy(SCALE_STEP)} title="放大">
+          <ZoomIn className="size-3.5" />
+        </Button>
+      </div>
+      <div
+        className="relative cursor-grab overflow-hidden active:cursor-grabbing"
+        style={{ minHeight }}
+        onPointerDown={(event) => {
+          dragStateRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            offsetX: state.offsetX,
+            offsetY: state.offsetY,
+          };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const dragState = dragStateRef.current;
+          if (!dragState || dragState.pointerId !== event.pointerId) {
+            return;
+          }
+
+          setState((current) => ({
+            ...current,
+            offsetX: dragState.offsetX + event.clientX - dragState.startX,
+            offsetY: dragState.offsetY + event.clientY - dragState.startY,
+          }));
+        }}
+        onPointerUp={(event) => {
+          if (dragStateRef.current?.pointerId === event.pointerId) {
+            dragStateRef.current = null;
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        }}
+        onPointerCancel={(event) => {
+          if (dragStateRef.current?.pointerId === event.pointerId) {
+            dragStateRef.current = null;
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        }}
+      >
+        <div
+          className={cn("flex min-h-[inherit] items-center justify-center p-4", contentClassName)}
+          style={{
+            transform: `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.scale})`,
+            transformOrigin: "center center",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewFrame({
+  code,
+  expanded = false,
+}: {
+  code: string;
+  expanded?: boolean;
+}): React.JSX.Element {
+  const srcDoc = useMemo(() => buildHtmlDocument(code), [code]);
+
+  return (
+    <DiagramViewport
+      minHeight={expanded ? 640 : 320}
+      className={expanded ? "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--background)_82%,white),var(--background))]" : undefined}
+      contentClassName={expanded ? "p-6" : undefined}
+    >
+      <iframe
+        title="HTML Preview"
+        sandbox="allow-scripts"
+        srcDoc={srcDoc}
+        className={cn(
+          "rounded-[18px] border border-border/60 bg-white",
+          expanded ? "h-[640px] w-[1100px]" : "h-[320px] w-full min-w-0",
+        )}
+      />
+    </DiagramViewport>
+  );
+}
+
+function EChartsPreview({
+  code,
+  expanded = false,
+}: {
+  code: string;
+  expanded?: boolean;
+}): React.JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const parsed = useMemo(() => parseEChartsOption(code), [code]);
+
+  useEffect(() => {
+    if (!containerRef.current || !parsed.option) {
+      setError(parsed.error);
+      return;
+    }
+
+    setError(null);
+    const chart = echarts.init(containerRef.current, undefined, {
+      renderer: "canvas",
+    });
+    chart.setOption(parsed.option);
+
+    const resizeObserver = new ResizeObserver(() => {
+      chart.resize();
+    });
+    resizeObserver.observe(containerRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.dispose();
+    };
+  }, [parsed.error, parsed.option]);
+
+  if (error) {
+    return (
+      <div className="flex min-h-[220px] items-center gap-3 rounded-[18px] border border-status-warning/30 bg-status-warning/8 px-4 py-5 text-sm text-status-warning">
+        <AlertCircle className="size-4 shrink-0" />
+        <span>{error}</span>
+      </div>
+    );
+  }
+
+  return (
+    <DiagramViewport minHeight={expanded ? 640 : 320} contentClassName={expanded ? "p-6" : undefined}>
+      <div
+        ref={containerRef}
+        className={cn(
+          "rounded-[18px] border border-border/60 bg-background",
+          expanded ? "h-[640px] w-[1100px]" : "h-[320px] w-full min-w-0",
+        )}
+      />
+    </DiagramViewport>
+  );
+}
+
+function MermaidPreview({
+  code,
+  expanded = false,
+}: {
+  code: string;
+  expanded?: boolean;
+}): React.JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const container = containerRef.current;
+
+    const renderDiagram = async (): Promise<void> => {
+      if (!container) {
+        return;
+      }
+
+      const trimmed = code.trim();
+      if (trimmed.length === 0) {
+        setError("Mermaid 代码块为空，无法渲染图表。");
+        container.innerHTML = "";
+        return;
+      }
+
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: "default",
+          suppressErrorRendering: true,
+        });
+        const renderId = `mermaid-${Math.random().toString(36).slice(2)}`;
+        const { svg } = await mermaid.render(renderId, trimmed);
+
+        if (!active || !container) {
+          return;
+        }
+
+        container.innerHTML = svg;
+        setError(null);
+      } catch (renderError) {
+        if (!active || !container) {
+          return;
+        }
+
+        container.innerHTML = "";
+        const message =
+          renderError instanceof Error
+            ? renderError.message
+            : "Mermaid 图渲染失败，请检查语法。";
+        setError(message);
+      }
+    };
+
+    void renderDiagram();
+
+    return () => {
+      active = false;
+      if (container) {
+        container.innerHTML = "";
+      }
+    };
+  }, [code]);
+
+  if (error) {
+    return (
+      <div className="flex min-h-[220px] items-center gap-3 rounded-[18px] border border-status-warning/30 bg-status-warning/8 px-4 py-5 text-sm text-status-warning">
+        <AlertCircle className="size-4 shrink-0" />
+        <span>{error}</span>
+      </div>
+    );
+  }
+
+  return (
+    <DiagramViewport minHeight={expanded ? 640 : 260} contentClassName={expanded ? "p-8" : undefined}>
+      <div
+        ref={containerRef}
+        className={cn(
+          "mermaid-preview flex items-center justify-center rounded-[18px] bg-white p-4 dark:bg-background",
+          expanded ? "min-h-[540px] min-w-[980px] p-8" : "min-h-[220px] w-full min-w-0",
+        )}
+      />
+    </DiagramViewport>
+  );
+}
+
+function PreviewDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  children: React.JSX.Element;
+}): React.JSX.Element {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[min(96vw,78rem)] max-w-[78rem] gap-4 p-5 sm:p-6">
+        <DialogHeader className="pr-14">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="overflow-hidden rounded-[24px] border border-border/70 bg-background-elevated/70">
+          {children}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export const MarkdownRichCodeBlock = memo(function MarkdownRichCodeBlock({
+  language,
+  code,
+  hideSource = false,
+}: MarkdownRichCodeBlockProps): React.JSX.Element {
+  const normalizedLanguage = normalizeLanguage(language);
+  const isHtml = HTML_LANGUAGES.has(normalizedLanguage);
+  const isECharts = ECHARTS_LANGUAGES.has(normalizedLanguage);
+  const isMermaid = MERMAID_LANGUAGES.has(normalizedLanguage);
+  const supportsPreview = isHtml || isECharts || isMermaid;
+  const supportsInteractivePreview = isECharts || isMermaid;
+  const [showPreview, setShowPreview] = useState(supportsPreview);
+  const [showCode, setShowCode] = useState(!hideSource);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setShowPreview(supportsPreview);
+    setShowCode(!hideSource);
+  }, [hideSource, supportsPreview, language]);
+
+  if (!supportsPreview) {
+    return (
+      <pre className="my-3 overflow-x-auto rounded-2xl border border-border/60 bg-background-elevated/70 p-4 text-sm leading-6">
+        <code className={cn(normalizedLanguage && `language-${normalizedLanguage}`)}>{code}</code>
+      </pre>
+    );
+  }
+
+  const previewTitle = isHtml
+    ? "HTML 预览"
+    : isECharts
+      ? "ECharts 预览"
+      : "Mermaid 预览";
+
+  const previewDescription = isHtml
+    ? "AI 消息中的 HTML 页面会在这里实时渲染。"
+    : isECharts
+      ? "AI 消息中的 ECharts option 会在这里实时渲染，可缩放拖动查看。"
+      : "AI 消息中的 Mermaid 图会在这里实时渲染，可缩放拖动查看。";
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success(i18n.t("common:toast.copiedToClipboard"));
+    } catch {
+      toast.error("复制失败，请检查系统剪贴板权限");
+    }
+  };
+
+  const renderPreview = (expanded = false): React.JSX.Element | null => {
+    if (isHtml) {
+      return <PreviewFrame code={code} expanded={expanded} />;
+    }
+    if (isECharts) {
+      return <EChartsPreview code={code} expanded={expanded} />;
+    }
+    if (isMermaid) {
+      return <MermaidPreview code={code} expanded={expanded} />;
+    }
+    return null;
+  };
+
+  return (
+    <>
+    <div className="relative isolate my-4 w-full min-w-0 max-w-full rounded-3xl">
+      <div className="relative overflow-hidden rounded-[20px] border border-border bg-background-elevated">
+      <div className="flex items-center gap-2 border-b border-border/50 bg-background/70 px-4 py-3 backdrop-blur-sm">
+        <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+          {isHtml ? (
+            <Globe className="size-4" />
+          ) : isECharts ? (
+            <BarChart3 className="size-4" />
+          ) : (
+            <GitBranch className="size-4" />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground">{previewTitle}</p>
+          <p className="text-xs text-muted-foreground">{previewDescription}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-full border border-border/60 bg-background/80 p-1">
+            <Button
+              type="button"
+              variant={showPreview ? "secondary" : "ghost"}
+              size="icon-sm"
+              onClick={() => setShowPreview((current) => !current)}
+              title={showPreview ? "隐藏预览" : "显示预览"}
+            >
+              {showPreview ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+            </Button>
+            <Button
+              type="button"
+              variant={showCode ? "secondary" : "ghost"}
+              size="icon-sm"
+              onClick={() => setShowCode((current) => !current)}
+              title={showCode ? "隐藏代码" : "显示代码"}
+            >
+              <SquareCode className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => void handleCopyCode()}
+              title="复制代码"
+            >
+              <Copy className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setIsDialogOpen(true)}
+              title="放大预览"
+            >
+              <Maximize2 className="size-3.5" />
+            </Button>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <Sparkles className="size-3" />
+            {normalizedLanguage}
+          </span>
+        </div>
+      </div>
+      <div className="space-y-4 p-4">
+        {showPreview ? renderPreview(false) : null}
+        {showCode ? (
+          <pre className="overflow-x-auto rounded-[18px] border border-border/60 bg-background/80 p-4 text-sm leading-6">
+            <code>{code}</code>
+          </pre>
+        ) : null}
+        {!showPreview && !showCode ? (
+          <div className="flex min-h-[120px] items-center justify-center rounded-[18px] border border-dashed border-border/60 bg-background/50 px-4 py-6 text-sm text-muted-foreground">
+            当前已隐藏预览和代码，可使用右上角按钮切换显示模式。
+          </div>
+        ) : null}
+      </div>
+    </div>
+    </div>
+    <PreviewDialog
+      open={isDialogOpen}
+      onOpenChange={setIsDialogOpen}
+      title={`${previewTitle} · 放大查看`}
+      description={supportsInteractivePreview ? "弹窗中支持按钮缩放与鼠标拖动，适合查看复杂图表与流程图。" : "弹窗中可以放大查看完整内容，同时仍可切换代码。"}
+    >
+      {renderPreview(true) ?? <div />}
+    </PreviewDialog>
+    </>
+  );
+});

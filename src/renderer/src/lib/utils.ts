@@ -57,3 +57,32 @@ export function truncate(str: string, length: number): string {
 export function generateId(): string {
   return crypto.randomUUID();
 }
+
+export function normalizeLocalFilePath(rawPath: string): string {
+  if (!rawPath) {
+    return rawPath;
+  }
+
+  if (/^(https?:|data:|blob:|mailto:|#)/i.test(rawPath)) {
+    return rawPath;
+  }
+
+  if (rawPath.startsWith("file://")) {
+    try {
+      const url = new URL(rawPath);
+      return decodeURIComponent(url.pathname);
+    } catch {
+      return rawPath;
+    }
+  }
+
+  if (!rawPath.includes("%")) {
+    return rawPath;
+  }
+
+  try {
+    return decodeURI(rawPath);
+  } catch {
+    return rawPath;
+  }
+}
