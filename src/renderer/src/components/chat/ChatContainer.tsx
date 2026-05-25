@@ -141,6 +141,7 @@ export function ChatContainer({
   threadId,
   onOpenSettings,
 }: ChatContainerProps): React.JSX.Element {
+  const TASK_COMPLETE_NOTIFICATION_DELAY_MS = 100;
   const { t } = useTranslation('chat');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mentionListRef = useRef<HTMLDivElement>(null);
@@ -163,9 +164,9 @@ export function ChatContainer({
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<Message | null>(
     null,
   );
+  const taskCompleteNotificationTimeoutRef = useRef<number | null>(null);
 
-  const { threads, models, loadThreads, generateTitleForFirstMessage,
-    notificationsEnabled, notificationSoundEnabled, notificationSounds } =
+  const { threads, models, loadThreads, generateTitleForFirstMessage } =
     useAppStore();
 
   // Get persisted thread state and actions from context
@@ -203,6 +204,8 @@ export function ChatContainer({
   const streamData = useThreadStream(threadId);
   const stream = streamData.stream;
   const isLoading = streamData.isLoading;
+  const suppressTaskCompleteNotification =
+    streamData.suppressTaskCompleteNotification;
 
   const mentionCandidates = useMemo(() => {
     const q = mentionQuery.toLowerCase();
@@ -346,10 +349,80 @@ export function ChatContainer({
   }, [streamTodos, setTodos]);
 
   const prevLoadingRef = useRef(false);
+  const latestTaskCompleteStateRef = useRef({
+    suppressTaskCompleteNotification,
+    pendingApprovalCount: pendingApprovals.length,
+    hasPendingApproval: Boolean(pendingApproval),
+    threadError,
+    isCancelling,
+  });
+
+  const clearPendingTaskCompleteNotification = useCallback(() => {
+    if (taskCompleteNotificationTimeoutRef.current !== null) {
+      window.clearTimeout(taskCompleteNotificationTimeoutRef.current);
+      taskCompleteNotificationTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    latestTaskCompleteStateRef.current = {
+      suppressTaskCompleteNotification,
+      pendingApprovalCount: pendingApprovals.length,
+      hasPendingApproval: Boolean(pendingApproval),
+      threadError,
+      isCancelling,
+    };
+  }, [
+    suppressTaskCompleteNotification,
+    pendingApprovals.length,
+    pendingApproval,
+    threadError,
+    isCancelling,
+  ]);
+
+  useEffect(() => {
+    if (
+      isLoading ||
+      suppressTaskCompleteNotification ||
+      pendingApproval ||
+      pendingApprovals.length > 0 ||
+      threadError ||
+      isCancelling
+    ) {
+      clearPendingTaskCompleteNotification();
+    }
+  }, [
+    clearPendingTaskCompleteNotification,
+    isLoading,
+    suppressTaskCompleteNotification,
+    pendingApproval,
+    pendingApprovals.length,
+    threadError,
+    isCancelling,
+  ]);
+
+  useEffect(() => clearPendingTaskCompleteNotification, [
+    clearPendingTaskCompleteNotification,
+  ]);
 
   useEffect(() => {
     if (prevLoadingRef.current && !isLoading) {
-      if (!pendingApproval && pendingApprovals.length === 0 && !threadError && !isCancelling) {
+      clearPendingTaskCompleteNotification();
+      taskCompleteNotificationTimeoutRef.current = window.setTimeout(() => {
+        taskCompleteNotificationTimeoutRef.current = null;
+
+        const latest = latestTaskCompleteStateRef.current;
+        if (
+          latest.suppressTaskCompleteNotification ||
+          latest.hasPendingApproval ||
+          latest.pendingApprovalCount > 0 ||
+          latest.threadError ||
+          latest.isCancelling
+        ) {
+          return;
+        }
+
+        const currentNotificationState = useAppStore.getState();
         sendDesktopNotification(
           t('notification.taskComplete'),
           t('notification.taskCompleteBody'),
@@ -357,12 +430,12 @@ export function ChatContainer({
             force: true,
             soundType: "taskComplete",
             playSound: true,
-            sounds: notificationSounds,
-            soundEnabled: notificationSoundEnabled,
-            notificationsEnabled,
+            sounds: currentNotificationState.notificationSounds,
+            soundEnabled: currentNotificationState.notificationSoundEnabled,
+            notificationsEnabled: currentNotificationState.notificationsEnabled,
           },
         );
-      }
+      }, TASK_COMPLETE_NOTIFICATION_DELAY_MS);
 
       for (const rawMsg of streamData.messages) {
         const msg = rawMsg as StreamMessage;
@@ -423,7 +496,7 @@ export function ChatContainer({
       }
     }
     prevLoadingRef.current = isLoading;
-  }, [isLoading, streamData.messages, loadThreads, appendMessage, interruptionQueue, stream, threadId, currentModel, clearInterruptionQueue, t, notificationSounds, notificationSoundEnabled, notificationsEnabled, pendingApproval, pendingApprovals.length, threadError, isCancelling]);
+  }, [isLoading, streamData.messages, loadThreads, appendMessage, interruptionQueue, stream, threadId, currentModel, clearInterruptionQueue, clearPendingTaskCompleteNotification, t]);
 
   const displayMessages = useMemo(() => {
     if (!isLoading) {

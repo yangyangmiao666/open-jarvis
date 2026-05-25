@@ -118,6 +118,7 @@ interface StreamData {
   messages: StreamInstance["messages"];
   isLoading: boolean;
   stream: StreamInstance | null;
+  suppressTaskCompleteNotification: boolean;
 }
 
 // Actions available on a thread
@@ -191,6 +192,7 @@ const defaultStreamData: StreamData = {
   messages: [],
   isLoading: false,
   stream: null,
+  suppressTaskCompleteNotification: false,
 };
 
 const ThreadContext = createContext<ThreadContextValue | null>(null);
@@ -322,6 +324,7 @@ function ThreadStreamHolder({
         messages: stream.messages,
         isLoading: stream.isLoading,
         stream,
+        suppressTaskCompleteNotification: false,
       });
     }
   });
@@ -332,6 +335,7 @@ function ThreadStreamHolder({
       messages: stream.messages,
       isLoading: stream.isLoading,
       stream,
+      suppressTaskCompleteNotification: false,
     });
   }, [stream]);
 
@@ -385,7 +389,13 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
   // Handle stream updates from ThreadStreamHolder
   const handleStreamUpdate = useCallback(
     (threadId: string, data: StreamData) => {
-      streamDataRef.current[threadId] = data;
+      const previousData = streamDataRef.current[threadId] || defaultStreamData;
+      streamDataRef.current[threadId] = {
+        ...data,
+        suppressTaskCompleteNotification: data.isLoading
+          ? false
+          : previousData.suppressTaskCompleteNotification,
+      };
       notifyStreamSubscribers(threadId);
       // Update loading states for kanban view
       setLoadingStates((prev) => {
@@ -524,6 +534,14 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             if (requests.length === 0) {
               break;
             }
+
+            const currentStreamData =
+              streamDataRef.current[threadId] || defaultStreamData;
+            streamDataRef.current[threadId] = {
+              ...currentStreamData,
+              suppressTaskCompleteNotification: true,
+            };
+            notifyStreamSubscribers(threadId);
 
             void Promise.all(
               requests.map((request) =>
@@ -702,7 +720,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           break;
       }
     },
-    [updateThreadState],
+    [notifyStreamSubscribers, updateThreadState],
   );
 
   const getThreadActions = useCallback(
