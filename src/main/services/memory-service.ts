@@ -60,8 +60,8 @@ interface GeneratedMemoryDraft {
 const MEMORY_SYSTEM_PROMPT = `You consolidate completed agent work into durable topic memory.
 
 Return strict JSON only with these keys:
-- title: short topic title
-- summary: one-sentence summary
+- title: short generalized topic title
+- summary: one-sentence generalized summary
 - keywords: array of 3-8 short keywords
 - target_path: an absolute route path under ${MEMORY_ROUTE_PREFIX} ending in .md; if an existing memory is a good match, reuse its exact route path and do not create a new file
 - body_markdown: markdown body only, without frontmatter
@@ -69,8 +69,12 @@ Return strict JSON only with these keys:
 Rules:
 - Prefer editing an existing similar memory instead of creating duplicates.
 - Keep the memory topic-oriented, durable, and reusable.
+- Write the title, summary, and body in generalized reusable language rather than as a one-off task report.
+- Avoid exact user requests, ticket phrasing, temporary project details, timestamps, single-run outcomes, absolute paths, and unnecessary file names unless they are essential to the reusable lesson.
+- Prefer abstract topics such as capability, workflow, pattern, failure mode, or troubleshooting method.
 - Focus on scenarios, successful workflow, concrete execution steps, failure signals, important commands/files/constraints, cautions, and what to check first next time.
 - Prioritize the task handling process above all other details.
+- If the source task is very specific, abstract it upward into the most reusable topic that still preserves the real workflow and cautions.
 - The markdown body must explicitly preserve the task's operation flow/process and cautions/notes so it can be reused as a skill later.
 - Do not include fenced JSON or explanations outside the JSON object.`;
 
@@ -461,7 +465,7 @@ function buildSkillMarkdownFromMemory(
   frontmatter: MemoryFrontmatter,
   body: string,
 ): string {
-  const description = frontmatter.summary || `${frontmatter.title} 的可复用工作流。`;
+  const description = `${frontmatter.title} 的通用处理方法、操作流程与注意事项。`;
   const keywords = frontmatter.keywords.length > 0
     ? frontmatter.keywords.join("、")
     : frontmatter.title;
@@ -473,9 +477,11 @@ description: ${description}
 
 # ${frontmatter.title}
 
+本技能应以通用、可复用的方式理解和使用，避免把它当成一次性任务记录。
+
 ## 适用场景
 
-当任务涉及 ${keywords} 时优先使用这个技能。
+当任务涉及 ${keywords} 或相近问题模式时优先使用这个技能。
 
 ## 来源记忆
 
@@ -484,11 +490,11 @@ description: ${description}
 
 ## 操作流程
 
-从下面的工作方法中提炼稳定的执行顺序、关键命令和检查点。
+从下面的工作方法中提炼稳定、可迁移的执行顺序、关键检查点和必要命令模式。
 
 ## 注意事项
 
-从下面的工作方法中提炼容易踩坑的点、边界条件和回退办法。
+从下面的工作方法中提炼通用的风险点、边界条件和回退办法。
 
 ## 工作方法
 
