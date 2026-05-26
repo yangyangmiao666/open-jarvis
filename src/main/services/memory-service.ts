@@ -28,6 +28,7 @@ interface MemoryFrontmatter {
   recallCount: number;
   lastRecalledAt: string | null;
   lastUpdatedAt: string;
+  promotedSkillFolder: string | null;
   promotionStatus: "none" | "candidate" | "promoted" | "rejected";
 }
 
@@ -444,6 +445,10 @@ function parseFrontmatter(markdown: string): {
         frontmatter.lastRecalledAt =
           value === "null" ? null : value.replace(/^"|"$/g, "");
         break;
+      case "promotedSkillFolder":
+        frontmatter.promotedSkillFolder =
+          value === "null" ? null : value.replace(/^"|"$/g, "");
+        break;
       case "recallCount":
         frontmatter.recallCount = Number.parseInt(value, 10) || 0;
         break;
@@ -491,6 +496,7 @@ ${workspaceLines || "  - global"}
 recallCount: ${frontmatter.recallCount}
 lastRecalledAt: ${frontmatter.lastRecalledAt ? `"${frontmatter.lastRecalledAt}"` : "null"}
 lastUpdatedAt: "${frontmatter.lastUpdatedAt}"
+promotedSkillFolder: ${frontmatter.promotedSkillFolder ? `"${frontmatter.promotedSkillFolder.replace(/"/g, '\\"')}"` : "null"}
 promotionStatus: ${frontmatter.promotionStatus}
 ---
 
@@ -708,6 +714,7 @@ async function listMemoryDocuments(
           lastRecalledAt: parsed.frontmatter.lastRecalledAt ?? null,
           lastUpdatedAt:
             parsed.frontmatter.lastUpdatedAt ?? stats.mtime.toISOString(),
+          promotedSkillFolder: parsed.frontmatter.promotedSkillFolder ?? null,
           promotionStatus: parsed.frontmatter.promotionStatus ?? "none",
         },
       } satisfies MemoryDocumentRecord;
@@ -764,6 +771,7 @@ async function updateRecallCounts(
       recallCount: (parsed.frontmatter.recallCount ?? 0) + 1,
       lastRecalledAt: now,
       lastUpdatedAt: parsed.frontmatter.lastUpdatedAt ?? now,
+      promotedSkillFolder: parsed.frontmatter.promotedSkillFolder ?? null,
       promotionStatus: parsed.frontmatter.promotionStatus ?? "none",
     };
 
@@ -780,6 +788,7 @@ export async function markMemoryPromotionStatus(
   workspacePath: string,
   routePath: string,
   status: MemoryFrontmatter["promotionStatus"],
+  promotedSkillFolder?: string | null,
 ): Promise<void> {
   const filePath = routePathToFilePath(workspacePath, routePath);
   let markdown = "";
@@ -799,6 +808,10 @@ export async function markMemoryPromotionStatus(
     recallCount: parsed.frontmatter.recallCount ?? 0,
     lastRecalledAt: parsed.frontmatter.lastRecalledAt ?? null,
     lastUpdatedAt: now,
+    promotedSkillFolder:
+      status === "promoted"
+        ? promotedSkillFolder ?? parsed.frontmatter.promotedSkillFolder ?? null
+        : null,
     promotionStatus: status,
   };
 
@@ -924,6 +937,7 @@ export async function consolidateTaskMemory(
     recallCount: existing?.frontmatter.recallCount ?? 0,
     lastRecalledAt: existing?.frontmatter.lastRecalledAt ?? null,
     lastUpdatedAt: now,
+    promotedSkillFolder: existing?.frontmatter.promotedSkillFolder ?? null,
     promotionStatus:
       existing?.frontmatter.promotionStatus === "promoted"
         ? "promoted"
@@ -1024,6 +1038,7 @@ export async function createMemoryPromotionCandidate(
       lastRecalledAt: parsed.frontmatter.lastRecalledAt ?? null,
       lastUpdatedAt:
         parsed.frontmatter.lastUpdatedAt ?? new Date().toISOString(),
+      promotedSkillFolder: parsed.frontmatter.promotedSkillFolder ?? null,
       promotionStatus: parsed.frontmatter.promotionStatus ?? "none",
     };
 
@@ -1076,6 +1091,7 @@ export async function updateWorkspaceMemoryDocument(
     recallCount: parsed.frontmatter.recallCount ?? 0,
     lastRecalledAt: parsed.frontmatter.lastRecalledAt ?? null,
     lastUpdatedAt: now,
+    promotedSkillFolder: parsed.frontmatter.promotedSkillFolder ?? null,
     promotionStatus: parsed.frontmatter.promotionStatus ?? "none",
   };
 
@@ -1129,5 +1145,33 @@ export async function deleteWorkspaceMemoryDocument(
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function getMemoryPromotionSkillFolder(
+  workspacePath: string,
+  routePath: string,
+): Promise<string | null> {
+  const normalizedRoutePath = normalizeMemoryRoutePath(routePath);
+  if (!normalizedRoutePath) {
+    return null;
+  }
+
+  const filePath = routePathToFilePath(workspacePath, normalizedRoutePath);
+  try {
+    const markdown = await fs.readFile(filePath, "utf-8");
+    const parsed = parseFrontmatter(markdown);
+    if (
+      typeof parsed.frontmatter.promotedSkillFolder === "string" &&
+      parsed.frontmatter.promotedSkillFolder.trim().length > 0
+    ) {
+      return parsed.frontmatter.promotedSkillFolder.trim();
+    }
+
+    const title =
+      parsed.frontmatter.title ?? pathTitleFallback(normalizedRoutePath);
+    return toSkillName(title);
+  } catch {
+    return null;
   }
 }

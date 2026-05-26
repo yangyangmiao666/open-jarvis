@@ -248,6 +248,10 @@ interface CustomAPI {
       workspacePath: string,
       routePath: string,
     ) => Promise<{ success: boolean; folder?: string; error?: string }>;
+    undoMemorySettlement: (
+      workspacePath: string,
+      routePath: string,
+    ) => Promise<{ success: boolean; folder?: string; error?: string }>;
     rejectPromotion: (
       candidate: MemoryPromotionCandidate,
     ) => Promise<{ success: boolean; error?: string }>;

@@ -4,6 +4,7 @@ import * as path from "path";
 import { getSkillSources, setSkillSources } from "../skill-config";
 import {
   createMemoryPromotionCandidate,
+  getMemoryPromotionSkillFolder,
   markMemoryPromotionStatus,
 } from "../services/memory-service";
 import { getOpenworkDir } from "../storage";
@@ -35,6 +36,34 @@ function getGlobalSkillsRoot(): string {
 function resolveSkillsRoot(threadId?: string): string | null {
   void threadId;
   return getGlobalSkillsRoot();
+}
+
+async function promoteMemoryCandidate(
+  candidate: MemoryPromotionCandidate,
+): Promise<{ success: true; folder: string } | { success: false; error: string }> {
+  const safe = slugifySkillName(candidate.skillName);
+  if (!safe) {
+    return { success: false, error: "Invalid skill name" };
+  }
+
+  try {
+    const root = getGlobalSkillsRoot();
+    const dir = path.join(root, safe);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, "SKILL.md"), candidate.skillMarkdown, "utf-8");
+    await markMemoryPromotionStatus(
+      candidate.workspacePath,
+      candidate.memoryPath,
+      "promoted",
+      safe,
+    );
+    return { success: true, folder: safe };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "promotion failed",
+    };
+  }
 }
 
 export function registerSkillHandlers(ipcMain: IpcMain): void {
@@ -252,32 +281,7 @@ Add instructions for the agent here.
   ipcMain.handle(
     "skills:confirmPromotion",
     async (_e, candidate: MemoryPromotionCandidate) => {
-      const safe = slugifySkillName(candidate.skillName);
-      if (!safe) {
-        return { success: false as const, error: "Invalid skill name" };
-      }
-
-      try {
-        const root = getGlobalSkillsRoot();
-        const dir = path.join(root, safe);
-        await fs.mkdir(dir, { recursive: true });
-        await fs.writeFile(
-          path.join(dir, "SKILL.md"),
-          candidate.skillMarkdown,
-          "utf-8",
-        );
-        await markMemoryPromotionStatus(
-          candidate.workspacePath,
-          candidate.memoryPath,
-          "promoted",
-        );
-        return { success: true as const, folder: safe };
-      } catch (e) {
-        return {
-          success: false as const,
-          error: e instanceof Error ? e.message : "promotion failed",
-        };
-      }
+      return promoteMemoryCandidate(candidate);
     },
   );
 
@@ -292,30 +296,54 @@ Add instructions for the agent here.
         return { success: false as const, error: "Memory not found" };
       }
 
-      const safe = slugifySkillName(candidate.skillName);
-      if (!safe) {
-        return { success: false as const, error: "Invalid skill name" };
+      const result = await promoteMemoryCandidate(candidate);
+      if (!result.success) {
+        return {
+          success: false as const,
+          error: result.error || "settle failed",
+        };
+      }
+
+      return result;
+    },
+  );
+
+  ipcMain.handle(
+    "skills:undoMemorySettlement",
+    async (_e, payload: { workspacePath: string; routePath: string }) => {
+      const candidate = await createMemoryPromotionCandidate(
+        payload.workspacePath,
+        payload.routePath,
+      );
+      if (!candidate) {
+        return { success: false as const, error: "Memory not found" };
+      }
+
+      const folderName = await getMemoryPromotionSkillFolder(
+        payload.workspacePath,
+        payload.routePath,
+      );
+      if (!folderName || !validateSkillFolderSegment(folderName)) {
+        return { success: false as const, error: "Skill folder not found" };
       }
 
       try {
         const root = getGlobalSkillsRoot();
-        const dir = path.join(root, safe);
-        await fs.mkdir(dir, { recursive: true });
-        await fs.writeFile(
-          path.join(dir, "SKILL.md"),
-          candidate.skillMarkdown,
-          "utf-8",
-        );
+        await fs.rm(path.join(root, folderName), {
+          recursive: true,
+          force: true,
+        });
         await markMemoryPromotionStatus(
           candidate.workspacePath,
           candidate.memoryPath,
-          "promoted",
+          "none",
+          null,
         );
-        return { success: true as const, folder: safe };
+        return { success: true as const, folder: folderName };
       } catch (e) {
         return {
           success: false as const,
-          error: e instanceof Error ? e.message : "settle failed",
+          error: e instanceof Error ? e.message : "undo failed",
         };
       }
     },

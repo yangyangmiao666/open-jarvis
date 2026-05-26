@@ -489,6 +489,14 @@ const api = {
         workspacePath,
         routePath,
       }),
+    undoMemorySettlement: (
+      workspacePath: string,
+      routePath: string,
+    ): Promise<{ success: boolean; folder?: string; error?: string }> =>
+      ipcRenderer.invoke("skills:undoMemorySettlement", {
+        workspacePath,
+        routePath,
+      }),
     rejectPromotion: (
       candidate: MemoryPromotionCandidate,
     ): Promise<{ success: boolean; error?: string }> =>

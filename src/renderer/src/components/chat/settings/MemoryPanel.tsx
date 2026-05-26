@@ -5,6 +5,7 @@ import {
   FolderTree,
   Pencil,
   RefreshCcw,
+  RotateCcw,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -80,9 +81,14 @@ export function MemoryPanel(): React.JSX.Element {
   const [editorBody, setEditorBody] = useState("");
   const [deleteTarget, setDeleteTarget] =
     useState<MemoryDocumentSummary | null>(null);
+  const [settleTarget, setSettleTarget] =
+    useState<MemoryDocumentSummary | null>(null);
+  const [undoTarget, setUndoTarget] =
+    useState<MemoryDocumentSummary | null>(null);
   const [settlingRoutePath, setSettlingRoutePath] = useState<string | null>(
     null,
   );
+  const [undoingRoutePath, setUndoingRoutePath] = useState<string | null>(null);
 
   const loadData = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -203,18 +209,16 @@ export function MemoryPanel(): React.JSX.Element {
     await loadData();
   };
 
-  const handleSettleAsSkill = async (
-    memory: MemoryDocumentSummary,
-  ): Promise<void> => {
-    if (!workspacePath || settlingRoutePath) {
+  const handleSettleAsSkill = async (): Promise<void> => {
+    if (!workspacePath || !settleTarget || settlingRoutePath) {
       return;
     }
 
-    setSettlingRoutePath(memory.routePath);
+    setSettlingRoutePath(settleTarget.routePath);
     try {
       const result = await window.api.skills.settleMemoryAsSkill(
         workspacePath,
-        memory.routePath,
+        settleTarget.routePath,
       );
       if (!result.success) {
         toast.error(result.error ?? t("memory.settleFailed"));
@@ -222,9 +226,34 @@ export function MemoryPanel(): React.JSX.Element {
       }
 
       toast.success(t("memory.settled"));
+      setSettleTarget(null);
       await loadData();
     } finally {
       setSettlingRoutePath(null);
+    }
+  };
+
+  const handleUndoSettlement = async (): Promise<void> => {
+    if (!workspacePath || !undoTarget || undoingRoutePath) {
+      return;
+    }
+
+    setUndoingRoutePath(undoTarget.routePath);
+    try {
+      const result = await window.api.skills.undoMemorySettlement(
+        workspacePath,
+        undoTarget.routePath,
+      );
+      if (!result.success) {
+        toast.error(result.error ?? t("memory.undoFailed"));
+        return;
+      }
+
+      toast.success(t("memory.undoSettled"));
+      setUndoTarget(null);
+      await loadData();
+    } finally {
+      setUndoingRoutePath(null);
     }
   };
 
@@ -325,18 +354,27 @@ export function MemoryPanel(): React.JSX.Element {
                         size="sm"
                         className="h-7 px-2"
                         onClick={() => {
-                          void handleSettleAsSkill(memory);
+                          if (memory.promotionStatus === "promoted") {
+                            setUndoTarget(memory);
+                            return;
+                          }
+
+                          setSettleTarget(memory);
                         }}
                         disabled={
                           loading ||
                           !workspacePath ||
                           settlingRoutePath === memory.routePath ||
-                          memory.promotionStatus === "promoted"
+                          undoingRoutePath === memory.routePath
                         }
                       >
-                        <Sparkles className="mr-1 h-3.5 w-3.5" />
+                        {memory.promotionStatus === "promoted" ? (
+                          <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                        ) : (
+                          <Sparkles className="mr-1 h-3.5 w-3.5" />
+                        )}
                         {memory.promotionStatus === "promoted"
-                          ? t("memory.alreadySettled")
+                          ? t("memory.undoSettlement")
                           : t("memory.settleAsSkill")}
                       </Button>
                       <Button
@@ -424,6 +462,81 @@ export function MemoryPanel(): React.JSX.Element {
               disabled={editorLoading || editorSaving}
             >
               {t("common:save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={settleTarget !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setSettleTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("memory.confirmSettleTitle")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t("memory.confirmSettleDesc", {
+              name: settleTarget?.title ?? "",
+            })}
+          </p>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setSettleTarget(null)}
+              disabled={Boolean(settlingRoutePath)}
+            >
+              {t("common:cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                void handleSettleAsSkill();
+              }}
+              disabled={Boolean(settlingRoutePath)}
+            >
+              {t("common:confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={undoTarget !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setUndoTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("memory.confirmUndoTitle")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t("memory.confirmUndoDesc", {
+              name: undoTarget?.title ?? "",
+            })}
+          </p>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setUndoTarget(null)}
+              disabled={Boolean(undoingRoutePath)}
+            >
+              {t("common:cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                void handleUndoSettlement();
+              }}
+              disabled={Boolean(undoingRoutePath)}
+            >
+              {t("memory.undoSettlement")}
             </Button>
           </DialogFooter>
         </DialogContent>
