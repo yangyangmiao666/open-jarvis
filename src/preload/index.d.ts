@@ -138,7 +138,12 @@ interface CustomAPI {
     updateWorkspaceMemoryDocument: (
       threadId: string | undefined,
       routePath: string,
-      updates: { title: string; summary: string; body: string },
+      updates: {
+        title: string;
+        summary: string;
+        body: string;
+        nextRoutePath?: string;
+      },
     ) => Promise<{
       success: boolean;
       document?: MemoryDocumentSummary;

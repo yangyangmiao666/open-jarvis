@@ -1064,11 +1064,23 @@ export async function createMemoryPromotionCandidate(
 export async function updateWorkspaceMemoryDocument(
   workspacePath: string,
   routePath: string,
-  updates: { title: string; summary: string; body: string },
+  updates: {
+    title: string;
+    summary: string;
+    body: string;
+    nextRoutePath?: string;
+  },
 ): Promise<MemoryDocumentSummary | null> {
   const normalizedRoutePath = normalizeMemoryRoutePath(routePath);
   if (!normalizedRoutePath) {
     return null;
+  }
+
+  const nextRoutePath = updates.nextRoutePath
+    ? normalizeMemoryRoutePath(updates.nextRoutePath)
+    : normalizedRoutePath;
+  if (!nextRoutePath) {
+    throw new Error("Invalid memory route path");
   }
 
   const filePath = routePathToFilePath(workspacePath, normalizedRoutePath);
@@ -1079,9 +1091,26 @@ export async function updateWorkspaceMemoryDocument(
     return null;
   }
 
+  if (nextRoutePath !== normalizedRoutePath) {
+    const nextFilePath = routePathToFilePath(workspacePath, nextRoutePath);
+    let nextFileExists = false;
+    try {
+      await fs.access(nextFilePath);
+      nextFileExists = true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    if (nextFileExists) {
+      throw new Error("Memory file already exists");
+    }
+  }
+
   const parsed = parseFrontmatter(markdown);
   const now = new Date().toISOString();
-  const title = updates.title.trim() || pathTitleFallback(normalizedRoutePath);
+  const title = updates.title.trim() || pathTitleFallback(nextRoutePath);
   const summary = updates.summary.trim();
   const frontmatter: MemoryFrontmatter = {
     title,
@@ -1097,12 +1126,19 @@ export async function updateWorkspaceMemoryDocument(
 
   await writeMemoryDocument(
     workspacePath,
-    normalizedRoutePath,
+    nextRoutePath,
     frontmatter,
     updates.body,
   );
+
+  if (nextRoutePath !== normalizedRoutePath) {
+    const memoryRoot = getWorkspaceMemoryDir(workspacePath);
+    await fs.rm(filePath, { force: true });
+    await removeEmptyMemoryDirectories(memoryRoot, path.dirname(filePath));
+  }
+
   return {
-    routePath: normalizedRoutePath,
+    routePath: nextRoutePath,
     title,
     summary,
     recallCount: frontmatter.recallCount,

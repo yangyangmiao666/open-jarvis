@@ -368,7 +368,12 @@ export function ChatContainer({
         pendingMemoryPromotion,
       );
       if (!result.success) {
-        throw new Error(result.error || "promotion failed");
+        console.error(
+          "[ChatContainer] Failed to confirm promotion:",
+          result.error,
+        );
+        toast.error("记忆沉淀为技能失败");
+        return;
       }
       setPendingMemoryPromotion(null);
       toast.success("记忆已沉淀为全局技能");
@@ -388,7 +393,12 @@ export function ChatContainer({
         pendingMemoryPromotion,
       );
       if (!result.success) {
-        throw new Error(result.error || "reject failed");
+        console.error(
+          "[ChatContainer] Failed to reject promotion:",
+          result.error,
+        );
+        toast.error("暂不沉淀记忆失败");
+        return;
       }
       setPendingMemoryPromotion(null);
     } catch (error) {

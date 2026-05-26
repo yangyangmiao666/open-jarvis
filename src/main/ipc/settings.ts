@@ -179,7 +179,12 @@ export function registerSettingsHandlers(ipcMain: IpcMain): void {
       payload: {
         threadId?: string;
         routePath: string;
-        updates: { title: string; summary: string; body: string };
+        updates: {
+          title: string;
+          summary: string;
+          body: string;
+          nextRoutePath?: string;
+        };
       },
     ): Promise<{
       success: boolean;

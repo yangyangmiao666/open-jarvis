@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 import { useAppStore } from "@/lib/store";
 import { formatDateTimeWithYear } from "@/lib/utils";
@@ -26,7 +27,6 @@ import {
   SettingsCard,
   SettingsInput,
   SettingsRow,
-  SettingsTextarea,
 } from "./primitives";
 
 function promotionStatusLabel(
@@ -61,6 +61,35 @@ function promotionStatusClassName(
   }
 }
 
+function getRouteFileName(routePath: string): string {
+  const segments = routePath.split("/").filter(Boolean);
+  return segments[segments.length - 1] ?? "";
+}
+
+function buildRoutePathWithFileName(
+  routePath: string,
+  fileName: string,
+): string | null {
+  const trimmed = fileName.trim();
+  if (
+    !trimmed ||
+    trimmed.includes("/") ||
+    trimmed.includes("\\") ||
+    trimmed === "." ||
+    trimmed === ".."
+  ) {
+    return null;
+  }
+
+  const normalizedFileName = trimmed.endsWith(".md") ? trimmed : `${trimmed}.md`;
+  const index = routePath.lastIndexOf("/");
+  if (index < 0) {
+    return null;
+  }
+
+  return `${routePath.slice(0, index + 1)}${normalizedFileName}`;
+}
+
 export function MemoryPanel(): React.JSX.Element {
   const { t } = useTranslation("settings");
   const currentThreadId = useAppStore((state) => state.currentThreadId);
@@ -76,6 +105,7 @@ export function MemoryPanel(): React.JSX.Element {
   const [editorLoading, setEditorLoading] = useState(false);
   const [editorSaving, setEditorSaving] = useState(false);
   const [editingRoutePath, setEditingRoutePath] = useState<string | null>(null);
+  const [editorFileName, setEditorFileName] = useState("");
   const [editorTitle, setEditorTitle] = useState("");
   const [editorSummary, setEditorSummary] = useState("");
   const [editorBody, setEditorBody] = useState("");
@@ -125,6 +155,7 @@ export function MemoryPanel(): React.JSX.Element {
 
   const resetEditor = (): void => {
     setEditingRoutePath(null);
+    setEditorFileName("");
     setEditorTitle("");
     setEditorSummary("");
     setEditorBody("");
@@ -136,6 +167,7 @@ export function MemoryPanel(): React.JSX.Element {
     setEditorOpen(true);
     setEditorLoading(true);
     setEditingRoutePath(routePath);
+    setEditorFileName("");
     setEditorTitle("");
     setEditorSummary("");
     setEditorBody("");
@@ -152,6 +184,7 @@ export function MemoryPanel(): React.JSX.Element {
         return;
       }
 
+      setEditorFileName(getRouteFileName(result.document.routePath));
       setEditorTitle(result.document.title);
       setEditorSummary(result.document.summary);
       setEditorBody(result.document.body);
@@ -165,12 +198,22 @@ export function MemoryPanel(): React.JSX.Element {
       return;
     }
 
+    const nextRoutePath = buildRoutePathWithFileName(
+      editingRoutePath,
+      editorFileName,
+    );
+    if (!nextRoutePath) {
+      toast.error(t("memory.invalidFileName"));
+      return;
+    }
+
     setEditorSaving(true);
     try {
       const result = await window.api.settings.updateWorkspaceMemoryDocument(
         currentThreadId ?? undefined,
         editingRoutePath,
         {
+          nextRoutePath,
           title: editorTitle,
           summary: editorSummary,
           body: editorBody,
@@ -425,27 +468,73 @@ export function MemoryPanel(): React.JSX.Element {
             <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground break-all">
               {editingRoutePath}
             </div>
-            <SettingsInput
-              label={t("memory.titleField")}
-              value={editorTitle}
-              onChange={(event) => setEditorTitle(event.target.value)}
-              disabled={editorLoading || editorSaving}
-            />
-            <SettingsTextarea
-              label={t("memory.summaryField")}
-              value={editorSummary}
-              onChange={(event) => setEditorSummary(event.target.value)}
-              disabled={editorLoading || editorSaving}
-              rows={3}
-            />
-            <SettingsTextarea
-              label={t("memory.bodyField")}
-              value={editorBody}
-              onChange={(event) => setEditorBody(event.target.value)}
-              disabled={editorLoading || editorSaving}
-              rows={14}
-              className="font-mono text-xs"
-            />
+            <div className="grid gap-4">
+              <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-3">
+                <label
+                  htmlFor="memory-file-name"
+                  className="pt-2 text-sm font-medium leading-snug text-foreground"
+                >
+                  {t("memory.fileNameField")}
+                </label>
+                <div className="space-y-1.5">
+                  <Input
+                    id="memory-file-name"
+                    value={editorFileName}
+                    onChange={(event) => setEditorFileName(event.target.value)}
+                    disabled={editorLoading || editorSaving}
+                  />
+                  <div className="text-xs text-muted-foreground break-all">
+                    {t("memory.fileNameHint")}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-3">
+                <label
+                  htmlFor="memory-title"
+                  className="pt-2 text-sm font-medium leading-snug text-foreground"
+                >
+                  {t("memory.titleField")}
+                </label>
+                <Input
+                  id="memory-title"
+                  value={editorTitle}
+                  onChange={(event) => setEditorTitle(event.target.value)}
+                  disabled={editorLoading || editorSaving}
+                />
+              </div>
+              <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-3">
+                <label
+                  htmlFor="memory-summary"
+                  className="pt-2 text-sm font-medium leading-snug text-foreground"
+                >
+                  {t("memory.summaryField")}
+                </label>
+                <textarea
+                  id="memory-summary"
+                  value={editorSummary}
+                  onChange={(event) => setEditorSummary(event.target.value)}
+                  disabled={editorLoading || editorSaving}
+                  rows={3}
+                  className="flex min-h-[80px] w-full rounded-lg border border-input app-premium-field px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+              <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-3">
+                <label
+                  htmlFor="memory-body"
+                  className="pt-2 text-sm font-medium leading-snug text-foreground"
+                >
+                  {t("memory.bodyField")}
+                </label>
+                <textarea
+                  id="memory-body"
+                  value={editorBody}
+                  onChange={(event) => setEditorBody(event.target.value)}
+                  disabled={editorLoading || editorSaving}
+                  rows={14}
+                  className="flex min-h-[80px] w-full rounded-lg border border-input app-premium-field px-3 py-2 font-mono text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter className="gap-2">
             <Button
