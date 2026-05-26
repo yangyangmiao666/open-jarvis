@@ -24,6 +24,7 @@
     "globalConfig": "全局配置",
     "languageLabel": "语言",
     "tabGeneral": "通用",
+    "tabMemory": "记忆",
     "tabModels": "模型",
     "tabProxy": "代理",
     "tabSkills": "技能",
@@ -52,6 +53,22 @@
     "permissionRequestSoundDesc": "需要人工审批时播放的音效",
     "soundNone": "无",
     "previewSound": "预览"
+  },
+  "memory": {
+    "title": "记忆设置",
+    "description": "管理当前工作区的持久化记忆目录、召回阈值和记忆文档列表。",
+    "recallThreshold": "技能晋升召回阈值",
+    "recallThresholdDesc": "当某条工作区记忆被召回次数大于等于这个阈值后，系统会提示将它晋升为全局技能。",
+    "workspacePath": "当前工作区",
+    "memoryDir": "记忆目录",
+    "refresh": "刷新",
+    "memoryList": "持久化记忆列表",
+    "memoryListDesc": "当前工作区已沉淀 {{count}} 条记忆。",
+    "empty": "当前工作区还没有沉淀的记忆文档。",
+    "noWorkspace": "当前线程还没有绑定工作区。",
+    "noSummary": "暂无摘要",
+    "recallCount": "召回 {{count}} 次",
+    "lastUpdated": "最近更新：{{value}}"
   },
   "exportDialog": {
     "title": "导出全局配置",

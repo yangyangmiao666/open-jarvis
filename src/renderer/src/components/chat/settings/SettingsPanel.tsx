@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Settings, Bot, Globe, Zap, Server, Info, BarChart3 } from "lucide-react";
+import { X, Settings, Database, Bot, Globe, Zap, Server, Info, BarChart3 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { GeneralPanel } from "./GeneralPanel";
+import { MemoryPanel } from "./MemoryPanel";
 import { OpenAICompatiblePanel } from "./OpenAICompatiblePanel";
 import { ProxyConfigPanel } from "./ProxyConfigPanel";
 import { SkillsPanel } from "./SkillsPanel";
@@ -11,7 +12,7 @@ import { AboutPanel } from "./AboutPanel";
 import { UsageLogsPanel } from "./UsageLogsPanel";
 import type { SettingsOpenRequest } from "@/types";
 
-type Tab = "general" | "models" | "proxy" | "skills" | "mcp" | "about" | "usage";
+type Tab = "general" | "memory" | "models" | "proxy" | "skills" | "mcp" | "about" | "usage";
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -20,6 +21,7 @@ interface SettingsPanelProps {
 
 const TABS: { id: Tab; icon: typeof Settings; labelKey: string }[] = [
   { id: "general", icon: Settings, labelKey: "settingsHub.tabGeneral" },
+  { id: "memory", icon: Database, labelKey: "settingsHub.tabMemory" },
   { id: "models", icon: Bot, labelKey: "settingsHub.tabModels" },
   { id: "proxy", icon: Globe, labelKey: "settingsHub.tabProxy" },
   { id: "skills", icon: Zap, labelKey: "settingsHub.tabSkills" },
@@ -49,6 +51,8 @@ export function SettingsPanel({ onClose, request }: SettingsPanelProps) {
     switch (activeTab) {
       case "general":
         return <GeneralPanel />;
+      case "memory":
+        return <MemoryPanel />;
       case "models":
         return <OpenAICompatiblePanel profileId={profileId} />;
       case "proxy":

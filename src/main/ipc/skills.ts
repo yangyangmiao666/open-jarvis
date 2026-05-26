@@ -2,8 +2,10 @@ import { IpcMain, dialog } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { getSkillSources, setSkillSources } from "../skill-config";
+import { markMemoryPromotionStatus } from "../services/memory-service";
 import { getOpenworkDir } from "../storage";
 import { decodeTextBuffer } from "../text-encoding";
+import type { MemoryPromotionCandidate } from "../types";
 
 function validateSkillFolderSegment(name: string): boolean {
   return (
@@ -241,6 +243,57 @@ Add instructions for the agent here.
         await fs.rm(dir, { recursive: true, force: true });
       }
       return { success: true };
+    },
+  );
+
+  ipcMain.handle(
+    "skills:confirmPromotion",
+    async (_e, candidate: MemoryPromotionCandidate) => {
+      const safe = slugifySkillName(candidate.skillName);
+      if (!safe) {
+        return { success: false as const, error: "Invalid skill name" };
+      }
+
+      try {
+        const root = getGlobalSkillsRoot();
+        const dir = path.join(root, safe);
+        await fs.mkdir(dir, { recursive: true });
+        await fs.writeFile(
+          path.join(dir, "SKILL.md"),
+          candidate.skillMarkdown,
+          "utf-8",
+        );
+        await markMemoryPromotionStatus(
+          candidate.workspacePath,
+          candidate.memoryPath,
+          "promoted",
+        );
+        return { success: true as const, folder: safe };
+      } catch (e) {
+        return {
+          success: false as const,
+          error: e instanceof Error ? e.message : "promotion failed",
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "skills:rejectPromotion",
+    async (_e, candidate: MemoryPromotionCandidate) => {
+      try {
+        await markMemoryPromotionStatus(
+          candidate.workspacePath,
+          candidate.memoryPath,
+          "rejected",
+        );
+        return { success: true as const };
+      } catch (e) {
+        return {
+          success: false as const,
+          error: e instanceof Error ? e.message : "reject failed",
+        };
+      }
     },
   );
 }

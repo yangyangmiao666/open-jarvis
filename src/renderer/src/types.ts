@@ -64,6 +64,30 @@ export interface WorkspaceApprovalRule {
   createdAt: string;
 }
 
+export interface MemorySettings {
+  skillPromotionRecallThreshold: number;
+}
+
+export interface MemoryDocumentSummary {
+  routePath: string;
+  title: string;
+  summary: string;
+  recallCount: number;
+  lastUpdatedAt: string;
+  promotionStatus: "none" | "candidate" | "promoted" | "rejected";
+}
+
+export interface MemoryPromotionCandidate {
+  workspacePath: string;
+  memoryPath: string;
+  title: string;
+  summary: string;
+  skillName: string;
+  skillMarkdown: string;
+  recallCount: number;
+  threshold: number;
+}
+
 // Provider configuration
 export type ProviderId =
   | "anthropic"
@@ -88,7 +112,7 @@ export type CustomModelReasoningContentMode =
   | "enabled"
   | "disabled";
 
-export type SettingsPanel = "general" | "models" | "proxy" | "skills" | "mcp" | "about" | "usage";
+export type SettingsPanel = "general" | "memory" | "models" | "proxy" | "skills" | "mcp" | "about" | "usage";
 
 export interface SettingsOpenRequest {
   panel?: SettingsPanel;

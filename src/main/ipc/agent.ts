@@ -1,23 +1,20 @@
-import { IpcMain, BrowserWindow } from "electron";
+import {BrowserWindow, IpcMain} from "electron";
 import Store from "electron-store";
-import { HumanMessage } from "@langchain/core/messages";
-import { Command } from "@langchain/langgraph";
-import type { StreamMode } from "@langchain/langgraph";
+import {HumanMessage} from "@langchain/core/messages";
+import type {StreamMode} from "@langchain/langgraph";
+import {Command} from "@langchain/langgraph";
 import {
   buildReferencedPathsPrompt,
   createAgentRuntime,
   estimateHiddenPromptTokens,
+  getBackgroundTaskModel,
 } from "../agent/runtime";
-import { rememberWorkspaceApproval } from "../approval-settings";
-import { getThread } from "../db";
-import { getOpenworkDir } from "../storage";
-import { logError, logInfo, logWarn } from "../logger";
-import type {
-  AgentInvokeParams,
-  AgentResumeParams,
-  AgentInterruptParams,
-  AgentCancelParams,
-} from "../types";
+import {rememberWorkspaceApproval} from "../approval-settings";
+import {getThread} from "../db";
+import {consolidateTaskMemory} from "../services/memory-service";
+import {getOpenworkDir} from "../storage";
+import {logError, logInfo, logWarn} from "../logger";
+import type {AgentCancelParams, AgentInterruptParams, AgentInvokeParams, AgentResumeParams,} from "../types";
 
 // Track active runs for cancellation
 const activeRuns = new Map<string, AbortController>();
@@ -139,14 +136,12 @@ function summarizeToolCalls(toolCalls: unknown): string {
         return "tool";
       }
       const record = toolCall as Record<string, unknown>;
-      const name =
-        typeof record.name === "string"
+      return typeof record.name === "string"
           ? record.name
           : typeof (record.function as { name?: unknown } | undefined)?.name ===
-              "string"
-            ? String((record.function as { name?: unknown }).name)
-            : "tool";
-      return name;
+          "string"
+              ? String((record.function as { name?: unknown }).name)
+              : "tool";
     })
     .join(", ");
 }
@@ -337,6 +332,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         });
 
         let chunkCount = 0;
+        let lastValuesState: unknown = null;
 
         for await (const chunk of stream) {
           if (abortController.signal.aborted) break;
@@ -356,6 +352,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           }
 
           if (mode === "values") {
+            lastValuesState = JSON.parse(JSON.stringify(data));
             logConversationMessagesFromValues(threadId, data);
           }
 
@@ -370,6 +367,35 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
 
         // Send done event (only if not aborted)
         if (!abortController.signal.aborted) {
+          if (lastValuesState) {
+            try {
+              const consolidation = await consolidateTaskMemory({
+                threadId,
+                workspacePath,
+                model: getBackgroundTaskModel(modelId),
+                state: lastValuesState,
+                trigger: "invoke",
+              });
+              if (consolidation.promotionCandidate) {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "memory_promotion_candidate",
+                    candidate: consolidation.promotionCandidate,
+                  },
+                });
+              }
+            } catch (memoryError) {
+              logWarn("Agent", "Task memory consolidation failed after invoke", {
+                threadId,
+                error:
+                  memoryError instanceof Error
+                    ? memoryError.message
+                    : String(memoryError),
+              });
+            }
+          }
+
           logInfo("Agent", "Invoke stream completed", {
             threadId,
             chunkCount,
@@ -516,6 +542,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         );
 
         let chunkCount = 0;
+        let lastValuesState: unknown = null;
 
         for await (const chunk of stream) {
           if (abortController.signal.aborted) break;
@@ -532,6 +559,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           }
 
           if (mode === "values") {
+            lastValuesState = JSON.parse(JSON.stringify(data));
             logConversationMessagesFromValues(threadId, data);
           }
 
@@ -543,6 +571,35 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         }
 
         if (!abortController.signal.aborted) {
+          if (lastValuesState) {
+            try {
+              const consolidation = await consolidateTaskMemory({
+                threadId,
+                workspacePath,
+                model: getBackgroundTaskModel(modelId),
+                state: lastValuesState,
+                trigger: "resume",
+              });
+              if (consolidation.promotionCandidate) {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "memory_promotion_candidate",
+                    candidate: consolidation.promotionCandidate,
+                  },
+                });
+              }
+            } catch (memoryError) {
+              logWarn("Agent", "Task memory consolidation failed after resume", {
+                threadId,
+                error:
+                  memoryError instanceof Error
+                    ? memoryError.message
+                    : String(memoryError),
+              });
+            }
+          }
+
           logInfo("Agent", "Resume stream completed", {
             threadId,
             chunkCount,

@@ -44,6 +44,13 @@ When exploring codebases or reading multiple files, use pagination to prevent co
 - Small files (<500 lines)
 - Files you need to edit immediately after reading
 
+## Long-Term Memory Workflow
+
+- Before starting a substantive task, inspect the persistent memory directory with \`ls("/memories/")\`
+- If there is a relevant memory document, read it with \`read_file\` before planning or editing
+- Reuse and refine existing memory topics instead of creating duplicate summaries for the same lesson
+- After finishing a task, summarize the durable lesson back into the memory system when asked or when the runtime requests consolidation
+
 ## Working with Subagents (task tool)
 When delegating to subagents:
 - **Use filesystem for large I/O**: If input/output is large (>500 words), communicate via files

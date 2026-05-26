@@ -26,6 +26,7 @@ import { useStream } from "@langchain/langgraph-sdk/react";
 import { ElectronIPCTransport } from "./electron-transport";
 import type {
   ApprovalMode,
+  MemoryPromotionCandidate,
   Message,
   Todo,
   FileInfo,
@@ -260,6 +261,7 @@ export interface ThreadState {
   subagents: Subagent[];
   pendingApprovals: HITLRequest[];
   pendingApproval: HITLRequest | null;
+  pendingMemoryPromotion: MemoryPromotionCandidate | null;
   error: string | null;
   currentModel: string;
   openFiles: OpenFile[];
@@ -296,6 +298,9 @@ export interface ThreadActions {
   setSubagents: (subagents: Subagent[]) => void;
   setPendingApprovals: (requests: HITLRequest[]) => void;
   setPendingApproval: (request: HITLRequest | null) => void;
+  setPendingMemoryPromotion: (
+    candidate: MemoryPromotionCandidate | null,
+  ) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
   setCurrentModel: (modelId: string) => void;
@@ -338,6 +343,7 @@ const createDefaultThreadState = (): ThreadState => ({
   subagents: [],
   pendingApprovals: [],
   pendingApproval: null,
+  pendingMemoryPromotion: null,
   error: null,
   currentModel: "",
   openFiles: [],
@@ -364,6 +370,7 @@ interface CustomEventData {
   type?: string;
   request?: HITLRequest;
   requests?: HITLRequest[];
+  candidate?: MemoryPromotionCandidate;
   files?: Array<{ path: string; is_dir?: boolean; size?: number }>;
   path?: string;
   subagents?: Array<{
@@ -790,6 +797,11 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             updateThreadState(threadId, () => ({ workspacePath: data.path }));
           }
           break;
+        case "memory_promotion_candidate":
+          updateThreadState(threadId, () => ({
+            pendingMemoryPromotion: data.candidate ?? null,
+          }));
+          break;
         case "subagents":
           if (Array.isArray(data.subagents)) {
             updateThreadState(threadId, () => ({
@@ -921,7 +933,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         },
         setWorkspacePath: (path: string | null) => {
           updateThreadState(threadId, () => ({ workspacePath: path }));
-          void window.api.workspace.set(undefined, path);
+          void window.api.workspace.set(threadId, path);
         },
         setEnabledMcpServerIds: (serverIds: string[]) => {
           const nextIds = Array.from(
@@ -945,6 +957,11 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           updateThreadState(threadId, () => ({
             pendingApprovals: request ? [request] : [],
             pendingApproval: request,
+          }));
+        },
+        setPendingMemoryPromotion: (candidate: MemoryPromotionCandidate | null) => {
+          updateThreadState(threadId, () => ({
+            pendingMemoryPromotion: candidate,
           }));
         },
         setError: (error: string | null) => {

@@ -11,6 +11,9 @@ import type {
   OpenAICompatibleProfile,
   ProxyConfig,
   GlobalConfigImportResult,
+  MemoryDocumentSummary,
+  MemoryPromotionCandidate,
+  MemorySettings,
 } from "../main/types";
 
 interface ElectronAPI {
@@ -112,6 +115,15 @@ interface CustomAPI {
   settings: {
     getProxyConfig: () => Promise<ProxyConfig>;
     setProxyConfig: (config: ProxyConfig) => Promise<ProxyConfig>;
+    getMemorySettings: () => Promise<MemorySettings>;
+    setMemorySettings: (config: Partial<MemorySettings>) => Promise<MemorySettings>;
+    listWorkspaceMemories: (threadId?: string) => Promise<{
+      success: boolean;
+      workspacePath: string | null;
+      memoryDir: string | null;
+      memories: MemoryDocumentSummary[];
+      error?: string;
+    }>;
     exportGlobalConfigToFile: (
       options: { includeApiKeys: boolean },
     ) => Promise<{ success: boolean; filePath?: string; error?: string }>;
@@ -200,6 +212,12 @@ interface CustomAPI {
       oldName: string,
       newName: string,
     ) => Promise<{ success: boolean; folder?: string; error?: string }>;
+    confirmPromotion: (
+      candidate: MemoryPromotionCandidate,
+    ) => Promise<{ success: boolean; folder?: string; error?: string }>;
+    rejectPromotion: (
+      candidate: MemoryPromotionCandidate,
+    ) => Promise<{ success: boolean; error?: string }>;
   };
 }
 

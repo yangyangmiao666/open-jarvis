@@ -13,6 +13,9 @@ import type {
   OpenAICompatibleProfile,
   ProxyConfig,
   GlobalConfigImportResult,
+  MemoryDocumentSummary,
+  MemoryPromotionCandidate,
+  MemorySettings,
 } from "../main/types";
 
 // Simple electron API - replaces @electron-toolkit/preload
@@ -264,6 +267,23 @@ const api = {
     setProxyConfig: (config: ProxyConfig): Promise<ProxyConfig> => {
       return ipcRenderer.invoke("settings:setProxyConfig", config);
     },
+    getMemorySettings: (): Promise<MemorySettings> => {
+      return ipcRenderer.invoke("settings:getMemorySettings");
+    },
+    setMemorySettings: (config: Partial<MemorySettings>): Promise<MemorySettings> => {
+      return ipcRenderer.invoke("settings:setMemorySettings", config);
+    },
+    listWorkspaceMemories: (
+      threadId?: string,
+    ): Promise<{
+      success: boolean;
+      workspacePath: string | null;
+      memoryDir: string | null;
+      memories: MemoryDocumentSummary[];
+      error?: string;
+    }> => {
+      return ipcRenderer.invoke("settings:listWorkspaceMemories", threadId);
+    },
     exportGlobalConfigToFile: (
       options: { includeApiKeys: boolean },
     ): Promise<{ success: boolean; filePath?: string; error?: string }> => {
@@ -412,6 +432,14 @@ const api = {
         oldName,
         newName,
       }),
+    confirmPromotion: (
+      candidate: MemoryPromotionCandidate,
+    ): Promise<{ success: boolean; folder?: string; error?: string }> =>
+      ipcRenderer.invoke("skills:confirmPromotion", candidate),
+    rejectPromotion: (
+      candidate: MemoryPromotionCandidate,
+    ): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke("skills:rejectPromotion", candidate),
   },
 };
 

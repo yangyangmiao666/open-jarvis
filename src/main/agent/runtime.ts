@@ -1,9 +1,15 @@
-import { createDeepAgent } from "deepagents";
+import { CompositeBackend, FilesystemBackend, createDeepAgent } from "deepagents";
 import { AsyncLocalStorage } from "node:async_hooks";
 import Store from "electron-store";
 import { createMiddleware } from "langchain";
 import { getThread } from "../db";
 import { getDefaultModel } from "../ipc/models";
+import {
+  ensureWorkspaceMemoryBootstrapFiles,
+  getAgentMemorySources,
+  getWorkspaceMemoryDir,
+  MEMORY_ROUTE_PREFIX,
+} from "../memory-config";
 import { getMCPServerById } from "../mcp-config";
 import { getOpenAICompatibleProfileByModelId } from "../openai-compatible-profiles";
 import { getApiKey, getOpenworkDir, getThreadCheckpointPath } from "../storage";
@@ -184,6 +190,40 @@ const runtimeToolErrorMiddleware = createMiddleware({
   },
 });
 
+const memoryRecallMiddleware = createMiddleware({
+  name: "MemoryRecallMiddleware",
+  wrapModelCall: async (request, handler) => {
+    const hasMemoryInspection = request.messages.some((message) => {
+      if (!(message instanceof ToolMessage)) {
+        return false;
+      }
+
+      const content = Array.isArray(message.content)
+        ? message.content.map((part) => JSON.stringify(part)).join("\n")
+        : String(message.content ?? "");
+      return content.includes(MEMORY_ROUTE_PREFIX);
+    });
+
+    if (hasMemoryInspection) {
+      return handler(request);
+    }
+
+    const memoryReminder = [
+      "Before you plan, edit files, or run substantive commands, inspect the persistent memory directory.",
+      `1. Run ls("${MEMORY_ROUTE_PREFIX}") to see available memories.`,
+      `2. Read any relevant memory files under ${MEMORY_ROUTE_PREFIX} before continuing.`,
+      "3. If no relevant memory exists, continue normally after that quick check.",
+    ].join("\n");
+
+    return handler({
+      ...request,
+      systemPrompt: request.systemPrompt
+        ? `${request.systemPrompt}\n\n${memoryReminder}`
+        : memoryReminder,
+    });
+  },
+});
+
 /**
  * Generate the full system prompt for the agent.
  *
@@ -191,6 +231,7 @@ const runtimeToolErrorMiddleware = createMiddleware({
  * @returns The complete system prompt
  */
 function getSystemPrompt(workspacePath: string): string {
+  const workspaceMemoryDir = getWorkspaceMemoryDir(workspacePath);
   const workingDirSection = `
 ### File System and Paths
 
@@ -202,7 +243,17 @@ function getSystemPrompt(workspacePath: string): string {
 - Always use full absolute paths for all file operations
 `;
 
-  return workingDirSection + BASE_SYSTEM_PROMPT;
+  const memorySection = `
+### Long-Term Memory
+
+**IMPORTANT - Persistent memory lives at:** \`${MEMORY_ROUTE_PREFIX}\`
+- On disk it is stored under: \`${workspaceMemoryDir}\`
+- Start substantive tasks by checking \`${MEMORY_ROUTE_PREFIX}\` with \`ls("${MEMORY_ROUTE_PREFIX}")\`
+- Read relevant memory files with \`read_file\` before you make a plan or edits
+- Prefer updating an existing topic memory instead of duplicating the same lesson
+`;
+
+  return workingDirSection + memorySection + BASE_SYSTEM_PROMPT;
 }
 
 function getFilesystemSystemPrompt(workspacePath: string): string {
@@ -610,6 +661,69 @@ function summarizeOpenAICompatibleMessages(
   };
 }
 
+function stringifyOpenAICompatibleContentPart(part: unknown): string {
+  if (typeof part === "string") {
+    return part;
+  }
+
+  if (!part || typeof part !== "object") {
+    return "";
+  }
+
+  const record = part as Record<string, unknown>;
+  const type = typeof record["type"] === "string" ? record["type"] : "";
+
+  if (type === "text") {
+    if (typeof record["text"] === "string") {
+      return record["text"];
+    }
+    const text = record["text"] as Record<string, unknown> | undefined;
+    if (typeof text?.["value"] === "string") {
+      return text["value"];
+    }
+  }
+
+  if (typeof record["text"] === "string") {
+    return record["text"];
+  }
+
+  if (typeof record["content"] === "string") {
+    return record["content"];
+  }
+
+  if (typeof record["input_text"] === "string") {
+    return record["input_text"];
+  }
+
+  if (typeof record["output_text"] === "string") {
+    return record["output_text"];
+  }
+
+  if (type === "image_url" || type === "image") {
+    return "[image omitted for OpenAI-compatible text request]";
+  }
+
+  if (type === "file") {
+    const filename = typeof record["filename"] === "string"
+      ? record["filename"]
+      : typeof record["file_id"] === "string"
+        ? record["file_id"]
+        : "attachment";
+    return `[file omitted for OpenAI-compatible text request: ${filename}]`;
+  }
+
+  return type.length > 0
+    ? `[${type} content omitted for OpenAI-compatible text request]`
+    : "[non-text content omitted for OpenAI-compatible text request]";
+}
+
+function normalizeOpenAICompatibleArrayContent(parts: unknown[]): string {
+  return parts
+    .map((part) => stringifyOpenAICompatibleContentPart(part).trim())
+    .filter((part) => part.length > 0)
+    .join("\n\n");
+}
+
 function normalizeOpenAICompatibleMessageContent(
   body: OpenAICompatibleRequestBody,
 ): {
@@ -625,6 +739,7 @@ function normalizeOpenAICompatibleMessageContent(
   }
 
   let normalizedAssistantToolCallMessages = 0;
+  let normalizedArrayContentMessages = 0;
   const nextMessages = messages.map((rawMessage) => {
     if (typeof rawMessage !== "object" || rawMessage === null) {
       return rawMessage;
@@ -636,22 +751,33 @@ function normalizeOpenAICompatibleMessageContent(
       Array.isArray(message["tool_calls"]) &&
       message["tool_calls"].length > 0;
 
-    if (!isAssistantToolCallMessage || !Array.isArray(message["content"])) {
+    if (!Array.isArray(message["content"])) {
       return rawMessage;
     }
 
-    if (message["content"].length > 0) {
-      return rawMessage;
+    if (message["content"].length === 0) {
+      if (!isAssistantToolCallMessage) {
+        return rawMessage;
+      }
+
+      normalizedAssistantToolCallMessages += 1;
+      return {
+        ...message,
+        content: "",
+      };
     }
 
-    normalizedAssistantToolCallMessages += 1;
+    normalizedArrayContentMessages += 1;
     return {
       ...message,
-      content: "",
+      content: normalizeOpenAICompatibleArrayContent(message["content"]),
     };
   });
 
-  if (normalizedAssistantToolCallMessages === 0) {
+  if (
+    normalizedAssistantToolCallMessages === 0 &&
+    normalizedArrayContentMessages === 0
+  ) {
     return {
       body,
       normalizedAssistantToolCallMessages,
@@ -982,6 +1108,17 @@ function getModelInstance(
   return model;
 }
 
+export function getBackgroundTaskModel(
+  modelId?: string,
+): ChatAnthropic | ChatOpenAI | ChatGoogleGenerativeAI {
+  const model = getModelInstance(modelId);
+  if (typeof model === "string") {
+    throw new Error(`Unsupported background task model: ${model}`);
+  }
+
+  return model;
+}
+
 export interface CreateAgentRuntimeOptions {
   /** Thread ID - REQUIRED for per-thread checkpointing */
   threadId: string;
@@ -1022,11 +1159,22 @@ export async function createAgentRuntime(
   const checkpointer = await getCheckpointer(threadId);
   logInfo("Runtime", "Checkpointer ready", { threadId });
 
-  const backend = new LocalSandbox({
+  const workspaceMemoryDir = await ensureWorkspaceMemoryBootstrapFiles(
+    workspacePath,
+  );
+
+  const sandboxBackend = new LocalSandbox({
     rootDir: workspacePath,
     virtualMode: false, // Use absolute system paths for consistency with shell commands
     timeout: 120_000, // 2 minutes
     maxOutputBytes: 100_000, // ~100KB
+  });
+
+  const backend = new CompositeBackend(sandboxBackend, {
+    [MEMORY_ROUTE_PREFIX]: new FilesystemBackend({
+      rootDir: workspaceMemoryDir,
+      virtualMode: true,
+    }),
   });
 
   const systemPrompt = getSystemPrompt(workspacePath);
@@ -1035,6 +1183,7 @@ export async function createAgentRuntime(
   const filesystemSystemPrompt = getFilesystemSystemPrompt(workspacePath);
 
   const skills = resolveSkillSourcesForWorkspace(workspacePath);
+  const memory = getAgentMemorySources();
   const thread = getThread(threadId);
   const metadata = thread?.metadata
     ? (JSON.parse(thread.metadata) as ThreadMetadata)
@@ -1048,6 +1197,7 @@ export async function createAgentRuntime(
   const mcpTools = await getMCPToolsForServers(enabledMcpServers);
   logInfo("Runtime", "Resolved runtime dependencies", {
     skills: skills.length,
+    memory: memory.length,
     enabledMcpServers: enabledMcpServers.length,
     mcpTools: mcpTools.length,
   });
@@ -1075,7 +1225,8 @@ export async function createAgentRuntime(
     filesystemSystemPrompt,
     // Require human approval for shell commands and enabled MCP tools.
     interruptOn,
-    middleware: [runtimeToolErrorMiddleware],
+    middleware: [memoryRecallMiddleware, runtimeToolErrorMiddleware],
+    ...(memory.length > 0 ? { memory } : {}),
     ...(mcpTools.length > 0 ? { tools: mcpTools } : {}),
     ...(skills.length > 0 ? { skills } : {}),
   } as Parameters<typeof createDeepAgent>[0]);

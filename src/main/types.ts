@@ -92,6 +92,30 @@ export interface ProxyConfig {
   proxyMode?: "system" | "custom";
 }
 
+export interface MemorySettings {
+  skillPromotionRecallThreshold: number;
+}
+
+export interface MemoryDocumentSummary {
+  routePath: string;
+  title: string;
+  summary: string;
+  recallCount: number;
+  lastUpdatedAt: string;
+  promotionStatus: "none" | "candidate" | "promoted" | "rejected";
+}
+
+export interface MemoryPromotionCandidate {
+  workspacePath: string;
+  memoryPath: string;
+  title: string;
+  summary: string;
+  skillName: string;
+  skillMarkdown: string;
+  recallCount: number;
+  threshold: number;
+}
+
 // =============================================================================
 
 export interface Thread {
@@ -192,6 +216,16 @@ export type CustomModelReasoningContentMode =
   | "auto"
   | "enabled"
   | "disabled";
+
+export type SettingsPanel =
+  | "general"
+  | "memory"
+  | "models"
+  | "proxy"
+  | "skills"
+  | "mcp"
+  | "about"
+  | "usage";
 
 export interface Provider {
   id: ProviderId;

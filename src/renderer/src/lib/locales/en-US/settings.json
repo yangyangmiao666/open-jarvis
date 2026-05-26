@@ -24,6 +24,7 @@
     "globalConfig": "Global Configuration",
     "languageLabel": "Language",
     "tabGeneral": "General",
+    "tabMemory": "Memory",
     "tabModels": "Models",
     "tabProxy": "Proxy",
     "tabSkills": "Skills",
@@ -52,6 +53,22 @@
     "permissionRequestSoundDesc": "Sound played when human approval is needed",
     "soundNone": "None",
     "previewSound": "Preview"
+  },
+  "memory": {
+    "title": "Memory Settings",
+    "description": "Manage the current workspace memory directory, recall threshold, and persisted memory documents.",
+    "recallThreshold": "Skill Promotion Recall Threshold",
+    "recallThresholdDesc": "When a workspace memory's recall count reaches or exceeds this threshold, the app will suggest promoting it to a global skill.",
+    "workspacePath": "Current Workspace",
+    "memoryDir": "Memory Directory",
+    "refresh": "Refresh",
+    "memoryList": "Persisted Memories",
+    "memoryListDesc": "{{count}} persisted memories are currently available for this workspace.",
+    "empty": "No persisted memory documents have been created for this workspace yet.",
+    "noWorkspace": "The current thread is not bound to a workspace yet.",
+    "noSummary": "No summary",
+    "recallCount": "Recalled {{count}} times",
+    "lastUpdated": "Last updated: {{value}}"
   },
   "exportDialog": {
     "title": "Export Global Configuration",

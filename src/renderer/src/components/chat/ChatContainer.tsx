@@ -174,6 +174,7 @@ export function ChatContainer({
     messages: threadMessages,
     pendingApprovals,
     pendingApproval,
+    pendingMemoryPromotion,
     todos,
     error: threadError,
     workspacePath,
@@ -189,6 +190,7 @@ export function ChatContainer({
     setWorkspacePath,
     setPendingApprovals,
     setPendingApproval,
+    setPendingMemoryPromotion,
     appendMessage,
     setError,
     clearError,
@@ -329,6 +331,45 @@ export function ChatContainer({
       console.error("[ChatContainer] Failed to update approval mode:", error);
     }
   }, [approvalMode, setApprovalMode]);
+
+  const handleConfirmPromotion = useCallback(async (): Promise<void> => {
+    if (!pendingMemoryPromotion) {
+      return;
+    }
+
+    try {
+      const result = await window.api.skills.confirmPromotion(
+        pendingMemoryPromotion,
+      );
+      if (!result.success) {
+        throw new Error(result.error || "promotion failed");
+      }
+      setPendingMemoryPromotion(null);
+      toast.success("已生成全局技能");
+    } catch (error) {
+      console.error("[ChatContainer] Failed to confirm promotion:", error);
+      toast.error("技能晋升失败");
+    }
+  }, [pendingMemoryPromotion, setPendingMemoryPromotion]);
+
+  const handleRejectPromotion = useCallback(async (): Promise<void> => {
+    if (!pendingMemoryPromotion) {
+      return;
+    }
+
+    try {
+      const result = await window.api.skills.rejectPromotion(
+        pendingMemoryPromotion,
+      );
+      if (!result.success) {
+        throw new Error(result.error || "reject failed");
+      }
+      setPendingMemoryPromotion(null);
+    } catch (error) {
+      console.error("[ChatContainer] Failed to reject promotion:", error);
+      toast.error("忽略技能晋升失败");
+    }
+  }, [pendingMemoryPromotion, setPendingMemoryPromotion]);
 
   const agentValues = stream?.values as AgentStreamValues | undefined;
   const streamTodos = agentValues?.todos;
@@ -731,7 +772,7 @@ export function ChatContainer({
       observer.disconnect();
       window.removeEventListener("resize", updateOverlayInset);
     };
-  }, [pendingApproval, input, isLoading, streamTipTick]);
+  }, [pendingApproval, pendingMemoryPromotion, input, isLoading, streamTipTick]);
 
   useEffect(() => {
     const viewport = getViewport();
@@ -1197,6 +1238,43 @@ export function ChatContainer({
         ref={overlayRef}
         className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex flex-col items-center gap-3"
       >
+        {pendingMemoryPromotion && (
+          <div className="pointer-events-auto w-full max-w-4xl rounded-3xl border border-status-nominal/40 bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 text-sm">
+                <div className="flex items-start gap-2">
+                  <ShieldCheck className="mt-0.5 size-4 shrink-0 text-status-nominal" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-foreground">
+                      记忆已达到技能晋升阈值：{pendingMemoryPromotion.title}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground break-all">
+                      已召回 {pendingMemoryPromotion.recallCount} 次，阈值 {pendingMemoryPromotion.threshold} 次。确认后会写入全局 skills 目录。
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleRejectPromotion()}
+                >
+                  暂不晋升
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void handleConfirmPromotion()}
+                >
+                  生成全局技能
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {pendingApproval && (
           <div className="pointer-events-auto w-full max-w-4xl rounded-3xl border border-border bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

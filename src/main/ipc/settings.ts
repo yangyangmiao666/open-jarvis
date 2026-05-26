@@ -1,11 +1,37 @@
 import type {IpcMain} from "electron";
 import {BrowserWindow, Notification, dialog} from "electron";
 import * as fs from "fs/promises";
+import { getThread } from "../db";
+import { getWorkspaceMemoryDir } from "../memory-config";
 import {applyGlobalProxyDispatcher, getProxyConfigFromEnv} from "../proxy-config";
 import {getProxyConfig, setProxyConfig} from "../storage";
 import {exportGlobalConfig, importGlobalConfig} from "../global-config";
-import type {GlobalConfigExport, GlobalConfigImportMode, ProxyConfig} from "../types";
+import { getMemorySettings, setMemorySettings } from "../memory-settings";
+import { listWorkspaceMemoryDocuments } from "../services/memory-service";
+import type {GlobalConfigExport, GlobalConfigImportMode, MemoryDocumentSummary, MemorySettings, ProxyConfig, ThreadMetadata} from "../types";
 import {getEmbeddedToolingRuntime} from "../tooling";
+import Store from "electron-store";
+
+const store = new Store();
+
+function parseThreadMetadata(rawMetadata: unknown): ThreadMetadata {
+  if (!rawMetadata) {
+    return {};
+  }
+
+  if (typeof rawMetadata === "string") {
+    try {
+      const parsed = JSON.parse(rawMetadata) as unknown;
+      return parsed && typeof parsed === "object"
+        ? (parsed as ThreadMetadata)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return typeof rawMetadata === "object" ? (rawMetadata as ThreadMetadata) : {};
+}
 
 export function registerSettingsHandlers(ipcMain: IpcMain): void {
   ipcMain.handle("settings:getProxyConfig", (): ProxyConfig => {
@@ -18,6 +44,70 @@ export function registerSettingsHandlers(ipcMain: IpcMain): void {
       const nextConfig = setProxyConfig(config);
       await applyGlobalProxyDispatcher(getProxyConfigFromEnv());
       return nextConfig;
+    },
+  );
+
+  ipcMain.handle("settings:getMemorySettings", (): MemorySettings => {
+    return getMemorySettings();
+  });
+
+  ipcMain.handle(
+    "settings:setMemorySettings",
+    (_event, config: Partial<MemorySettings>): MemorySettings => {
+      return setMemorySettings(config);
+    },
+  );
+
+  ipcMain.handle(
+    "settings:listWorkspaceMemories",
+    async (_event, threadId?: string): Promise<{
+      success: boolean;
+      workspacePath: string | null;
+      memoryDir: string | null;
+      memories: MemoryDocumentSummary[];
+      error?: string;
+    }> => {
+      if (!threadId) {
+        return {
+          success: true,
+          workspacePath: null,
+          memoryDir: null,
+          memories: [],
+        };
+      }
+
+      try {
+        const thread = await getThread(threadId);
+        const metadata = parseThreadMetadata(thread?.metadata);
+        const workspacePath =
+          typeof metadata.workspacePath === "string"
+            ? metadata.workspacePath
+            : (store.get("workspacePath", null) as string | null);
+
+        if (!workspacePath) {
+          return {
+            success: true,
+            workspacePath: null,
+            memoryDir: null,
+            memories: [],
+          };
+        }
+
+        return {
+          success: true,
+          workspacePath,
+          memoryDir: getWorkspaceMemoryDir(workspacePath),
+          memories: await listWorkspaceMemoryDocuments(workspacePath),
+        };
+      } catch (error) {
+        return {
+          success: false,
+          workspacePath: null,
+          memoryDir: null,
+          memories: [],
+          error: error instanceof Error ? error.message : "list memories failed",
+        };
+      }
     },
   );
 
