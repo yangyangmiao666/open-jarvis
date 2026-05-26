@@ -105,6 +105,10 @@ export interface MemoryDocumentSummary {
   promotionStatus: "none" | "candidate" | "promoted" | "rejected";
 }
 
+export interface MemoryDocument extends MemoryDocumentSummary {
+  body: string;
+}
+
 export interface MemoryPromotionCandidate {
   workspacePath: string;
   memoryPath: string;
@@ -212,10 +216,7 @@ export type CustomModelThinkingEffort =
   | "xhigh"
   | "max";
 
-export type CustomModelReasoningContentMode =
-  | "auto"
-  | "enabled"
-  | "disabled";
+export type CustomModelReasoningContentMode = "auto" | "enabled" | "disabled";
 
 export type SettingsPanel =
   | "general"

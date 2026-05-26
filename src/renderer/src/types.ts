@@ -77,6 +77,10 @@ export interface MemoryDocumentSummary {
   promotionStatus: "none" | "candidate" | "promoted" | "rejected";
 }
 
+export interface MemoryDocument extends MemoryDocumentSummary {
+  body: string;
+}
+
 export interface MemoryPromotionCandidate {
   workspacePath: string;
   memoryPath: string;
@@ -107,12 +111,17 @@ export type CustomModelThinkingEffort =
   | "xhigh"
   | "max";
 
-export type CustomModelReasoningContentMode =
-  | "auto"
-  | "enabled"
-  | "disabled";
+export type CustomModelReasoningContentMode = "auto" | "enabled" | "disabled";
 
-export type SettingsPanel = "general" | "memory" | "models" | "proxy" | "skills" | "mcp" | "about" | "usage";
+export type SettingsPanel =
+  | "general"
+  | "memory"
+  | "models"
+  | "proxy"
+  | "skills"
+  | "mcp"
+  | "about"
+  | "usage";
 
 export interface SettingsOpenRequest {
   panel?: SettingsPanel;
@@ -120,9 +129,20 @@ export interface SettingsOpenRequest {
 }
 
 // Notification sound types
-export type NotificationSoundId = "ding" | "ding-dong" | "discord" | "done" | "down-power" | "food" | "lite" | "quiet" | "none";
+export type NotificationSoundId =
+  | "ding"
+  | "ding-dong"
+  | "discord"
+  | "done"
+  | "down-power"
+  | "food"
+  | "lite"
+  | "quiet"
+  | "none";
 export type NotificationSoundType = "taskComplete" | "permissionRequest";
-export type NotificationSoundSettings = Partial<Record<NotificationSoundType, NotificationSoundId>>;
+export type NotificationSoundSettings = Partial<
+  Record<NotificationSoundType, NotificationSoundId>
+>;
 
 /** User-defined OpenAI-compatible API endpoint (custom base URL + model id). */
 export type GlobalConfigImportMode = "merge" | "replace";

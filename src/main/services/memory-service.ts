@@ -10,6 +10,7 @@ import {
 import { logInfo, logWarn } from "../logger";
 import { getSkillPromotionThreshold } from "../memory-settings";
 import type {
+  MemoryDocument,
   MemoryDocumentSummary,
   MemoryPromotionCandidate,
 } from "../types";
@@ -218,7 +219,9 @@ function getToolCallName(toolCall: UnknownRecord): string {
   return typeof functionRecord?.name === "string" ? functionRecord.name : "";
 }
 
-function getToolCallArgs(toolCall: UnknownRecord): Record<string, unknown> | null {
+function getToolCallArgs(
+  toolCall: UnknownRecord,
+): Record<string, unknown> | null {
   const directArgs = parseToolArgs(toolCall.args);
   if (directArgs) {
     return directArgs;
@@ -245,11 +248,30 @@ function getToolCallPath(args: Record<string, unknown> | null): string {
 
 function normalizeMemoryRoutePath(rawPath: string): string | null {
   const trimmed = rawPath.trim();
-  return trimmed.startsWith(MEMORY_ROUTE_PREFIX) ? trimmed : null;
+  if (!trimmed) {
+    return null;
+  }
+
+  const normalized = path.posix.normalize(
+    trimmed.startsWith("/") ? trimmed : `/${trimmed}`,
+  );
+  if (
+    !normalized.startsWith(MEMORY_ROUTE_PREFIX) ||
+    !normalized.endsWith(".md")
+  ) {
+    return null;
+  }
+
+  return normalized;
 }
 
 function routePathToRelativePath(routePath: string): string {
-  return routePath.slice(MEMORY_ROUTE_PREFIX.length).replace(/^\//, "");
+  const normalized = normalizeMemoryRoutePath(routePath);
+  if (!normalized) {
+    throw new Error("Invalid memory route path");
+  }
+
+  return normalized.slice(MEMORY_ROUTE_PREFIX.length).replace(/^\//, "");
 }
 
 function slugifyTopicName(raw: string): string {
@@ -292,7 +314,9 @@ function calculateMemorySimilarity(
   const documentTokens = new Set([
     ...tokenizeForSimilarity(document.frontmatter.title),
     ...tokenizeForSimilarity(document.frontmatter.summary),
-    ...document.frontmatter.keywords.flatMap((keyword) => tokenizeForSimilarity(keyword)),
+    ...document.frontmatter.keywords.flatMap((keyword) =>
+      tokenizeForSimilarity(keyword),
+    ),
   ]);
 
   if (draftTokens.size === 0 || documentTokens.size === 0) {
@@ -321,8 +345,13 @@ function resolveMemoryRoutePath(
     return recalledExisting.routePath;
   }
 
-  const requestedRoutePath = ensureTopicRoutePath(draft.target_path, draft.title);
-  const exactExisting = existingDocs.find((doc) => doc.routePath === requestedRoutePath);
+  const requestedRoutePath = ensureTopicRoutePath(
+    draft.target_path,
+    draft.title,
+  );
+  const exactExisting = existingDocs.find(
+    (doc) => doc.routePath === requestedRoutePath,
+  );
   if (exactExisting) {
     return exactExisting.routePath;
   }
@@ -357,7 +386,10 @@ function routePathToFilePath(workspacePath: string, routePath: string): string {
 }
 
 function filePathToRoutePath(workspacePath: string, filePath: string): string {
-  const relativePath = path.relative(getWorkspaceMemoryDir(workspacePath), filePath);
+  const relativePath = path.relative(
+    getWorkspaceMemoryDir(workspacePath),
+    filePath,
+  );
   return `${MEMORY_ROUTE_PREFIX}${relativePath.replace(/\\/g, "/")}`;
 }
 
@@ -409,9 +441,8 @@ function parseFrontmatter(markdown: string): {
         frontmatter[key] = value.replace(/^"|"$/g, "");
         break;
       case "lastRecalledAt":
-        frontmatter.lastRecalledAt = value === "null"
-          ? null
-          : value.replace(/^"|"$/g, "");
+        frontmatter.lastRecalledAt =
+          value === "null" ? null : value.replace(/^"|"$/g, "");
         break;
       case "recallCount":
         frontmatter.recallCount = Number.parseInt(value, 10) || 0;
@@ -439,9 +470,16 @@ function parseFrontmatter(markdown: string): {
   return { frontmatter, body };
 }
 
-function serializeMemoryDocument(frontmatter: MemoryFrontmatter, body: string): string {
-  const keywordLines = frontmatter.keywords.map((keyword) => `  - ${keyword}`).join("\n");
-  const workspaceLines = frontmatter.workspaceTags.map((tag) => `  - ${tag}`).join("\n");
+function serializeMemoryDocument(
+  frontmatter: MemoryFrontmatter,
+  body: string,
+): string {
+  const keywordLines = frontmatter.keywords
+    .map((keyword) => `  - ${keyword}`)
+    .join("\n");
+  const workspaceLines = frontmatter.workspaceTags
+    .map((tag) => `  - ${tag}`)
+    .join("\n");
 
   return `---
 title: "${frontmatter.title.replace(/"/g, '\\"')}"
@@ -466,9 +504,10 @@ function buildSkillMarkdownFromMemory(
   body: string,
 ): string {
   const description = `${frontmatter.title} 的通用处理方法、操作流程与注意事项。`;
-  const keywords = frontmatter.keywords.length > 0
-    ? frontmatter.keywords.join("、")
-    : frontmatter.title;
+  const keywords =
+    frontmatter.keywords.length > 0
+      ? frontmatter.keywords.join("、")
+      : frontmatter.title;
 
   return `---
 name: ${toSkillName(frontmatter.title)}
@@ -587,7 +626,8 @@ function extractConversationTranscript(state: unknown): string {
       continue;
     }
 
-    const printable = content || (toolCallSummary ? `tool_calls: ${toolCallSummary}` : "");
+    const printable =
+      content || (toolCallSummary ? `tool_calls: ${toolCallSummary}` : "");
     if (printable) {
       lines.push(`Assistant: ${printable}`);
     }
@@ -675,7 +715,9 @@ async function listMemoryDocuments(
   );
 
   return documents.sort((left, right) =>
-    right.frontmatter.lastUpdatedAt.localeCompare(left.frontmatter.lastUpdatedAt),
+    right.frontmatter.lastUpdatedAt.localeCompare(
+      left.frontmatter.lastUpdatedAt,
+    ),
   );
 }
 
@@ -687,7 +729,11 @@ async function writeMemoryDocument(
 ): Promise<void> {
   const filePath = routePathToFilePath(workspacePath, routePath);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, serializeMemoryDocument(frontmatter, body), "utf-8");
+  await fs.writeFile(
+    filePath,
+    serializeMemoryDocument(frontmatter, body),
+    "utf-8",
+  );
 }
 
 async function updateRecallCounts(
@@ -721,7 +767,12 @@ async function updateRecallCounts(
       promotionStatus: parsed.frontmatter.promotionStatus ?? "none",
     };
 
-    await writeMemoryDocument(workspacePath, routePath, frontmatter, parsed.body);
+    await writeMemoryDocument(
+      workspacePath,
+      routePath,
+      frontmatter,
+      parsed.body,
+    );
   }
 }
 
@@ -790,13 +841,12 @@ async function generateMemoryDraft(options: {
   recalledMemoryPaths: string[];
   existingDocs: MemoryDocumentRecord[];
 }): Promise<GeneratedMemoryDraft | null> {
-  const existingSummaries = options.existingDocs
-    .map((doc) => ({
-      path: doc.routePath,
-      title: doc.frontmatter.title,
-      summary: doc.frontmatter.summary,
-      keywords: doc.frontmatter.keywords,
-    }));
+  const existingSummaries = options.existingDocs.map((doc) => ({
+    path: doc.routePath,
+    title: doc.frontmatter.title,
+    summary: doc.frontmatter.summary,
+    keywords: doc.frontmatter.keywords,
+  }));
 
   const response = await options.model.invoke([
     new SystemMessage(MEMORY_SYSTEM_PROMPT),
@@ -914,11 +964,170 @@ export async function listWorkspaceMemoryDocuments(
 ): Promise<MemoryDocumentSummary[]> {
   const documents = await listMemoryDocuments(workspacePath);
   return documents.map((document) => ({
-      routePath: document.routePath,
-      title: document.frontmatter.title,
-      summary: document.frontmatter.summary,
-      recallCount: document.frontmatter.recallCount,
-      lastUpdatedAt: document.frontmatter.lastUpdatedAt,
-      promotionStatus: document.frontmatter.promotionStatus,
-    }));
+    routePath: document.routePath,
+    title: document.frontmatter.title,
+    summary: document.frontmatter.summary,
+    recallCount: document.frontmatter.recallCount,
+    lastUpdatedAt: document.frontmatter.lastUpdatedAt,
+    promotionStatus: document.frontmatter.promotionStatus,
+  }));
+}
+
+export async function getWorkspaceMemoryDocument(
+  workspacePath: string,
+  routePath: string,
+): Promise<MemoryDocument | null> {
+  const normalizedRoutePath = normalizeMemoryRoutePath(routePath);
+  if (!normalizedRoutePath) {
+    return null;
+  }
+
+  const filePath = routePathToFilePath(workspacePath, normalizedRoutePath);
+  try {
+    const markdown = await fs.readFile(filePath, "utf-8");
+    const parsed = parseFrontmatter(markdown);
+    const stats = await fs.stat(filePath);
+    return {
+      routePath: normalizedRoutePath,
+      title: parsed.frontmatter.title ?? pathTitleFallback(normalizedRoutePath),
+      summary: parsed.frontmatter.summary ?? "",
+      recallCount: parsed.frontmatter.recallCount ?? 0,
+      lastUpdatedAt:
+        parsed.frontmatter.lastUpdatedAt ?? stats.mtime.toISOString(),
+      promotionStatus: parsed.frontmatter.promotionStatus ?? "none",
+      body: parsed.body,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function createMemoryPromotionCandidate(
+  workspacePath: string,
+  routePath: string,
+): Promise<MemoryPromotionCandidate | null> {
+  const normalizedRoutePath = normalizeMemoryRoutePath(routePath);
+  if (!normalizedRoutePath) {
+    return null;
+  }
+
+  const filePath = routePathToFilePath(workspacePath, normalizedRoutePath);
+  try {
+    const markdown = await fs.readFile(filePath, "utf-8");
+    const parsed = parseFrontmatter(markdown);
+    const frontmatter: MemoryFrontmatter = {
+      title: parsed.frontmatter.title ?? pathTitleFallback(normalizedRoutePath),
+      summary: parsed.frontmatter.summary ?? "",
+      keywords: parsed.frontmatter.keywords ?? [],
+      workspaceTags: parsed.frontmatter.workspaceTags ?? [],
+      recallCount: parsed.frontmatter.recallCount ?? 0,
+      lastRecalledAt: parsed.frontmatter.lastRecalledAt ?? null,
+      lastUpdatedAt:
+        parsed.frontmatter.lastUpdatedAt ?? new Date().toISOString(),
+      promotionStatus: parsed.frontmatter.promotionStatus ?? "none",
+    };
+
+    return {
+      workspacePath,
+      memoryPath: normalizedRoutePath,
+      title: frontmatter.title,
+      summary: frontmatter.summary,
+      skillName: toSkillName(frontmatter.title),
+      skillMarkdown: buildSkillMarkdownFromMemory(
+        normalizedRoutePath,
+        frontmatter,
+        parsed.body,
+      ),
+      recallCount: frontmatter.recallCount,
+      threshold: getSkillPromotionThreshold(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function updateWorkspaceMemoryDocument(
+  workspacePath: string,
+  routePath: string,
+  updates: { title: string; summary: string; body: string },
+): Promise<MemoryDocumentSummary | null> {
+  const normalizedRoutePath = normalizeMemoryRoutePath(routePath);
+  if (!normalizedRoutePath) {
+    return null;
+  }
+
+  const filePath = routePathToFilePath(workspacePath, normalizedRoutePath);
+  let markdown = "";
+  try {
+    markdown = await fs.readFile(filePath, "utf-8");
+  } catch {
+    return null;
+  }
+
+  const parsed = parseFrontmatter(markdown);
+  const now = new Date().toISOString();
+  const title = updates.title.trim() || pathTitleFallback(normalizedRoutePath);
+  const summary = updates.summary.trim();
+  const frontmatter: MemoryFrontmatter = {
+    title,
+    summary,
+    keywords: parsed.frontmatter.keywords ?? [],
+    workspaceTags: parsed.frontmatter.workspaceTags ?? [],
+    recallCount: parsed.frontmatter.recallCount ?? 0,
+    lastRecalledAt: parsed.frontmatter.lastRecalledAt ?? null,
+    lastUpdatedAt: now,
+    promotionStatus: parsed.frontmatter.promotionStatus ?? "none",
+  };
+
+  await writeMemoryDocument(
+    workspacePath,
+    normalizedRoutePath,
+    frontmatter,
+    updates.body,
+  );
+  return {
+    routePath: normalizedRoutePath,
+    title,
+    summary,
+    recallCount: frontmatter.recallCount,
+    lastUpdatedAt: frontmatter.lastUpdatedAt,
+    promotionStatus: frontmatter.promotionStatus,
+  };
+}
+
+async function removeEmptyMemoryDirectories(
+  rootDir: string,
+  startDir: string,
+): Promise<void> {
+  let currentDir = startDir;
+  while (currentDir.startsWith(rootDir) && currentDir !== rootDir) {
+    const entries = await fs.readdir(currentDir);
+    if (entries.length > 0) {
+      return;
+    }
+
+    await fs.rmdir(currentDir);
+    currentDir = path.dirname(currentDir);
+  }
+}
+
+export async function deleteWorkspaceMemoryDocument(
+  workspacePath: string,
+  routePath: string,
+): Promise<boolean> {
+  const normalizedRoutePath = normalizeMemoryRoutePath(routePath);
+  if (!normalizedRoutePath) {
+    return false;
+  }
+
+  const memoryRoot = getWorkspaceMemoryDir(workspacePath);
+  const filePath = routePathToFilePath(workspacePath, normalizedRoutePath);
+  try {
+    await fs.access(filePath);
+    await fs.rm(filePath);
+    await removeEmptyMemoryDirectories(memoryRoot, path.dirname(filePath));
+    return true;
+  } catch {
+    return false;
+  }
 }

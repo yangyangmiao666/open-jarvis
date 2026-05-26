@@ -11,6 +11,7 @@ import type {
   OpenAICompatibleProfile,
   ProxyConfig,
   GlobalConfigImportResult,
+  MemoryDocument,
   MemoryDocumentSummary,
   MemoryPromotionCandidate,
   MemorySettings,
@@ -116,7 +117,9 @@ interface CustomAPI {
     getProxyConfig: () => Promise<ProxyConfig>;
     setProxyConfig: (config: ProxyConfig) => Promise<ProxyConfig>;
     getMemorySettings: () => Promise<MemorySettings>;
-    setMemorySettings: (config: Partial<MemorySettings>) => Promise<MemorySettings>;
+    setMemorySettings: (
+      config: Partial<MemorySettings>,
+    ) => Promise<MemorySettings>;
     listWorkspaceMemories: (threadId?: string) => Promise<{
       success: boolean;
       workspacePath: string | null;
@@ -124,16 +127,42 @@ interface CustomAPI {
       memories: MemoryDocumentSummary[];
       error?: string;
     }>;
-    exportGlobalConfigToFile: (
-      options: { includeApiKeys: boolean },
-    ) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+    getWorkspaceMemoryDocument: (
+      threadId: string | undefined,
+      routePath: string,
+    ) => Promise<{
+      success: boolean;
+      document?: MemoryDocument;
+      error?: string;
+    }>;
+    updateWorkspaceMemoryDocument: (
+      threadId: string | undefined,
+      routePath: string,
+      updates: { title: string; summary: string; body: string },
+    ) => Promise<{
+      success: boolean;
+      document?: MemoryDocumentSummary;
+      error?: string;
+    }>;
+    deleteWorkspaceMemoryDocument: (
+      threadId: string | undefined,
+      routePath: string,
+    ) => Promise<{ success: boolean; error?: string }>;
+    exportGlobalConfigToFile: (options: {
+      includeApiKeys: boolean;
+    }) => Promise<{ success: boolean; filePath?: string; error?: string }>;
     importGlobalConfigFromFile: (
       mode: "merge" | "replace",
     ) => Promise<GlobalConfigImportResult>;
-    getToolingVersions: () => Promise<{ bun: string | null; uv: string | null; python: string | null }>;
-    showDesktopNotification: (
-      payload: { title: string; body: string },
-    ) => Promise<{ success: boolean; error?: string }>;
+    getToolingVersions: () => Promise<{
+      bun: string | null;
+      uv: string | null;
+      python: string | null;
+    }>;
+    showDesktopNotification: (payload: {
+      title: string;
+      body: string;
+    }) => Promise<{ success: boolean; error?: string }>;
   };
   workspace: {
     get: (threadId?: string) => Promise<string | null>;
@@ -214,6 +243,10 @@ interface CustomAPI {
     ) => Promise<{ success: boolean; folder?: string; error?: string }>;
     confirmPromotion: (
       candidate: MemoryPromotionCandidate,
+    ) => Promise<{ success: boolean; folder?: string; error?: string }>;
+    settleMemoryAsSkill: (
+      workspacePath: string,
+      routePath: string,
     ) => Promise<{ success: boolean; folder?: string; error?: string }>;
     rejectPromotion: (
       candidate: MemoryPromotionCandidate,

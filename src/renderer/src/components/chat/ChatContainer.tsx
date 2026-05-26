@@ -38,12 +38,12 @@ import { messagesToMarkdown } from "@/lib/chat-markdown";
 import { toast } from "@/lib/toast";
 
 const STREAMING_BASE_TIPS = [
-  i18n.t('streaming.tip1', { ns: 'chat' }),
-  i18n.t('streaming.tip2', { ns: 'chat' }),
-  i18n.t('streaming.tip3', { ns: 'chat' }),
-  i18n.t('streaming.tip4', { ns: 'chat' }),
-  i18n.t('streaming.tip5', { ns: 'chat' }),
-  i18n.t('streaming.tip6', { ns: 'chat' }),
+  i18n.t("streaming.tip1", { ns: "chat" }),
+  i18n.t("streaming.tip2", { ns: "chat" }),
+  i18n.t("streaming.tip3", { ns: "chat" }),
+  i18n.t("streaming.tip4", { ns: "chat" }),
+  i18n.t("streaming.tip5", { ns: "chat" }),
+  i18n.t("streaming.tip6", { ns: "chat" }),
 ];
 
 function buildStreamingTips(params: {
@@ -80,37 +80,64 @@ function buildStreamingTips(params: {
 
   const tips = [
     activeTodo
-      ? i18n.t('streaming.pushingTodo', { ns: 'chat', content: truncate(activeTodo.content.replace(/\s+/g, " "), 46) })
+      ? i18n.t("streaming.pushingTodo", {
+          ns: "chat",
+          content: truncate(activeTodo.content.replace(/\s+/g, " "), 46),
+        })
       : null,
     completedCount > 0
-      ? i18n.t('streaming.completedSteps', { ns: 'chat', count: completedCount })
+      ? i18n.t("streaming.completedSteps", {
+          ns: "chat",
+          count: completedCount,
+        })
       : null,
     queuedCount > 1
-      ? i18n.t('streaming.remainingSteps', { ns: 'chat', count: queuedCount - 1 })
+      ? i18n.t("streaming.remainingSteps", {
+          ns: "chat",
+          count: queuedCount - 1,
+        })
       : null,
     workspaceName
-      ? i18n.t('streaming.workspaceContext', { ns: 'chat', name: workspaceName })
+      ? i18n.t("streaming.workspaceContext", {
+          ns: "chat",
+          name: workspaceName,
+        })
       : null,
     workspaceName && workspaceFileCount > 0
-      ? i18n.t('streaming.workspaceFiles', { ns: 'chat', count: workspaceFileCount })
+      ? i18n.t("streaming.workspaceFiles", {
+          ns: "chat",
+          count: workspaceFileCount,
+        })
       : null,
     referencedPaths.length > 0
-      ? i18n.t('streaming.referencedPaths', { ns: 'chat', count: referencedPaths.length })
+      ? i18n.t("streaming.referencedPaths", {
+          ns: "chat",
+          count: referencedPaths.length,
+        })
       : null,
     toolSummary.length > 0
-      ? i18n.t('streaming.recentTools', { ns: 'chat', tools: toolSummary.join("、") })
+      ? i18n.t("streaming.recentTools", {
+          ns: "chat",
+          tools: toolSummary.join("、"),
+        })
       : null,
     currentModelLabel
-      ? i18n.t('streaming.currentModel', { ns: 'chat', label: currentModelLabel })
+      ? i18n.t("streaming.currentModel", {
+          ns: "chat",
+          label: currentModelLabel,
+        })
       : null,
     messageCount > 3
-      ? i18n.t('streaming.messageCount', { ns: 'chat', count: messageCount })
+      ? i18n.t("streaming.messageCount", { ns: "chat", count: messageCount })
       : null,
     approvalMode === "auto"
-      ? i18n.t('streaming.autoApprovalMode', { ns: 'chat' })
-      : i18n.t('streaming.manualApprovalMode', { ns: 'chat' }),
+      ? i18n.t("streaming.autoApprovalMode", { ns: "chat" })
+      : i18n.t("streaming.manualApprovalMode", { ns: "chat" }),
     pendingApprovalName
-      ? i18n.t('streaming.pendingApproval', { ns: 'chat', name: pendingApprovalName })
+      ? i18n.t("streaming.pendingApproval", {
+          ns: "chat",
+          name: pendingApprovalName,
+        })
       : null,
     ...STREAMING_BASE_TIPS,
   ].filter((tip): tip is string => Boolean(tip));
@@ -142,7 +169,7 @@ export function ChatContainer({
   onOpenSettings,
 }: ChatContainerProps): React.JSX.Element {
   const TASK_COMPLETE_NOTIFICATION_DELAY_MS = 100;
-  const { t } = useTranslation('chat');
+  const { t } = useTranslation("chat");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mentionListRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -161,9 +188,8 @@ export function ChatContainer({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState("");
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
-  const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<Message | null>(
-    null,
-  );
+  const [deleteConfirmMessage, setDeleteConfirmMessage] =
+    useState<Message | null>(null);
   const taskCompleteNotificationTimeoutRef = useRef<number | null>(null);
 
   const { threads, models, loadThreads, generateTitleForFirstMessage } =
@@ -345,10 +371,10 @@ export function ChatContainer({
         throw new Error(result.error || "promotion failed");
       }
       setPendingMemoryPromotion(null);
-      toast.success("已生成全局技能");
+      toast.success("记忆已沉淀为全局技能");
     } catch (error) {
       console.error("[ChatContainer] Failed to confirm promotion:", error);
-      toast.error("技能晋升失败");
+      toast.error("记忆沉淀为技能失败");
     }
   }, [pendingMemoryPromotion, setPendingMemoryPromotion]);
 
@@ -367,7 +393,7 @@ export function ChatContainer({
       setPendingMemoryPromotion(null);
     } catch (error) {
       console.error("[ChatContainer] Failed to reject promotion:", error);
-      toast.error("忽略技能晋升失败");
+      toast.error("暂不沉淀记忆失败");
     }
   }, [pendingMemoryPromotion, setPendingMemoryPromotion]);
 
@@ -442,9 +468,10 @@ export function ChatContainer({
     isCancelling,
   ]);
 
-  useEffect(() => clearPendingTaskCompleteNotification, [
-    clearPendingTaskCompleteNotification,
-  ]);
+  useEffect(
+    () => clearPendingTaskCompleteNotification,
+    [clearPendingTaskCompleteNotification],
+  );
 
   useEffect(() => {
     if (prevLoadingRef.current && !isLoading) {
@@ -465,8 +492,8 @@ export function ChatContainer({
 
         const currentNotificationState = useAppStore.getState();
         sendDesktopNotification(
-          t('notification.taskComplete'),
-          t('notification.taskCompleteBody'),
+          t("notification.taskComplete"),
+          t("notification.taskCompleteBody"),
           {
             force: true,
             soundType: "taskComplete",
@@ -537,7 +564,19 @@ export function ChatContainer({
       }
     }
     prevLoadingRef.current = isLoading;
-  }, [isLoading, streamData.messages, loadThreads, appendMessage, interruptionQueue, stream, threadId, currentModel, clearInterruptionQueue, clearPendingTaskCompleteNotification, t]);
+  }, [
+    isLoading,
+    streamData.messages,
+    loadThreads,
+    appendMessage,
+    interruptionQueue,
+    stream,
+    threadId,
+    currentModel,
+    clearInterruptionQueue,
+    clearPendingTaskCompleteNotification,
+    t,
+  ]);
 
   const displayMessages = useMemo(() => {
     if (!isLoading) {
@@ -621,7 +660,10 @@ export function ChatContainer({
         : 0;
   const pendingApprovalLabel =
     pendingApprovalCount > 1 && pendingApproval
-      ? t('approval.multipleToolCalls', { name: pendingApproval.tool_call.name, count: pendingApprovalCount })
+      ? t("approval.multipleToolCalls", {
+          name: pendingApproval.tool_call.name,
+          count: pendingApprovalCount,
+        })
       : pendingApproval?.tool_call?.name;
 
   const streamingTips = useMemo(
@@ -694,9 +736,9 @@ export function ChatContainer({
     if (!md) return;
     try {
       await navigator.clipboard.writeText(md);
-      toast.success(t('toast.copiedToClipboard', { ns: 'common' }));
+      toast.success(t("toast.copiedToClipboard", { ns: "common" }));
     } catch {
-      toast.error(t('toast.copyFailed', { ns: 'common' }));
+      toast.error(t("toast.copyFailed", { ns: "common" }));
     }
   }, [displayMessages, t, toolResults]);
 
@@ -772,7 +814,13 @@ export function ChatContainer({
       observer.disconnect();
       window.removeEventListener("resize", updateOverlayInset);
     };
-  }, [pendingApproval, pendingMemoryPromotion, input, isLoading, streamTipTick]);
+  }, [
+    pendingApproval,
+    pendingMemoryPromotion,
+    input,
+    isLoading,
+    streamTipTick,
+  ]);
 
   useEffect(() => {
     const viewport = getViewport();
@@ -804,7 +852,7 @@ export function ChatContainer({
       if (!messageText.trim() || !stream) return;
 
       if (!workspacePath) {
-        setError(t('selectWorkspaceFirst'));
+        setError(t("selectWorkspaceFirst"));
         return;
       }
 
@@ -842,7 +890,7 @@ export function ChatContainer({
         const currentThread = threads.find((th) => th.thread_id === threadId);
         const hasDefaultTitle =
           Boolean(currentThread?.title?.startsWith("Thread ")) ||
-          Boolean(currentThread?.title?.startsWith(t('emptyState.newSession')));
+          Boolean(currentThread?.title?.startsWith(t("emptyState.newSession")));
         if (hasDefaultTitle) {
           generateTitleForFirstMessage(threadId, messageText);
         }
@@ -866,7 +914,26 @@ export function ChatContainer({
       );
       setReferencedPaths([]);
     },
-    [appendMessage, clearError, currentModel, enqueueInterruption, generateTitleForFirstMessage, isLoading, pendingApproval, referencedPaths, setError, setInput, setPendingApproval, stream, t, threadError, threadId, threadMessages.length, threads, workspacePath],
+    [
+      appendMessage,
+      clearError,
+      currentModel,
+      enqueueInterruption,
+      generateTitleForFirstMessage,
+      isLoading,
+      pendingApproval,
+      referencedPaths,
+      setError,
+      setInput,
+      setPendingApproval,
+      stream,
+      t,
+      threadError,
+      threadId,
+      threadMessages.length,
+      threads,
+      workspacePath,
+    ],
   );
 
   const handleDismissError = (): void => {
@@ -875,13 +942,17 @@ export function ChatContainer({
 
   const rewindThreadToMessage = useCallback(
     async (message: Message): Promise<number> => {
-      const rewindIndex = threadMessages.findIndex((item) => item.id === message.id);
+      const rewindIndex = threadMessages.findIndex(
+        (item) => item.id === message.id,
+      );
       if (rewindIndex === -1) {
         throw new Error("MESSAGE_NOT_FOUND");
       }
 
       const messageText = extractMessageText(message);
-      const hasToolCalls = Boolean(message.tool_calls && message.tool_calls.length > 0);
+      const hasToolCalls = Boolean(
+        message.tool_calls && message.tool_calls.length > 0,
+      );
       if (!messageText && !hasToolCalls) {
         throw new Error("MESSAGE_EMPTY");
       }
@@ -924,13 +995,26 @@ export function ChatContainer({
       } catch (error) {
         console.error("[ChatContainer] Failed to resend message:", error);
         if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
-          setError(t('toast.resendNotFound'));
+          setError(t("toast.resendNotFound"));
           return;
         }
-        setError(t('toast.resendFailed'));
+        setError(t("toast.resendFailed"));
       }
     },
-    [isLoading, extractMessageText, rewindThreadToMessage, setMessages, threadMessages, setPendingApprovals, setPendingApproval, setTodos, clearError, submitUserMessage, setError, t],
+    [
+      isLoading,
+      extractMessageText,
+      rewindThreadToMessage,
+      setMessages,
+      threadMessages,
+      setPendingApprovals,
+      setPendingApproval,
+      setTodos,
+      clearError,
+      submitUserMessage,
+      setError,
+      t,
+    ],
   );
 
   const handleEditMessage = useCallback(
@@ -982,22 +1066,43 @@ export function ChatContainer({
         setEditingDraft("");
         await submitUserMessage(nextMessageText);
       } catch (error) {
-        console.error("[ChatContainer] Failed to submit edited message:", error);
+        console.error(
+          "[ChatContainer] Failed to submit edited message:",
+          error,
+        );
         if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
-          setError(t('toast.editNotFound'));
+          setError(t("toast.editNotFound"));
         } else {
-          setError(t('toast.editSendFailed'));
+          setError(t("toast.editSendFailed"));
         }
       } finally {
         setIsSubmittingEdit(false);
       }
     },
-    [clearError, editingDraft, isLoading, isSubmittingEdit, rewindThreadToMessage, setError, setMessages, setPendingApproval, setPendingApprovals, setTodos, submitUserMessage, t, threadMessages],
+    [
+      clearError,
+      editingDraft,
+      isLoading,
+      isSubmittingEdit,
+      rewindThreadToMessage,
+      setError,
+      setMessages,
+      setPendingApproval,
+      setPendingApprovals,
+      setTodos,
+      submitUserMessage,
+      t,
+      threadMessages,
+    ],
   );
 
   const handleDeleteMessage = useCallback(
     async (message: Message): Promise<void> => {
-      if ((message.role !== "user" && message.role !== "assistant") || isLoading) return;
+      if (
+        (message.role !== "user" && message.role !== "assistant") ||
+        isLoading
+      )
+        return;
 
       setDeleteConfirmMessage(message);
     },
@@ -1017,17 +1122,28 @@ export function ChatContainer({
       setReferencedPaths([]);
       clearError();
       setDeleteConfirmMessage(null);
-      toast.success(t('toast.messageDeleted'));
+      toast.success(t("toast.messageDeleted"));
     } catch (error) {
       console.error("[ChatContainer] Failed to delete message:", error);
       setDeleteConfirmMessage(null);
       if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
-        setError(t('toast.deleteNotFound'));
+        setError(t("toast.deleteNotFound"));
         return;
       }
-      setError(t('toast.deleteFailed'));
+      setError(t("toast.deleteFailed"));
     }
-  }, [clearError, deleteConfirmMessage, rewindThreadToMessage, setError, setMessages, setPendingApproval, setPendingApprovals, setTodos, t, threadMessages]);
+  }, [
+    clearError,
+    deleteConfirmMessage,
+    rewindThreadToMessage,
+    setError,
+    setMessages,
+    setPendingApproval,
+    setPendingApprovals,
+    setTodos,
+    t,
+    threadMessages,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (mentionOpen && mentionCandidates.length > 0) {
@@ -1085,10 +1201,7 @@ export function ChatContainer({
     setIsCancelling(true);
     clearInterruptionQueue();
     try {
-      await Promise.all([
-        window.api.agent.cancel(threadId),
-        stream?.stop(),
-      ]);
+      await Promise.all([window.api.agent.cancel(threadId), stream?.stop()]);
     } catch (error) {
       setIsCancelling(false);
       console.error("[ChatContainer] Failed to cancel active run:", error);
@@ -1119,27 +1232,29 @@ export function ChatContainer({
                 <div className="relative flex flex-col items-center gap-4">
                   <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background-elevated px-3 py-1 text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
                     <span className="size-1.5 rounded-full bg-foreground" />
-                    {t('emptyState.newSession')}
+                    {t("emptyState.newSession")}
                   </div>
                   {workspacePath ? (
                     <>
                       <div className="space-y-3">
                         <div className="text-2xl font-semibold tracking-[-0.04em] text-foreground sm:text-[2rem]">
-                          {t('emptyState.startFromWorkspace')}
+                          {t("emptyState.startFromWorkspace")}
                         </div>
                         <div className="mx-auto max-w-xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-                          {t('emptyState.connectedWorkspace')}
+                          {t("emptyState.connectedWorkspace")}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
                         <span className="rounded-full border border-border bg-background-elevated px-3 py-1.5">
-                          {t('emptyState.currentDir', { folder: workspacePath.split("/").pop() })}
+                          {t("emptyState.currentDir", {
+                            folder: workspacePath.split("/").pop(),
+                          })}
                         </span>
                         <span className="rounded-full border border-border bg-background-elevated px-3 py-1.5">
-                          {t('emptyState.trySuggestion')}
+                          {t("emptyState.trySuggestion")}
                         </span>
                         <span className="rounded-full border border-border bg-background-elevated px-3 py-1.5">
-                          {t('emptyState.orSuggestion')}
+                          {t("emptyState.orSuggestion")}
                         </span>
                       </div>
                     </>
@@ -1147,10 +1262,10 @@ export function ChatContainer({
                     <div className="space-y-4 text-center text-sm">
                       <div className="space-y-1">
                         <span className="text-base font-medium text-status-warning">
-                          {t('emptyState.selectWorkspace')}
+                          {t("emptyState.selectWorkspace")}
                         </span>
                         <span className="mt-1 block text-xs opacity-80">
-                          {t('emptyState.agentNeedsWorkspace')}
+                          {t("emptyState.agentNeedsWorkspace")}
                         </span>
                       </div>
                       <button
@@ -1160,7 +1275,7 @@ export function ChatContainer({
                       >
                         <Folder className="size-3.5" />
                         <span className="max-w-30 truncate">
-                          {t('emptyState.chooseWorkspace')}
+                          {t("emptyState.chooseWorkspace")}
                         </span>
                       </button>
                     </div>
@@ -1178,10 +1293,17 @@ export function ChatContainer({
                 isStreaming={streamingAssistantIds.has(message.id)}
                 canResend={!isLoading && message.role === "user"}
                 canEdit={!isLoading && message.role === "user"}
-                canDelete={!isLoading && (message.role === "user" || message.role === "assistant")}
+                canDelete={
+                  !isLoading &&
+                  (message.role === "user" || message.role === "assistant")
+                }
                 isEditing={editingMessageId === message.id}
-                editDraft={editingMessageId === message.id ? editingDraft : undefined}
-                isSubmittingEdit={isSubmittingEdit && editingMessageId === message.id}
+                editDraft={
+                  editingMessageId === message.id ? editingDraft : undefined
+                }
+                isSubmittingEdit={
+                  isSubmittingEdit && editingMessageId === message.id
+                }
                 toolResults={toolResults}
                 pendingApprovals={pendingApprovals}
                 pendingApproval={pendingApproval}
@@ -1207,19 +1329,19 @@ export function ChatContainer({
                 <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-destructive text-sm">
-                    {t('error.agentError')}
+                    {t("error.agentError")}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1 wrap-break-word">
                     {threadError}
                   </div>
                   <div className="text-xs text-muted-foreground mt-2">
-                    {t('error.tryResend')}
+                    {t("error.tryResend")}
                   </div>
                 </div>
                 <button
                   onClick={handleDismissError}
                   className="shrink-0 rounded p-1 hover:bg-destructive/20 transition-colors"
-                  aria-label={t('error.closeError')}
+                  aria-label={t("error.closeError")}
                 >
                   <X className="size-4 text-muted-foreground" />
                 </button>
@@ -1246,10 +1368,12 @@ export function ChatContainer({
                   <ShieldCheck className="mt-0.5 size-4 shrink-0 text-status-nominal" />
                   <div className="min-w-0">
                     <div className="font-medium text-foreground">
-                      记忆已达到技能晋升阈值：{pendingMemoryPromotion.title}
+                      记忆已达到技能沉淀阈值：{pendingMemoryPromotion.title}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground break-all">
-                      已召回 {pendingMemoryPromotion.recallCount} 次，阈值 {pendingMemoryPromotion.threshold} 次。确认后会写入全局 skills 目录。
+                      已召回 {pendingMemoryPromotion.recallCount} 次，阈值{" "}
+                      {pendingMemoryPromotion.threshold} 次。确认后会沉淀到全局
+                      skills 目录。
                     </div>
                   </div>
                 </div>
@@ -1261,14 +1385,14 @@ export function ChatContainer({
                   size="sm"
                   onClick={() => void handleRejectPromotion()}
                 >
-                  暂不晋升
+                  暂不沉淀
                 </Button>
                 <Button
                   type="button"
                   size="sm"
                   onClick={() => void handleConfirmPromotion()}
                 >
-                  生成全局技能
+                  沉淀为全局技能
                 </Button>
               </div>
             </div>
@@ -1283,13 +1407,16 @@ export function ChatContainer({
                   <ShieldAlert className="mt-0.5 size-4 shrink-0 text-status-warning" />
                   <div className="min-w-0">
                     <div className="font-medium text-foreground">
-                      {t('approval.waitingForConfirmation')}
+                      {t("approval.waitingForConfirmation")}
                       {pendingApprovalCount > 1
-                        ? t('approval.multipleToolCalls', { name: pendingApproval.tool_call.name, count: pendingApprovalCount })
+                        ? t("approval.multipleToolCalls", {
+                            name: pendingApproval.tool_call.name,
+                            count: pendingApprovalCount,
+                          })
                         : pendingApproval.tool_call.name}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground break-all">
-                      {t('approval.approvalPaused')}
+                      {t("approval.approvalPaused")}
                     </div>
                   </div>
                 </div>
@@ -1301,7 +1428,7 @@ export function ChatContainer({
                   size="sm"
                   onClick={() => void handleApprovalDecision("reject")}
                 >
-                  {t('approval.reject')}
+                  {t("approval.reject")}
                 </Button>
                 <Button
                   type="button"
@@ -1313,14 +1440,14 @@ export function ChatContainer({
                     })
                   }
                 >
-                  {t('approval.allowWorkspaceSimilar')}
+                  {t("approval.allowWorkspaceSimilar")}
                 </Button>
                 <Button
                   type="button"
                   size="sm"
                   onClick={() => void handleApprovalDecision("approve")}
                 >
-                  {t('approval.approveThisTime')}
+                  {t("approval.approveThisTime")}
                 </Button>
               </div>
             </div>
@@ -1343,7 +1470,7 @@ export function ChatContainer({
               <div className="animate-soft-fade flex items-center gap-3 overflow-hidden rounded-[18px] border border-border bg-background-elevated px-3 py-2 shadow-none">
                 <div className="min-w-0 flex-1">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90">
-                    {t('streaming.jarvisWorking')}
+                    {t("streaming.jarvisWorking")}
                   </div>
                   <div className="streaming-tip-viewport mt-1">
                     <div
@@ -1355,7 +1482,11 @@ export function ChatContainer({
                   </div>
                 </div>
                 <div className="hidden shrink-0 rounded-full border border-border bg-background-elevated px-2 py-1 text-[10px] font-medium text-muted-foreground sm:block">
-                  {pendingApproval ? t('streaming.paused') : isCancelling ? t('streaming.cancelling') : t('streaming.processing')}
+                  {pendingApproval
+                    ? t("streaming.paused")
+                    : isCancelling
+                      ? t("streaming.cancelling")
+                      : t("streaming.processing")}
                 </div>
               </div>
             )}
@@ -1371,7 +1502,7 @@ export function ChatContainer({
                     className={cn(
                       "inline-flex items-center gap-1 rounded-full border border-border bg-background-elevated px-2.5 py-1 text-[11px] font-mono text-muted-foreground hover:bg-background-interactive",
                     )}
-                    title={t('clickToRemove')}
+                    title={t("clickToRemove")}
                   >
                     {p}
                     <X className="size-3 shrink-0" />
@@ -1401,8 +1532,8 @@ export function ChatContainer({
                   onKeyDown={handleKeyDown}
                   placeholder={
                     isLoading
-                      ? t('inputPlaceholder.loading')
-                      : t('inputPlaceholder.idle')
+                      ? t("inputPlaceholder.loading")
+                      : t("inputPlaceholder.idle")
                   }
                   className="chat-input-scrollbar block min-w-0 w-full resize-none border-0 bg-transparent px-4 py-3.5 pr-2 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none"
                   rows={1}
@@ -1449,7 +1580,7 @@ export function ChatContainer({
                     size="icon"
                     className="rounded-full"
                     onClick={() => void handleCancel()}
-                    title={t('streaming.stopGeneration')}
+                    title={t("streaming.stopGeneration")}
                   >
                     <Square className="size-4" />
                   </Button>
@@ -1461,7 +1592,7 @@ export function ChatContainer({
                     size="icon"
                     disabled={!input.trim()}
                     className="rounded-full"
-                    title={t('streaming.interruptSend')}
+                    title={t("streaming.interruptSend")}
                   >
                     <Send className="size-4" />
                   </Button>
@@ -1495,8 +1626,8 @@ export function ChatContainer({
                   onClick={() => void handleApprovalModeToggle()}
                   title={
                     approvalMode === "auto"
-                      ? t('approval.autoApprovalTitle')
-                      : t('approval.manualApprovalTitle')
+                      ? t("approval.autoApprovalTitle")
+                      : t("approval.manualApprovalTitle")
                   }
                 >
                   {approvalMode === "auto" ? (
@@ -1504,7 +1635,9 @@ export function ChatContainer({
                   ) : (
                     <Shield className="size-3.5" />
                   )}
-                  {approvalMode === "auto" ? t('approval.autoApproval') : t('approval.manualApproval')}
+                  {approvalMode === "auto"
+                    ? t("approval.autoApproval")
+                    : t("approval.manualApproval")}
                 </Button>
                 <div className="h-4 w-px shrink-0 bg-border" />
                 <Button
@@ -1514,10 +1647,10 @@ export function ChatContainer({
                   className="h-8 shrink-0 gap-1 rounded-full px-2.5 text-xs text-muted-foreground hover:translate-y-0"
                   disabled={displayMessages.length === 0}
                   onClick={() => void copyConversationMarkdown()}
-                  title={t('copyMarkdownTitle')}
+                  title={t("copyMarkdownTitle")}
                 >
                   <Copy className="size-3.5" />
-                  {t('copyMarkdown')}
+                  {t("copyMarkdown")}
                 </Button>
                 <div className="h-4 w-px shrink-0 bg-border" />
                 <ContextUsageIndicator
@@ -1538,7 +1671,7 @@ export function ChatContainer({
               {pendingApproval && (
                 <span className="inline-flex items-center gap-2 rounded-full border border-status-warning/30 bg-status-warning/10 px-3 py-1 text-status-warning">
                   <ShieldAlert className="size-3.5" />
-                  {t('approval.waitingApproval')}
+                  {t("approval.waitingApproval")}
                 </span>
               )}
             </div>
@@ -1556,27 +1689,34 @@ export function ChatContainer({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('deleteConfirm.title')}</DialogTitle>
+            <DialogTitle>{t("deleteConfirm.title")}</DialogTitle>
             <DialogDescription>
-              {t('deleteConfirm.description', { role: deleteConfirmMessage?.role === "user" ? t('deleteConfirm.user') : t('deleteConfirm.assistant') })}
+              {t("deleteConfirm.description", {
+                role:
+                  deleteConfirmMessage?.role === "user"
+                    ? t("deleteConfirm.user")
+                    : t("deleteConfirm.assistant"),
+              })}
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-2xl border border-border/60 bg-background-elevated px-4 py-3 text-sm text-muted-foreground">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-foreground/70">
               <PencilLine className="size-3.5" />
-              {t('deleteConfirm.targetMessage')}
+              {t("deleteConfirm.targetMessage")}
             </div>
             <p className="whitespace-pre-wrap wrap-break-word text-foreground/85">
               {truncate(
-                extractMessageText(deleteConfirmMessage ?? {
-                  id: "",
-                  role: "assistant",
-                  content: "",
-                  created_at: new Date(),
-                }) ||
+                extractMessageText(
+                  deleteConfirmMessage ?? {
+                    id: "",
+                    role: "assistant",
+                    content: "",
+                    created_at: new Date(),
+                  },
+                ) ||
                   (deleteConfirmMessage?.tool_calls?.length
-                    ? t('deleteConfirm.hasToolCalls')
-                    : t('deleteConfirm.noTextContent')),
+                    ? t("deleteConfirm.hasToolCalls")
+                    : t("deleteConfirm.noTextContent")),
                 160,
               )}
             </p>
@@ -1587,14 +1727,14 @@ export function ChatContainer({
               variant="secondary"
               onClick={() => setDeleteConfirmMessage(null)}
             >
-              {t('cancel', { ns: 'common' })}
+              {t("cancel", { ns: "common" })}
             </Button>
             <Button
               type="button"
               variant="destructive"
               onClick={() => void executeConfirmedDelete()}
             >
-              {t('delete', { ns: 'common' })}
+              {t("delete", { ns: "common" })}
             </Button>
           </DialogFooter>
         </DialogContent>

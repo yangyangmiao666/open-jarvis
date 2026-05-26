@@ -13,6 +13,7 @@ import type {
   OpenAICompatibleProfile,
   ProxyConfig,
   GlobalConfigImportResult,
+  MemoryDocument,
   MemoryDocumentSummary,
   MemoryPromotionCandidate,
   MemorySettings,
@@ -270,7 +271,9 @@ const api = {
     getMemorySettings: (): Promise<MemorySettings> => {
       return ipcRenderer.invoke("settings:getMemorySettings");
     },
-    setMemorySettings: (config: Partial<MemorySettings>): Promise<MemorySettings> => {
+    setMemorySettings: (
+      config: Partial<MemorySettings>,
+    ): Promise<MemorySettings> => {
       return ipcRenderer.invoke("settings:setMemorySettings", config);
     },
     listWorkspaceMemories: (
@@ -284,9 +287,46 @@ const api = {
     }> => {
       return ipcRenderer.invoke("settings:listWorkspaceMemories", threadId);
     },
-    exportGlobalConfigToFile: (
-      options: { includeApiKeys: boolean },
-    ): Promise<{ success: boolean; filePath?: string; error?: string }> => {
+    getWorkspaceMemoryDocument: (
+      threadId: string | undefined,
+      routePath: string,
+    ): Promise<{
+      success: boolean;
+      document?: MemoryDocument;
+      error?: string;
+    }> => {
+      return ipcRenderer.invoke("settings:getWorkspaceMemoryDocument", {
+        threadId,
+        routePath,
+      });
+    },
+    updateWorkspaceMemoryDocument: (
+      threadId: string | undefined,
+      routePath: string,
+      updates: { title: string; summary: string; body: string },
+    ): Promise<{
+      success: boolean;
+      document?: MemoryDocumentSummary;
+      error?: string;
+    }> => {
+      return ipcRenderer.invoke("settings:updateWorkspaceMemoryDocument", {
+        threadId,
+        routePath,
+        updates,
+      });
+    },
+    deleteWorkspaceMemoryDocument: (
+      threadId: string | undefined,
+      routePath: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke("settings:deleteWorkspaceMemoryDocument", {
+        threadId,
+        routePath,
+      });
+    },
+    exportGlobalConfigToFile: (options: {
+      includeApiKeys: boolean;
+    }): Promise<{ success: boolean; filePath?: string; error?: string }> => {
       return ipcRenderer.invoke("settings:exportGlobalConfigToFile", options);
     },
     importGlobalConfigFromFile: (
@@ -294,12 +334,17 @@ const api = {
     ): Promise<GlobalConfigImportResult> => {
       return ipcRenderer.invoke("settings:importGlobalConfigFromFile", mode);
     },
-    getToolingVersions: (): Promise<{ bun: string | null; uv: string | null; python: string | null }> => {
+    getToolingVersions: (): Promise<{
+      bun: string | null;
+      uv: string | null;
+      python: string | null;
+    }> => {
       return ipcRenderer.invoke("settings:getToolingVersions");
     },
-    showDesktopNotification: (
-      payload: { title: string; body: string },
-    ): Promise<{ success: boolean; error?: string }> => {
+    showDesktopNotification: (payload: {
+      title: string;
+      body: string;
+    }): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke("settings:showDesktopNotification", payload);
     },
   },
@@ -436,6 +481,14 @@ const api = {
       candidate: MemoryPromotionCandidate,
     ): Promise<{ success: boolean; folder?: string; error?: string }> =>
       ipcRenderer.invoke("skills:confirmPromotion", candidate),
+    settleMemoryAsSkill: (
+      workspacePath: string,
+      routePath: string,
+    ): Promise<{ success: boolean; folder?: string; error?: string }> =>
+      ipcRenderer.invoke("skills:settleMemoryAsSkill", {
+        workspacePath,
+        routePath,
+      }),
     rejectPromotion: (
       candidate: MemoryPromotionCandidate,
     ): Promise<{ success: boolean; error?: string }> =>

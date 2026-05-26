@@ -2,7 +2,10 @@ import { IpcMain, dialog } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { getSkillSources, setSkillSources } from "../skill-config";
-import { markMemoryPromotionStatus } from "../services/memory-service";
+import {
+  createMemoryPromotionCandidate,
+  markMemoryPromotionStatus,
+} from "../services/memory-service";
 import { getOpenworkDir } from "../storage";
 import { decodeTextBuffer } from "../text-encoding";
 import type { MemoryPromotionCandidate } from "../types";
@@ -273,6 +276,46 @@ Add instructions for the agent here.
         return {
           success: false as const,
           error: e instanceof Error ? e.message : "promotion failed",
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "skills:settleMemoryAsSkill",
+    async (_e, payload: { workspacePath: string; routePath: string }) => {
+      const candidate = await createMemoryPromotionCandidate(
+        payload.workspacePath,
+        payload.routePath,
+      );
+      if (!candidate) {
+        return { success: false as const, error: "Memory not found" };
+      }
+
+      const safe = slugifySkillName(candidate.skillName);
+      if (!safe) {
+        return { success: false as const, error: "Invalid skill name" };
+      }
+
+      try {
+        const root = getGlobalSkillsRoot();
+        const dir = path.join(root, safe);
+        await fs.mkdir(dir, { recursive: true });
+        await fs.writeFile(
+          path.join(dir, "SKILL.md"),
+          candidate.skillMarkdown,
+          "utf-8",
+        );
+        await markMemoryPromotionStatus(
+          candidate.workspacePath,
+          candidate.memoryPath,
+          "promoted",
+        );
+        return { success: true as const, folder: safe };
+      } catch (e) {
+        return {
+          success: false as const,
+          error: e instanceof Error ? e.message : "settle failed",
         };
       }
     },
