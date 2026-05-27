@@ -11,7 +11,7 @@ import {
 } from "../agent/runtime";
 import {rememberWorkspaceApproval} from "../approval-settings";
 import {getThread} from "../db";
-import {consolidateTaskMemory} from "../services/memory-service";
+import {buildSkillUsageSnapshot, consolidateTaskMemory} from "../services/memory-service";
 import {getOpenworkDir} from "../storage";
 import {logError, logInfo, logWarn} from "../logger";
 import type {AgentCancelParams, AgentInterruptParams, AgentInvokeParams, AgentResumeParams,} from "../types";
@@ -376,6 +376,10 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                 state: lastValuesState,
                 trigger: "invoke",
               });
+              const skillUsageSnapshot = await buildSkillUsageSnapshot({
+                workspacePath,
+                state: lastValuesState,
+              });
               if (consolidation.recallSnapshot) {
                 event.sender.send(channel, {
                   type: "custom",
@@ -385,12 +389,21 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                   },
                 });
               }
-              if (consolidation.promotionCandidate) {
+              if (skillUsageSnapshot) {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "skill_usage",
+                    skillUsage: skillUsageSnapshot,
+                  },
+                });
+              }
+              if (consolidation.promotionCandidates.length > 0) {
                 event.sender.send(channel, {
                   type: "custom",
                   data: {
                     type: "memory_promotion_candidate",
-                    candidate: consolidation.promotionCandidate,
+                    candidates: consolidation.promotionCandidates,
                   },
                 });
               }
@@ -589,6 +602,10 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                 state: lastValuesState,
                 trigger: "resume",
               });
+              const skillUsageSnapshot = await buildSkillUsageSnapshot({
+                workspacePath,
+                state: lastValuesState,
+              });
               if (consolidation.recallSnapshot) {
                 event.sender.send(channel, {
                   type: "custom",
@@ -598,12 +615,21 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                   },
                 });
               }
-              if (consolidation.promotionCandidate) {
+              if (skillUsageSnapshot) {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "skill_usage",
+                    skillUsage: skillUsageSnapshot,
+                  },
+                });
+              }
+              if (consolidation.promotionCandidates.length > 0) {
                 event.sender.send(channel, {
                   type: "custom",
                   data: {
                     type: "memory_promotion_candidate",
-                    candidate: consolidation.promotionCandidate,
+                    candidates: consolidation.promotionCandidates,
                   },
                 });
               }

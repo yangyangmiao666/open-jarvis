@@ -259,6 +259,8 @@ function getSystemPrompt(workspacePath: string): string {
 function getFilesystemSystemPrompt(workspacePath: string): string {
   return `You have access to a filesystem. All file paths use fully qualified absolute system paths.
 
+When you answer the user, match the language of the user's latest request if it is Chinese or English. If the latest request is mixed or ambiguous, default to Chinese.
+
 - ls: list files in a directory (e.g., ls("${workspacePath}"))
 - read_file: read a file from the filesystem
 - write_file: write to a file in the filesystem

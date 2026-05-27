@@ -201,8 +201,9 @@ export function ChatContainer({
     messages: threadMessages,
     pendingApprovals,
     pendingApproval,
-    pendingMemoryPromotion,
+    pendingMemoryPromotions,
     memoryRecall,
+    skillUsage,
     todos,
     error: threadError,
     workspacePath,
@@ -212,14 +213,16 @@ export function ChatContainer({
     draftInput: input,
     workspaceFiles,
     openFile,
+    setFileContents,
     setMessages,
     setTodos,
     setWorkspaceFiles,
     setWorkspacePath,
     setPendingApprovals,
     setPendingApproval,
-    setPendingMemoryPromotion,
+    setPendingMemoryPromotions,
     setMemoryRecall,
+    setSkillUsage,
     appendMessage,
     setError,
     clearError,
@@ -362,57 +365,68 @@ export function ChatContainer({
   }, [approvalMode, setApprovalMode]);
 
   const handleConfirmPromotion = useCallback(async (): Promise<void> => {
-    if (!pendingMemoryPromotion) {
+    if (pendingMemoryPromotions.length === 0) {
       return;
     }
 
     try {
-      const result = await window.api.skills.confirmPromotion(
-        pendingMemoryPromotion,
+      const results = await Promise.all(
+        pendingMemoryPromotions.map((candidate) =>
+          window.api.skills.confirmPromotion(candidate),
+        ),
       );
-      if (!result.success) {
+      const failedResult = results.find((result) => !result.success);
+      if (failedResult) {
         console.error(
           "[ChatContainer] Failed to confirm promotion:",
-          result.error,
+          failedResult.error,
         );
         toast.error("记忆沉淀为技能失败");
         return;
       }
-      setPendingMemoryPromotion(null);
-      toast.success("记忆已沉淀为全局技能");
+      setPendingMemoryPromotions([]);
+      toast.success(
+        pendingMemoryPromotions.length > 1
+          ? `已将 ${pendingMemoryPromotions.length} 条记忆沉淀为全局技能`
+          : "记忆已沉淀为全局技能",
+      );
     } catch (error) {
       console.error("[ChatContainer] Failed to confirm promotion:", error);
       toast.error("记忆沉淀为技能失败");
     }
-  }, [pendingMemoryPromotion, setPendingMemoryPromotion]);
+  }, [pendingMemoryPromotions, setPendingMemoryPromotions]);
 
-  const handleDismissMemoryRecall = useCallback((): void => {
+  const handleDismissContextAssist = useCallback((): void => {
     setMemoryRecall(null);
-  }, [setMemoryRecall]);
+    setSkillUsage(null);
+  }, [setMemoryRecall, setSkillUsage]);
 
   const handleRejectPromotion = useCallback(async (): Promise<void> => {
-    if (!pendingMemoryPromotion) {
+    if (pendingMemoryPromotions.length === 0) {
       return;
     }
 
     try {
-      const result = await window.api.skills.rejectPromotion(
-        pendingMemoryPromotion,
+      const results = await Promise.all(
+        pendingMemoryPromotions.map((candidate) =>
+          window.api.skills.rejectPromotion(candidate),
+        ),
       );
-      if (!result.success) {
+      const failedResult = results.find((result) => !result.success);
+      if (failedResult) {
         console.error(
           "[ChatContainer] Failed to reject promotion:",
-          result.error,
+          failedResult.error,
         );
         toast.error("暂不沉淀记忆失败");
         return;
       }
-      setPendingMemoryPromotion(null);
+      setPendingMemoryPromotions([]);
     } catch (error) {
       console.error("[ChatContainer] Failed to reject promotion:", error);
       toast.error("暂不沉淀记忆失败");
     }
-  }, [pendingMemoryPromotion, setPendingMemoryPromotion]);
+  }, [pendingMemoryPromotions, setPendingMemoryPromotions]);
 
   const agentValues = stream?.values as AgentStreamValues | undefined;
   const streamTodos = agentValues?.todos;
@@ -832,9 +846,10 @@ export function ChatContainer({
       window.removeEventListener("resize", updateOverlayInset);
     };
   }, [
+    skillUsage,
     memoryRecall,
     pendingApproval,
-    pendingMemoryPromotion,
+      pendingMemoryPromotions,
     input,
     isLoading,
     streamTipTick,
@@ -884,6 +899,10 @@ export function ChatContainer({
 
       if (memoryRecall) {
         setMemoryRecall(null);
+      }
+
+      if (skillUsage) {
+        setSkillUsage(null);
       }
 
       const userMessage: Message = {
@@ -949,6 +968,7 @@ export function ChatContainer({
       setInput,
       setPendingApproval,
       setMemoryRecall,
+      setSkillUsage,
       stream,
       t,
       threadError,
@@ -956,6 +976,7 @@ export function ChatContainer({
       threadMessages.length,
       threads,
       memoryRecall,
+      skillUsage,
       workspacePath,
     ],
   );
@@ -1260,6 +1281,28 @@ export function ChatContainer({
     [handleOpenFile],
   );
 
+  const handleOpenUsedSkill = useCallback(
+    async (folderName: string, skillFilePath: string, title: string) => {
+      const result = await window.api.skills.readSkillMarkdown(
+        threadId,
+        folderName,
+      );
+
+      if (!result.success || result.content === undefined) {
+        toast.error(result.error || "打开技能文件失败");
+        return;
+      }
+
+      setFileContents(skillFilePath, result.content);
+      openFile(skillFilePath, `${title}.md`);
+    },
+    [openFile, setFileContents, threadId],
+  );
+
+  const hasMemoryRecall = Boolean(memoryRecall && memoryRecall.items.length > 0);
+  const hasSkillUsage = Boolean(skillUsage && skillUsage.items.length > 0);
+  const hasContextAssist = hasMemoryRecall || hasSkillUsage;
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <ScrollArea
@@ -1402,7 +1445,7 @@ export function ChatContainer({
         ref={overlayRef}
         className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex flex-col items-center gap-3"
       >
-        {pendingMemoryPromotion && (
+        {pendingMemoryPromotions.length > 0 && (
           <div className="pointer-events-auto w-full max-w-4xl rounded-3xl border border-status-nominal/40 bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 text-sm">
@@ -1410,13 +1453,32 @@ export function ChatContainer({
                   <ShieldCheck className="mt-0.5 size-4 shrink-0 text-status-nominal" />
                   <div className="min-w-0">
                     <div className="font-medium text-foreground">
-                      记忆已达到技能沉淀阈值：{pendingMemoryPromotion.title}
+                      {pendingMemoryPromotions.length > 1
+                        ? `${pendingMemoryPromotions.length} 条记忆已达到技能沉淀阈值`
+                        : `记忆已达到技能沉淀阈值：${pendingMemoryPromotions[0]?.title ?? ""}`}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground break-all">
-                      已召回 {pendingMemoryPromotion.recallCount} 次，阈值{" "}
-                      {pendingMemoryPromotion.threshold} 次。确认后会沉淀到全局
-                      skills 目录。
+                      {pendingMemoryPromotions.length > 1
+                        ? "这些记忆都已达到沉淀条件，确认后会一次性沉淀到全局 skills 目录。"
+                        : `已召回 ${pendingMemoryPromotions[0]?.recallCount ?? 0} 次，阈值 ${pendingMemoryPromotions[0]?.threshold ?? 0} 次。确认后会沉淀到全局 skills 目录。`}
                     </div>
+                    {pendingMemoryPromotions.length > 1 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {pendingMemoryPromotions.slice(0, 4).map((candidate) => (
+                          <span
+                            key={candidate.memoryPath}
+                            className="rounded-full border border-status-nominal/20 bg-status-nominal/10 px-2.5 py-1 text-[11px] text-status-nominal"
+                          >
+                            {candidate.title}
+                          </span>
+                        ))}
+                        {pendingMemoryPromotions.length > 4 && (
+                          <span className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground">
+                            另有 {pendingMemoryPromotions.length - 4} 条
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1434,14 +1496,16 @@ export function ChatContainer({
                   size="sm"
                   onClick={() => void handleConfirmPromotion()}
                 >
-                  沉淀为全局技能
+                  {pendingMemoryPromotions.length > 1
+                    ? "全部沉淀为全局技能"
+                    : "沉淀为全局技能"}
                 </Button>
               </div>
             </div>
           </div>
         )}
 
-        {memoryRecall && memoryRecall.items.length > 0 && (
+        {hasContextAssist && (
           <div className="pointer-events-auto w-full max-w-4xl overflow-hidden rounded-3xl border border-primary/20 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--background-elevated)_92%,var(--primary)_8%),color-mix(in_srgb,var(--background)_94%,var(--primary)_6%))] shadow-[0_20px_45px_color-mix(in_srgb,#000_14%,transparent)]">
             <div className="flex items-start justify-between gap-3 px-4 py-4">
               <div className="min-w-0 flex-1">
@@ -1451,56 +1515,123 @@ export function ChatContainer({
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-primary/15 bg-background/70 px-2.5 py-1 text-[11px] font-medium tracking-[0.16em] text-primary uppercase">
-                        记忆召回
-                      </span>
+                      {hasMemoryRecall && (
+                        <span className="rounded-full border border-primary/15 bg-background/70 px-2.5 py-1 text-[11px] font-medium tracking-[0.16em] text-primary uppercase">
+                          记忆召回
+                        </span>
+                      )}
+                      {hasSkillUsage && (
+                        <span className="rounded-full border border-primary/15 bg-background/70 px-2.5 py-1 text-[11px] font-medium tracking-[0.16em] text-primary uppercase">
+                          技能使用
+                        </span>
+                      )}
                       <span className="text-xs text-muted-foreground">
-                        已为本轮回答补充 {memoryRecall.totalCount} 条相关经验
+                        {hasMemoryRecall && hasSkillUsage
+                          ? `本轮回答补充了 ${(memoryRecall?.totalCount ?? 0) + (skillUsage?.totalCount ?? 0)} 条上下文线索`
+                          : hasMemoryRecall
+                            ? `已为本轮回答补充 ${memoryRecall?.totalCount ?? 0} 条相关经验`
+                            : `本轮回答命中了 ${skillUsage?.totalCount ?? 0} 个技能`}
                       </span>
                     </div>
                     <div className="mt-2 text-sm font-medium text-foreground">
-                      本次回答参考了这些历史记忆
+                      {hasMemoryRecall && hasSkillUsage
+                        ? "本次回答参考了这些记忆和技能"
+                        : hasMemoryRecall
+                          ? "本次回答参考了这些历史记忆"
+                          : "本次回答使用了这些技能"}
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {memoryRecall.items.slice(0, 2).map((item) => (
-                    <button
-                      key={item.routePath}
-                      type="button"
-                      onClick={() =>
-                        handleOpenMemoryRecall(item.workspaceFilePath, item.title)
-                      }
-                      className="group rounded-2xl border border-border/60 bg-background/80 px-3 py-3 text-left transition-colors hover:border-primary/30 hover:bg-background"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="truncate text-sm font-medium text-foreground">
-                          {item.title}
-                        </div>
-                        <div className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
-                          第 {item.recallCount} 次
-                        </div>
-                      </div>
-                      <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                        {item.summary || item.routePath}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                {hasMemoryRecall && (
+                  <div className="mt-4">
+                    <div className="mb-2 text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+                      召回记忆
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {memoryRecall?.items.slice(0, 2).map((item) => (
+                        <button
+                          key={item.routePath}
+                          type="button"
+                          onClick={() =>
+                            handleOpenMemoryRecall(
+                              item.workspaceFilePath,
+                              item.title,
+                            )
+                          }
+                          className="group rounded-2xl border border-border/60 bg-background/80 px-3 py-3 text-left transition-colors hover:border-primary/30 hover:bg-background"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="truncate text-sm font-medium text-foreground">
+                              {item.title}
+                            </div>
+                            <div className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                              第 {item.recallCount} 次
+                            </div>
+                          </div>
+                          <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                            {item.summary || item.routePath}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
 
-                {memoryRecall.totalCount > 2 && (
-                  <div className="mt-3 text-xs text-muted-foreground">
-                    另有 {memoryRecall.totalCount - 2} 条相关记忆已在后台参与召回。
+                    {(memoryRecall?.totalCount ?? 0) > 2 && (
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        另有 {(memoryRecall?.totalCount ?? 0) - 2} 条相关记忆已在后台参与召回。
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {hasSkillUsage && (
+                  <div className={cn("mt-4", hasMemoryRecall ? "border-t border-border/50 pt-4" : "") }>
+                    <div className="mb-2 text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+                      使用技能
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {skillUsage?.items.slice(0, 4).map((item) => (
+                        <button
+                          key={item.skillFilePath}
+                          type="button"
+                          onClick={() =>
+                            void handleOpenUsedSkill(
+                              item.folderName,
+                              item.skillFilePath,
+                              item.title,
+                            )
+                          }
+                          className="group rounded-2xl border border-border/60 bg-background/80 px-3 py-3 text-left transition-colors hover:border-primary/30 hover:bg-background"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="truncate text-sm font-medium text-foreground">
+                              {item.title}
+                            </div>
+                            <div className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                              {item.folderName}
+                            </div>
+                          </div>
+                          <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                            {item.description || "已命中该技能"}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {(skillUsage?.totalCount ?? 0) > 4 && (
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        另有 {(skillUsage?.totalCount ?? 0) - 4} 个技能在本轮回答中被引用。
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
               <button
                 type="button"
-                onClick={handleDismissMemoryRecall}
+                onClick={handleDismissContextAssist}
                 className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
-                aria-label="关闭记忆召回提示"
+                aria-label="关闭上下文提示"
               >
                 <X className="size-4" />
               </button>

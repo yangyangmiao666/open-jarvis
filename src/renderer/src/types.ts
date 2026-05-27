@@ -53,6 +53,9 @@ export interface ThreadMetadata {
   workspacePath?: string;
   enabledMcpServerIds?: string[];
   approvalMode?: ApprovalMode;
+  pendingMemoryPromotions?: MemoryPromotionCandidate[];
+  memoryRecall?: MemoryRecallSnapshot | null;
+  skillUsage?: SkillUsageSnapshot | null;
   [key: string]: unknown;
 }
 
@@ -102,6 +105,19 @@ export interface MemoryRecallItem {
 
 export interface MemoryRecallSnapshot {
   items: MemoryRecallItem[];
+  totalCount: number;
+  occurredAt: string;
+}
+
+export interface SkillUsageItem {
+  folderName: string;
+  skillFilePath: string;
+  title: string;
+  description: string;
+}
+
+export interface SkillUsageSnapshot {
+  items: SkillUsageItem[];
   totalCount: number;
   occurredAt: string;
 }

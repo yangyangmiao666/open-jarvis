@@ -134,6 +134,19 @@ export interface MemoryRecallSnapshot {
   occurredAt: string;
 }
 
+export interface SkillUsageItem {
+  folderName: string;
+  skillFilePath: string;
+  title: string;
+  description: string;
+}
+
+export interface SkillUsageSnapshot {
+  items: SkillUsageItem[];
+  totalCount: number;
+  occurredAt: string;
+}
+
 export interface SkillSummary {
   folderName: string;
   updatedAt: string;

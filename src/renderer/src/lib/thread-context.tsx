@@ -28,6 +28,7 @@ import type {
   ApprovalMode,
   MemoryRecallSnapshot,
   MemoryPromotionCandidate,
+  SkillUsageSnapshot,
   Message,
   Todo,
   FileInfo,
@@ -262,8 +263,9 @@ export interface ThreadState {
   subagents: Subagent[];
   pendingApprovals: HITLRequest[];
   pendingApproval: HITLRequest | null;
-  pendingMemoryPromotion: MemoryPromotionCandidate | null;
+  pendingMemoryPromotions: MemoryPromotionCandidate[];
   memoryRecall: MemoryRecallSnapshot | null;
+  skillUsage: SkillUsageSnapshot | null;
   error: string | null;
   currentModel: string;
   openFiles: OpenFile[];
@@ -300,10 +302,11 @@ export interface ThreadActions {
   setSubagents: (subagents: Subagent[]) => void;
   setPendingApprovals: (requests: HITLRequest[]) => void;
   setPendingApproval: (request: HITLRequest | null) => void;
-  setPendingMemoryPromotion: (
-    candidate: MemoryPromotionCandidate | null,
+  setPendingMemoryPromotions: (
+    candidates: MemoryPromotionCandidate[],
   ) => void;
   setMemoryRecall: (snapshot: MemoryRecallSnapshot | null) => void;
+  setSkillUsage: (snapshot: SkillUsageSnapshot | null) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
   setCurrentModel: (modelId: string) => void;
@@ -346,8 +349,9 @@ const createDefaultThreadState = (): ThreadState => ({
   subagents: [],
   pendingApprovals: [],
   pendingApproval: null,
-  pendingMemoryPromotion: null,
+  pendingMemoryPromotions: [],
   memoryRecall: null,
+  skillUsage: null,
   error: null,
   currentModel: "",
   openFiles: [],
@@ -367,6 +371,25 @@ const defaultStreamData: StreamData = {
   suppressTaskCompleteNotification: false,
 };
 
+function parseThreadMetadata(metadata: unknown): ThreadMetadata {
+  if (!metadata) {
+    return {};
+  }
+
+  if (typeof metadata === "string") {
+    try {
+      const parsed = JSON.parse(metadata) as unknown;
+      return parsed && typeof parsed === "object"
+        ? (parsed as ThreadMetadata)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return typeof metadata === "object" ? (metadata as ThreadMetadata) : {};
+}
+
 const ThreadContext = createContext<ThreadContextValue | null>(null);
 
 // Custom event types from the stream
@@ -375,7 +398,9 @@ interface CustomEventData {
   request?: HITLRequest;
   requests?: HITLRequest[];
   candidate?: MemoryPromotionCandidate;
+  candidates?: MemoryPromotionCandidate[];
   memoryRecall?: MemoryRecallSnapshot | null;
+  skillUsage?: SkillUsageSnapshot | null;
   files?: Array<{ path: string; is_dir?: boolean; size?: number }>;
   path?: string;
   subagents?: Array<{
@@ -528,6 +553,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
   );
   const initializedThreadsRef = useRef<Set<string>>(new Set());
   const actionsCache = useRef<Record<string, ThreadActions>>({});
+  const threadMetadataCacheRef = useRef<Record<string, ThreadMetadata>>({});
+  const threadMetadataPersistQueueRef = useRef<Record<string, Promise<void>>>({});
 
   // Stream data store (not React state - we use subscriptions)
   const streamDataRef = useRef<Record<string, StreamData>>({});
@@ -640,6 +667,51 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           [threadId]: { ...currentState, ...updates },
         };
       });
+    },
+    [],
+  );
+
+  const persistThreadMetadataPatch = useCallback(
+    async (threadId: string, patch: Partial<ThreadMetadata>) => {
+      const previousTask =
+        threadMetadataPersistQueueRef.current[threadId] ?? Promise.resolve();
+
+      const nextTask = previousTask
+        .catch(() => {})
+        .then(async () => {
+          try {
+            let metadata = threadMetadataCacheRef.current[threadId];
+
+            if (!metadata) {
+              const thread = await window.api.threads.get(threadId);
+              if (!thread) {
+                return;
+              }
+
+              metadata = parseThreadMetadata(thread.metadata);
+            }
+
+            const mergedMetadata = {
+              ...metadata,
+              ...patch,
+            };
+
+            threadMetadataCacheRef.current[threadId] = mergedMetadata;
+
+            await window.api.threads.update(threadId, {
+              metadata: mergedMetadata,
+            });
+          } catch (error) {
+            console.error("[ThreadContext] Failed to persist thread metadata:", {
+              threadId,
+              patch,
+              error,
+            });
+          }
+        });
+
+      threadMetadataPersistQueueRef.current[threadId] = nextTask;
+      await nextTask;
     },
     [],
   );
@@ -803,14 +875,35 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           }
           break;
         case "memory_promotion_candidate":
-          updateThreadState(threadId, () => ({
-            pendingMemoryPromotion: data.candidate ?? null,
-          }));
+          {
+            const pendingMemoryPromotions = Array.isArray(data.candidates)
+              ? data.candidates
+              : data.candidate
+                ? [data.candidate]
+                : [];
+            updateThreadState(threadId, () => ({
+              pendingMemoryPromotions,
+            }));
+            void persistThreadMetadataPatch(threadId, {
+              pendingMemoryPromotions,
+            });
+          }
           break;
         case "memory_recall":
           updateThreadState(threadId, () => ({
             memoryRecall: data.memoryRecall ?? null,
           }));
+          void persistThreadMetadataPatch(threadId, {
+            memoryRecall: data.memoryRecall ?? null,
+          });
+          break;
+        case "skill_usage":
+          updateThreadState(threadId, () => ({
+            skillUsage: data.skillUsage ?? null,
+          }));
+          void persistThreadMetadataPatch(threadId, {
+            skillUsage: data.skillUsage ?? null,
+          });
           break;
         case "subagents":
           if (Array.isArray(data.subagents)) {
@@ -904,7 +997,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           break;
       }
     },
-    [notifyStreamSubscribers, updateThreadState],
+    [notifyStreamSubscribers, persistThreadMetadataPatch, updateThreadState],
   );
 
   const getThreadActions = useCallback(
@@ -969,15 +1062,29 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             pendingApproval: request,
           }));
         },
-        setPendingMemoryPromotion: (candidate: MemoryPromotionCandidate | null) => {
+        setPendingMemoryPromotions: (candidates: MemoryPromotionCandidate[]) => {
           updateThreadState(threadId, () => ({
-            pendingMemoryPromotion: candidate,
+            pendingMemoryPromotions: candidates,
           }));
+          void persistThreadMetadataPatch(threadId, {
+            pendingMemoryPromotions: candidates,
+          });
         },
         setMemoryRecall: (snapshot: MemoryRecallSnapshot | null) => {
           updateThreadState(threadId, () => ({
             memoryRecall: snapshot,
           }));
+          void persistThreadMetadataPatch(threadId, {
+            memoryRecall: snapshot,
+          });
+        },
+        setSkillUsage: (snapshot: SkillUsageSnapshot | null) => {
+          updateThreadState(threadId, () => ({
+            skillUsage: snapshot,
+          }));
+          void persistThreadMetadataPatch(threadId, {
+            skillUsage: snapshot,
+          });
         },
         setError: (error: string | null) => {
           updateThreadState(threadId, () => ({ error }));
@@ -1090,7 +1197,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       actionsCache.current[threadId] = actions;
       return actions;
     },
-    [updateThreadState],
+    [persistThreadMetadataPatch, updateThreadState],
   );
 
   const loadThreadHistory = useCallback(
@@ -1108,7 +1215,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             window.api.approval.getMode(threadId),
           ]);
 
-        const metadata = (thread?.metadata ?? {}) as ThreadMetadata;
+        const metadata = parseThreadMetadata(thread?.metadata);
+        threadMetadataCacheRef.current[threadId] = metadata;
         const currentModel =
           typeof metadata.model === "string" && metadata.model.length > 0
             ? metadata.model
@@ -1126,6 +1234,13 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           currentModel,
           enabledMcpServerIds,
           approvalMode,
+          pendingMemoryPromotions: Array.isArray(
+            metadata.pendingMemoryPromotions,
+          )
+            ? metadata.pendingMemoryPromotions
+            : [],
+          memoryRecall: metadata.memoryRecall ?? null,
+          skillUsage: metadata.skillUsage ?? null,
         }));
       } catch (error) {
         console.error("[ThreadContext] Failed to load thread details:", error);
@@ -1345,6 +1460,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
   const cleanupThread = useCallback((threadId: string) => {
     initializedThreadsRef.current.delete(threadId);
     delete actionsCache.current[threadId];
+    delete threadMetadataCacheRef.current[threadId];
+    delete threadMetadataPersistQueueRef.current[threadId];
     delete streamDataRef.current[threadId];
     delete streamSubscribersRef.current[threadId];
     setActiveThreadIds((prev) => {

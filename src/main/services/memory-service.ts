@@ -9,11 +9,13 @@ import {
 } from "../memory-config";
 import { logInfo, logWarn } from "../logger";
 import { getSkillPromotionThreshold } from "../memory-settings";
+import { resolveSkillSourcesForWorkspace } from "../skill-config";
 import type {
   MemoryDocument,
   MemoryRecallSnapshot,
   MemoryDocumentSummary,
   MemoryPromotionCandidate,
+  SkillUsageSnapshot,
 } from "../types";
 
 interface SerializedGraphMessage {
@@ -49,8 +51,15 @@ interface ConsolidateTaskMemoryOptions {
 }
 
 interface ConsolidateTaskMemoryResult {
-  promotionCandidate: MemoryPromotionCandidate | null;
+  promotionCandidates: MemoryPromotionCandidate[];
   recallSnapshot: MemoryRecallSnapshot | null;
+}
+
+interface SkillDocumentRecord {
+  filePath: string;
+  folderName: string;
+  title: string;
+  description: string;
 }
 
 interface GeneratedMemoryDraft {
@@ -73,6 +82,8 @@ Return strict JSON only with these keys:
 Rules:
 - Prefer editing an existing similar memory instead of creating duplicates.
 - Keep the memory topic-oriented, durable, and reusable.
+- Write the title, summary, and body in the preferred output language provided by the caller. Only use Chinese or English.
+- If the preferred output language is ambiguous or missing, default to Chinese.
 - Write the title, summary, and body in generalized reusable language rather than as a one-off task report.
 - Avoid exact user requests, ticket phrasing, temporary project details, timestamps, single-run outcomes, absolute paths, and unnecessary file names unless they are essential to the reusable lesson.
 - Prefer abstract topics such as capability, workflow, pattern, failure mode, or troubleshooting method.
@@ -83,6 +94,28 @@ Rules:
 - Do not include fenced JSON or explanations outside the JSON object.`;
 
 type UnknownRecord = Record<string, unknown>;
+
+function detectPreferredOutputLanguage(text: string): "zh" | "en" {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return "zh";
+  }
+
+  const chineseMatches = trimmed.match(/[\u3400-\u9fff\uf900-\ufaff]/g);
+  const englishMatches = trimmed.match(/[A-Za-z]/g);
+  const chineseCount = chineseMatches?.length ?? 0;
+  const englishCount = englishMatches?.length ?? 0;
+
+  if (chineseCount === 0 && englishCount === 0) {
+    return "zh";
+  }
+
+  if (chineseCount >= englishCount) {
+    return "zh";
+  }
+
+  return "en";
+}
 
 function stringifyConversationContent(content: unknown): string {
   if (typeof content === "string") {
@@ -405,6 +438,94 @@ function routePathToWorkspaceFilePath(routePath: string): string | null {
   return `/.open-jarvis/memories/${relativePath}`;
 }
 
+function pathStartsWith(childPath: string, parentPath: string): boolean {
+  const normalizedChild = path.resolve(childPath);
+  const normalizedParent = path.resolve(parentPath);
+  const parentWithSep = normalizedParent.endsWith(path.sep)
+    ? normalizedParent
+    : `${normalizedParent}${path.sep}`;
+
+  if (process.platform === "win32") {
+    return (
+      normalizedChild.toLowerCase() === normalizedParent.toLowerCase() ||
+      normalizedChild.toLowerCase().startsWith(parentWithSep.toLowerCase())
+    );
+  }
+
+  return (
+    normalizedChild === normalizedParent ||
+    normalizedChild.startsWith(parentWithSep)
+  );
+}
+
+function extractSkillFrontmatterValue(
+  frontmatter: string,
+  key: "name" | "description",
+): string {
+  const pattern = new RegExp(`^${key}:\\s*(.+)$`, "m");
+  const match = frontmatter.match(pattern);
+  if (!match) {
+    return "";
+  }
+
+  return match[1]?.trim().replace(/^['"]|['"]$/g, "") ?? "";
+}
+
+function parseSkillDocument(markdown: string, folderName: string): SkillDocumentRecord {
+  let frontmatter = "";
+  let body = markdown.trim();
+
+  if (markdown.startsWith("---\n")) {
+    const closingIndex = markdown.indexOf("\n---\n", 4);
+    if (closingIndex !== -1) {
+      frontmatter = markdown.slice(4, closingIndex).trim();
+      body = markdown.slice(closingIndex + 5).trim();
+    }
+  }
+
+  const title =
+    extractSkillFrontmatterValue(frontmatter, "name") || folderName;
+  const description =
+    extractSkillFrontmatterValue(frontmatter, "description") ||
+    body
+      .split("\n")
+      .map((line) => line.replace(/^#+\s*/, "").trim())
+      .find((line) => line.length > 0) ||
+    "";
+
+  return {
+    filePath: "",
+    folderName,
+    title,
+    description,
+  };
+}
+
+function resolveSkillFilePathFromToolPath(
+  rawPath: string,
+  skillRoots: string[],
+): string | null {
+  const trimmed = rawPath.trim();
+  if (!trimmed || !trimmed.endsWith("SKILL.md")) {
+    return null;
+  }
+
+  const absoluteCandidate = path.resolve(trimmed);
+  for (const root of skillRoots) {
+    if (pathStartsWith(absoluteCandidate, root)) {
+      return absoluteCandidate;
+    }
+  }
+
+  const normalized = trimmed.replace(/\\/g, "/");
+  const virtualMatch = normalized.match(/\/skills\/([^/]+)\/SKILL\.md$/);
+  if (!virtualMatch || skillRoots.length === 0) {
+    return null;
+  }
+
+  return path.join(skillRoots[0], virtualMatch[1] ?? "", "SKILL.md");
+}
+
 function parseFrontmatter(markdown: string): {
   frontmatter: Partial<MemoryFrontmatter>;
   body: string;
@@ -680,6 +801,36 @@ function extractRecalledMemoryPaths(state: unknown): string[] {
   return Array.from(recalledPaths);
 }
 
+function extractUsedSkillFilePaths(
+  state: unknown,
+  skillRoots: string[],
+): string[] {
+  const messages = extractMessages(state);
+  const usedSkillPaths = new Set<string>();
+
+  for (const message of messages) {
+    const toolCalls = collectToolCalls(message);
+
+    for (const toolCall of toolCalls) {
+      const name = getToolCallName(toolCall);
+      if (name !== "read_file") {
+        continue;
+      }
+
+      const args = getToolCallArgs(toolCall);
+      const filePath = getToolCallPath(args);
+      const resolved = resolveSkillFilePathFromToolPath(filePath, skillRoots);
+      if (!resolved) {
+        continue;
+      }
+
+      usedSkillPaths.add(resolved);
+    }
+  }
+
+  return Array.from(usedSkillPaths);
+}
+
 async function collectMarkdownFiles(rootDir: string): Promise<string[]> {
   const files: string[] = [];
 
@@ -857,11 +1008,36 @@ function maybeBuildPromotionCandidate(
   };
 }
 
+function buildPromotionCandidatesForDocuments(options: {
+  workspacePath: string;
+  routePaths: string[];
+  documents: MemoryDocumentRecord[];
+}): MemoryPromotionCandidate[] {
+  const routePathSet = new Set(
+    options.routePaths.filter((routePath) => routePath.length > 0),
+  );
+
+  return options.documents
+    .filter((document) => routePathSet.has(document.routePath))
+    .map((document) =>
+      maybeBuildPromotionCandidate(
+        options.workspacePath,
+        document.routePath,
+        document.frontmatter,
+        document.body,
+      ),
+    )
+    .filter(
+      (candidate): candidate is MemoryPromotionCandidate => Boolean(candidate),
+    );
+}
+
 async function generateMemoryDraft(options: {
   model: BaseChatModel;
   workspacePath: string;
   trigger: "invoke" | "resume";
   transcript: string;
+  preferredOutputLanguage: "zh" | "en";
   recalledMemoryPaths: string[];
   existingDocs: MemoryDocumentRecord[];
 }): Promise<GeneratedMemoryDraft | null> {
@@ -879,6 +1055,7 @@ async function generateMemoryDraft(options: {
         {
           workspacePath: options.workspacePath,
           trigger: options.trigger,
+          preferredOutputLanguage: options.preferredOutputLanguage,
           recalledMemoryPaths: options.recalledMemoryPaths,
           existingDocs: existingSummaries,
           transcript: options.transcript,
@@ -898,7 +1075,7 @@ export async function consolidateTaskMemory(
 ): Promise<ConsolidateTaskMemoryResult> {
   const transcript = extractConversationTranscript(options.state);
   if (transcript.length === 0) {
-    return { promotionCandidate: null, recallSnapshot: null };
+    return { promotionCandidates: [], recallSnapshot: null };
   }
 
   const recalledMemoryPaths = extractRecalledMemoryPaths(options.state);
@@ -915,6 +1092,7 @@ export async function consolidateTaskMemory(
     workspacePath: options.workspacePath,
     trigger: options.trigger,
     transcript,
+    preferredOutputLanguage: detectPreferredOutputLanguage(transcript),
     recalledMemoryPaths,
     existingDocs,
   });
@@ -928,7 +1106,7 @@ export async function consolidateTaskMemory(
         trigger: options.trigger,
       },
     );
-    return { promotionCandidate: null, recallSnapshot };
+    return { promotionCandidates: [], recallSnapshot };
   }
 
   const routePath = resolveMemoryRoutePath(
@@ -961,13 +1139,13 @@ export async function consolidateTaskMemory(
           : "none",
   };
 
-  const promotionCandidate = maybeBuildPromotionCandidate(
+  const currentPromotionCandidate = maybeBuildPromotionCandidate(
     options.workspacePath,
     routePath,
     frontmatter,
     draft.body_markdown,
   );
-  if (promotionCandidate && frontmatter.promotionStatus !== "promoted") {
+  if (currentPromotionCandidate && frontmatter.promotionStatus !== "promoted") {
     frontmatter.promotionStatus = "candidate";
   }
 
@@ -985,7 +1163,14 @@ export async function consolidateTaskMemory(
     recalledMemoryPaths,
   });
 
-  return { promotionCandidate, recallSnapshot };
+  const refreshedDocs = await listMemoryDocuments(options.workspacePath);
+  const promotionCandidates = buildPromotionCandidatesForDocuments({
+    workspacePath: options.workspacePath,
+    routePaths: Array.from(new Set([...recalledMemoryPaths, routePath])),
+    documents: refreshedDocs,
+  });
+
+  return { promotionCandidates, recallSnapshot };
 }
 
 export async function buildMemoryRecallSnapshot(options: {
@@ -1028,6 +1213,47 @@ export async function buildMemoryRecallSnapshot(options: {
   return {
     items,
     totalCount: uniqueRoutePaths.length,
+    occurredAt: new Date().toISOString(),
+  };
+}
+
+export async function buildSkillUsageSnapshot(options: {
+  workspacePath: string;
+  state: unknown;
+}): Promise<SkillUsageSnapshot | null> {
+  const skillRoots = resolveSkillSourcesForWorkspace(options.workspacePath);
+  const usedSkillPaths = extractUsedSkillFilePaths(options.state, skillRoots);
+  if (usedSkillPaths.length === 0) {
+    return null;
+  }
+
+  const items = (
+    await Promise.all(
+      usedSkillPaths.map(async (filePath) => {
+        try {
+          const markdown = await fs.readFile(filePath, "utf-8");
+          const folderName = path.basename(path.dirname(filePath));
+          const parsed = parseSkillDocument(markdown, folderName);
+          return {
+            folderName,
+            skillFilePath: filePath,
+            title: parsed.title,
+            description: parsed.description,
+          };
+        } catch {
+          return null;
+        }
+      }),
+    )
+  ).filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  return {
+    items,
+    totalCount: items.length,
     occurredAt: new Date().toISOString(),
   };
 }
