@@ -11,6 +11,7 @@ import { logInfo, logWarn } from "../logger";
 import { getSkillPromotionThreshold } from "../memory-settings";
 import type {
   MemoryDocument,
+  MemoryRecallSnapshot,
   MemoryDocumentSummary,
   MemoryPromotionCandidate,
 } from "../types";
@@ -49,6 +50,7 @@ interface ConsolidateTaskMemoryOptions {
 
 interface ConsolidateTaskMemoryResult {
   promotionCandidate: MemoryPromotionCandidate | null;
+  recallSnapshot: MemoryRecallSnapshot | null;
 }
 
 interface GeneratedMemoryDraft {
@@ -392,6 +394,15 @@ function filePathToRoutePath(workspacePath: string, filePath: string): string {
     filePath,
   );
   return `${MEMORY_ROUTE_PREFIX}${relativePath.replace(/\\/g, "/")}`;
+}
+
+function routePathToWorkspaceFilePath(routePath: string): string | null {
+  const relativePath = routePathToRelativePath(routePath);
+  if (!relativePath) {
+    return null;
+  }
+
+  return `/.open-jarvis/memories/${relativePath}`;
 }
 
 function parseFrontmatter(markdown: string): {
@@ -887,12 +898,16 @@ export async function consolidateTaskMemory(
 ): Promise<ConsolidateTaskMemoryResult> {
   const transcript = extractConversationTranscript(options.state);
   if (transcript.length === 0) {
-    return { promotionCandidate: null };
+    return { promotionCandidate: null, recallSnapshot: null };
   }
 
   const recalledMemoryPaths = extractRecalledMemoryPaths(options.state);
   await ensureWorkspaceMemoryBootstrapFiles(options.workspacePath);
   await updateRecallCounts(options.workspacePath, recalledMemoryPaths);
+  const recallSnapshot = await buildMemoryRecallSnapshot({
+    workspacePath: options.workspacePath,
+    routePaths: recalledMemoryPaths,
+  });
 
   const existingDocs = await listMemoryDocuments(options.workspacePath);
   const draft = await generateMemoryDraft({
@@ -913,7 +928,7 @@ export async function consolidateTaskMemory(
         trigger: options.trigger,
       },
     );
-    return { promotionCandidate: null };
+    return { promotionCandidate: null, recallSnapshot };
   }
 
   const routePath = resolveMemoryRoutePath(
@@ -970,7 +985,51 @@ export async function consolidateTaskMemory(
     recalledMemoryPaths,
   });
 
-  return { promotionCandidate };
+  return { promotionCandidate, recallSnapshot };
+}
+
+export async function buildMemoryRecallSnapshot(options: {
+  workspacePath: string;
+  routePaths: string[];
+}): Promise<MemoryRecallSnapshot | null> {
+  const uniqueRoutePaths = Array.from(
+    new Set(options.routePaths.filter((routePath) => routePath.length > 0)),
+  );
+  if (uniqueRoutePaths.length === 0) {
+    return null;
+  }
+
+  const documents = await listMemoryDocuments(options.workspacePath);
+  const documentMap = new Map(
+    documents.map((document) => [document.routePath, document]),
+  );
+  const items = uniqueRoutePaths
+    .map((routePath) => {
+      const document = documentMap.get(routePath);
+      const workspaceFilePath = routePathToWorkspaceFilePath(routePath);
+      if (!document || !workspaceFilePath) {
+        return null;
+      }
+
+      return {
+        routePath,
+        workspaceFilePath,
+        title: document.frontmatter.title,
+        summary: document.frontmatter.summary,
+        recallCount: document.frontmatter.recallCount,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  return {
+    items,
+    totalCount: uniqueRoutePaths.length,
+    occurredAt: new Date().toISOString(),
+  };
 }
 
 export async function listWorkspaceMemoryDocuments(

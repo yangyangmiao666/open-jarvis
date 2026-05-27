@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   Shield,
   ShieldCheck,
+  BookOpen,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/lib/locales";
@@ -201,6 +202,7 @@ export function ChatContainer({
     pendingApprovals,
     pendingApproval,
     pendingMemoryPromotion,
+    memoryRecall,
     todos,
     error: threadError,
     workspacePath,
@@ -217,6 +219,7 @@ export function ChatContainer({
     setPendingApprovals,
     setPendingApproval,
     setPendingMemoryPromotion,
+    setMemoryRecall,
     appendMessage,
     setError,
     clearError,
@@ -382,6 +385,10 @@ export function ChatContainer({
       toast.error("记忆沉淀为技能失败");
     }
   }, [pendingMemoryPromotion, setPendingMemoryPromotion]);
+
+  const handleDismissMemoryRecall = useCallback((): void => {
+    setMemoryRecall(null);
+  }, [setMemoryRecall]);
 
   const handleRejectPromotion = useCallback(async (): Promise<void> => {
     if (!pendingMemoryPromotion) {
@@ -825,6 +832,7 @@ export function ChatContainer({
       window.removeEventListener("resize", updateOverlayInset);
     };
   }, [
+    memoryRecall,
     pendingApproval,
     pendingMemoryPromotion,
     input,
@@ -872,6 +880,10 @@ export function ChatContainer({
 
       if (pendingApproval) {
         setPendingApproval(null);
+      }
+
+      if (memoryRecall) {
+        setMemoryRecall(null);
       }
 
       const userMessage: Message = {
@@ -936,12 +948,14 @@ export function ChatContainer({
       setError,
       setInput,
       setPendingApproval,
+      setMemoryRecall,
       stream,
       t,
       threadError,
       threadId,
       threadMessages.length,
       threads,
+      memoryRecall,
       workspacePath,
     ],
   );
@@ -1239,6 +1253,13 @@ export function ChatContainer({
     [openFile, threadId],
   );
 
+  const handleOpenMemoryRecall = useCallback(
+    (workspaceFilePath: string, title: string): void => {
+      handleOpenFile(workspaceFilePath, `${title}.md`);
+    },
+    [handleOpenFile],
+  );
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <ScrollArea
@@ -1416,6 +1437,73 @@ export function ChatContainer({
                   沉淀为全局技能
                 </Button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {memoryRecall && memoryRecall.items.length > 0 && (
+          <div className="pointer-events-auto w-full max-w-4xl overflow-hidden rounded-3xl border border-primary/20 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--background-elevated)_92%,var(--primary)_8%),color-mix(in_srgb,var(--background)_94%,var(--primary)_6%))] shadow-[0_20px_45px_color-mix(in_srgb,#000_14%,transparent)]">
+            <div className="flex items-start justify-between gap-3 px-4 py-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
+                    <BookOpen className="size-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-primary/15 bg-background/70 px-2.5 py-1 text-[11px] font-medium tracking-[0.16em] text-primary uppercase">
+                        记忆召回
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        已为本轮回答补充 {memoryRecall.totalCount} 条相关经验
+                      </span>
+                    </div>
+                    <div className="mt-2 text-sm font-medium text-foreground">
+                      本次回答参考了这些历史记忆
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {memoryRecall.items.slice(0, 2).map((item) => (
+                    <button
+                      key={item.routePath}
+                      type="button"
+                      onClick={() =>
+                        handleOpenMemoryRecall(item.workspaceFilePath, item.title)
+                      }
+                      className="group rounded-2xl border border-border/60 bg-background/80 px-3 py-3 text-left transition-colors hover:border-primary/30 hover:bg-background"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="truncate text-sm font-medium text-foreground">
+                          {item.title}
+                        </div>
+                        <div className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                          第 {item.recallCount} 次
+                        </div>
+                      </div>
+                      <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                        {item.summary || item.routePath}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {memoryRecall.totalCount > 2 && (
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    另有 {memoryRecall.totalCount - 2} 条相关记忆已在后台参与召回。
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDismissMemoryRecall}
+                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
+                aria-label="关闭记忆召回提示"
+              >
+                <X className="size-4" />
+              </button>
             </div>
           </div>
         )}

@@ -120,6 +120,20 @@ export interface MemoryPromotionCandidate {
   threshold: number;
 }
 
+export interface MemoryRecallItem {
+  routePath: string;
+  workspaceFilePath: string;
+  title: string;
+  summary: string;
+  recallCount: number;
+}
+
+export interface MemoryRecallSnapshot {
+  items: MemoryRecallItem[];
+  totalCount: number;
+  occurredAt: string;
+}
+
 export interface SkillSummary {
   folderName: string;
   updatedAt: string;

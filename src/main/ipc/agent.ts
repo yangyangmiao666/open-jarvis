@@ -376,6 +376,15 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                 state: lastValuesState,
                 trigger: "invoke",
               });
+              if (consolidation.recallSnapshot) {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "memory_recall",
+                    memoryRecall: consolidation.recallSnapshot,
+                  },
+                });
+              }
               if (consolidation.promotionCandidate) {
                 event.sender.send(channel, {
                   type: "custom",
@@ -580,6 +589,15 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                 state: lastValuesState,
                 trigger: "resume",
               });
+              if (consolidation.recallSnapshot) {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "memory_recall",
+                    memoryRecall: consolidation.recallSnapshot,
+                  },
+                });
+              }
               if (consolidation.promotionCandidate) {
                 event.sender.send(channel, {
                   type: "custom",

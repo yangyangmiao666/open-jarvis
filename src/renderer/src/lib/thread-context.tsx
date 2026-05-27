@@ -26,6 +26,7 @@ import { useStream } from "@langchain/langgraph-sdk/react";
 import { ElectronIPCTransport } from "./electron-transport";
 import type {
   ApprovalMode,
+  MemoryRecallSnapshot,
   MemoryPromotionCandidate,
   Message,
   Todo,
@@ -262,6 +263,7 @@ export interface ThreadState {
   pendingApprovals: HITLRequest[];
   pendingApproval: HITLRequest | null;
   pendingMemoryPromotion: MemoryPromotionCandidate | null;
+  memoryRecall: MemoryRecallSnapshot | null;
   error: string | null;
   currentModel: string;
   openFiles: OpenFile[];
@@ -301,6 +303,7 @@ export interface ThreadActions {
   setPendingMemoryPromotion: (
     candidate: MemoryPromotionCandidate | null,
   ) => void;
+  setMemoryRecall: (snapshot: MemoryRecallSnapshot | null) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
   setCurrentModel: (modelId: string) => void;
@@ -344,6 +347,7 @@ const createDefaultThreadState = (): ThreadState => ({
   pendingApprovals: [],
   pendingApproval: null,
   pendingMemoryPromotion: null,
+  memoryRecall: null,
   error: null,
   currentModel: "",
   openFiles: [],
@@ -371,6 +375,7 @@ interface CustomEventData {
   request?: HITLRequest;
   requests?: HITLRequest[];
   candidate?: MemoryPromotionCandidate;
+  memoryRecall?: MemoryRecallSnapshot | null;
   files?: Array<{ path: string; is_dir?: boolean; size?: number }>;
   path?: string;
   subagents?: Array<{
@@ -802,6 +807,11 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             pendingMemoryPromotion: data.candidate ?? null,
           }));
           break;
+        case "memory_recall":
+          updateThreadState(threadId, () => ({
+            memoryRecall: data.memoryRecall ?? null,
+          }));
+          break;
         case "subagents":
           if (Array.isArray(data.subagents)) {
             updateThreadState(threadId, () => ({
@@ -962,6 +972,11 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         setPendingMemoryPromotion: (candidate: MemoryPromotionCandidate | null) => {
           updateThreadState(threadId, () => ({
             pendingMemoryPromotion: candidate,
+          }));
+        },
+        setMemoryRecall: (snapshot: MemoryRecallSnapshot | null) => {
+          updateThreadState(threadId, () => ({
+            memoryRecall: snapshot,
           }));
         },
         setError: (error: string | null) => {
