@@ -10,6 +10,7 @@ import {
 interface CodeViewerProps {
   filePath: string;
   content: string;
+  headerActions?: React.ReactNode;
 }
 
 /** 单次遍历计数，避免大文件 `split('\n')` 分配巨型数组 */
@@ -34,6 +35,7 @@ const TABULAR_PREVIEW_MAX_CHARS = 800_000;
 export function CodeViewer({
   filePath,
   content,
+  headerActions,
 }: CodeViewerProps): React.JSX.Element {
   const { t } = useTranslation("tabs");
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
@@ -123,6 +125,7 @@ export function CodeViewer({
           <span>{formatCharCount(content.length, t)}</span>
           <span className="text-muted-foreground/50">•</span>
           <span className="text-muted-foreground/70">{kind} {t("codeViewer.plainText")}</span>
+          <div className="ml-auto">{headerActions}</div>
         </div>
         {tabularPreview.truncated && (
           <div className="shrink-0 border-b border-border bg-status-warning/10 px-4 py-1.5 text-[11px] text-muted-foreground">
@@ -146,6 +149,7 @@ export function CodeViewer({
         <span>{t("codeViewer.lineCount", { count: lineCount.toLocaleString() })}</span>
         <span className="text-muted-foreground/50">•</span>
         <span className="text-muted-foreground/70">{language}</span>
+        <div className="ml-auto">{headerActions}</div>
       </div>
 
       <ScrollArea className="min-h-0 flex-1">

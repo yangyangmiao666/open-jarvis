@@ -15,6 +15,7 @@ import type {
   MemoryDocumentSummary,
   MemoryPromotionCandidate,
   MemorySettings,
+  SkillSummary,
 } from "../main/types";
 
 interface ElectronAPI {
@@ -179,6 +180,10 @@ interface CustomAPI {
     openCurrentFolder: (
       threadId?: string,
     ) => Promise<{ success: boolean; error?: string }>;
+    openInBrowser: (
+      threadId: string,
+      filePath: string,
+    ) => Promise<{ success: boolean; error?: string }>;
     loadFromDisk: (threadId: string) => Promise<{
       success: boolean;
       files: Array<{
@@ -219,7 +224,7 @@ interface CustomAPI {
     setSources: (paths: string[]) => Promise<void>;
     listWorkspaceSkillFolders: (
       threadId?: string,
-    ) => Promise<{ success: boolean; folders?: string[]; error?: string }>;
+    ) => Promise<{ success: boolean; folders?: SkillSummary[]; error?: string }>;
     importFolder: (
       threadId?: string,
     ) => Promise<{ success: boolean; importedName?: string; error?: string }>;

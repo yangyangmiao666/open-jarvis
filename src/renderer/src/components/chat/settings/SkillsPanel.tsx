@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ChevronLeft,
@@ -10,18 +10,38 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
-import { SettingsSection, SettingsCard, SettingsRow } from "./primitives";
+import { cn, formatDateTimeWithYear } from "@/lib/utils";
+import type { SkillSummary } from "@/types";
+import { SettingsCard, SettingsRow, SettingsSection } from "./primitives";
 
-const PAGE_SIZE = 12;
+function getColumnCount(viewportWidth: number): number {
+  if (viewportWidth >= 1536) {
+    return 4;
+  }
+  if (viewportWidth >= 1280) {
+    return 3;
+  }
+  if (viewportWidth >= 768) {
+    return 2;
+  }
+  return 1;
+}
+
+function getResponsivePageSize(listHeight: number, viewportWidth: number): number {
+  const columns = getColumnCount(viewportWidth);
+  const estimatedCardHeight = viewportWidth >= 1536 ? 126 : 132;
+  const gap = 8;
+  const rows = Math.max(1, Math.floor((listHeight + gap) / (estimatedCardHeight + gap)));
+  return Math.max(columns, columns * rows);
+}
 
 type SkillsDeleteConfirmState = { type: "folders" } | null;
 
@@ -35,15 +55,16 @@ export function SkillsPanel(): React.JSX.Element {
   const { t } = useTranslation("settings");
   const workspaceSkillTarget = undefined;
   const [sources, setSources] = useState<string[]>([]);
-  const [folders, setFolders] = useState<string[]>([]);
+  const [folders, setFolders] = useState<SkillSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(12);
+  const [skillsDialogOpen, setSkillsDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [workspaceReady, setWorkspaceReady] = useState(false);
-
-  const [deleteConfirm, setDeleteConfirm] = useState<SkillsDeleteConfirmState>(null);
-
+  const [deleteConfirm, setDeleteConfirm] =
+    useState<SkillsDeleteConfirmState>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
   const [originFolder, setOriginFolder] = useState<string | null>(null);
@@ -51,6 +72,7 @@ export function SkillsPanel(): React.JSX.Element {
   const [editorMarkdown, setEditorMarkdown] = useState("");
   const [editorLoading, setEditorLoading] = useState(false);
   const [highlightedCard, setHighlightedCard] = useState<string | null>(null);
+  const listViewportRef = useRef<HTMLDivElement | null>(null);
 
   const reload = useCallback(async (): Promise<void> => {
     const [nextSources, result] = await Promise.all([
@@ -75,10 +97,44 @@ export function SkillsPanel(): React.JSX.Element {
     setSearchQuery("");
   }, [reload]);
 
+  useEffect(() => {
+    if (!skillsDialogOpen) {
+      return;
+    }
+
+    const updatePageSize = (): void => {
+      const listHeight = listViewportRef.current?.clientHeight ?? 0;
+      if (!listHeight) {
+        return;
+      }
+      setPageSize(getResponsivePageSize(listHeight, window.innerWidth));
+    };
+
+    updatePageSize();
+    const resizeObserver = new ResizeObserver(() => {
+      updatePageSize();
+    });
+
+    if (listViewportRef.current) {
+      resizeObserver.observe(listViewportRef.current);
+    }
+    window.addEventListener("resize", updatePageSize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updatePageSize);
+    };
+  }, [skillsDialogOpen]);
+
   const filteredFolders = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
-    if (!keyword) return folders;
-    return folders.filter((folder) => folder.toLowerCase().includes(keyword));
+    if (!keyword) {
+      return folders;
+    }
+
+    return folders.filter((folder) =>
+      folder.folderName.toLowerCase().includes(keyword),
+    );
   }, [folders, searchQuery]);
 
   useEffect(() => {
@@ -86,8 +142,8 @@ export function SkillsPanel(): React.JSX.Element {
   }, [searchQuery]);
 
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(filteredFolders.length / PAGE_SIZE)),
-    [filteredFolders.length],
+    () => Math.max(1, Math.ceil(filteredFolders.length / pageSize)),
+    [filteredFolders.length, pageSize],
   );
 
   useEffect(() => {
@@ -98,12 +154,15 @@ export function SkillsPanel(): React.JSX.Element {
 
   const pagedFolders = useMemo(() => {
     const safePage = Math.min(currentPage, totalPages);
-    const start = (safePage - 1) * PAGE_SIZE;
-    return filteredFolders.slice(start, start + PAGE_SIZE);
-  }, [filteredFolders, currentPage, totalPages]);
+    const start = (safePage - 1) * pageSize;
+    return filteredFolders.slice(start, start + pageSize);
+  }, [filteredFolders, currentPage, totalPages, pageSize]);
 
   const handleConfirmDelete = async (): Promise<void> => {
-    if (!deleteConfirm) return;
+    if (!deleteConfirm) {
+      return;
+    }
+
     await handleDeleteFolders();
   };
 
@@ -141,29 +200,43 @@ export function SkillsPanel(): React.JSX.Element {
     setEditorLoading(true);
     setEditorOpen(true);
 
-    const result = await window.api.skills.readSkillMarkdown(workspaceSkillTarget, folderName);
-    setEditorMarkdown(result.success && result.content !== undefined ? result.content : "");
+    const result = await window.api.skills.readSkillMarkdown(
+      workspaceSkillTarget,
+      folderName,
+    );
+    setEditorMarkdown(
+      result.success && result.content !== undefined ? result.content : "",
+    );
     setEditorLoading(false);
   };
 
   const toggleSelect = (folderName: string): void => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(folderName)) next.delete(folderName);
-      else next.add(folderName);
+      if (next.has(folderName)) {
+        next.delete(folderName);
+      } else {
+        next.add(folderName);
+      }
       return next;
     });
   };
 
   const toggleSelectPage = (): void => {
-    const allCurrentPageSelected = pagedFolders.every((folder) => selected.has(folder));
+    const allCurrentPageSelected = pagedFolders.every((folder) =>
+      selected.has(folder.folderName),
+    );
 
     setSelected((prev) => {
       const next = new Set(prev);
       if (allCurrentPageSelected) {
-        for (const folder of pagedFolders) next.delete(folder);
+        for (const folder of pagedFolders) {
+          next.delete(folder.folderName);
+        }
       } else {
-        for (const folder of pagedFolders) next.add(folder);
+        for (const folder of pagedFolders) {
+          next.add(folder.folderName);
+        }
       }
       return next;
     });
@@ -171,7 +244,9 @@ export function SkillsPanel(): React.JSX.Element {
 
   const handleSaveEditor = async (): Promise<void> => {
     const skillName = editorName.trim();
-    if (!workspaceReady || !skillName || editorLoading) return;
+    if (!workspaceReady || !skillName || editorLoading) {
+      return;
+    }
 
     setBusy(true);
     try {
@@ -187,7 +262,9 @@ export function SkillsPanel(): React.JSX.Element {
         }
         toast.success(t("skills.skillCreated"));
       } else {
-        if (!originFolder) return;
+        if (!originFolder) {
+          return;
+        }
         let finalFolder = originFolder;
 
         const renameResult = await window.api.skills.renameSkillFolder(
@@ -224,10 +301,16 @@ export function SkillsPanel(): React.JSX.Element {
   };
 
   const handleDeleteFolders = async (): Promise<void> => {
-    if (!workspaceReady || selected.size === 0) return;
+    if (!workspaceReady || selected.size === 0) {
+      return;
+    }
+
     setBusy(true);
     try {
-      await window.api.skills.deleteSkillFolders(workspaceSkillTarget, [...selected]);
+      await window.api.skills.deleteSkillFolders(
+        workspaceSkillTarget,
+        [...selected],
+      );
       await reload();
       toast.success(t("skills.deletedSelectedSkills"));
       setDeleteConfirm(null);
@@ -240,19 +323,23 @@ export function SkillsPanel(): React.JSX.Element {
 
   const selectedCount = selected.size;
   const allCurrentPageSelected =
-    pagedFolders.length > 0 && pagedFolders.every((folder) => selected.has(folder));
+    pagedFolders.length > 0 &&
+    pagedFolders.every((folder) => selected.has(folder.folderName));
 
   return (
     <>
       <div className="space-y-6">
-        <SettingsSection title={t("skills.globalSources")} description={t("skills.globalSourcesDesc")}>
+        <SettingsSection
+          title={t("skills.globalSources")}
+          description={t("skills.globalSourcesDesc")}
+        >
           <SettingsCard>
             {sources.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-muted-foreground">{t("skills.defaultSourceOnly")}</div>
+              <div className="px-4 py-3 text-sm text-muted-foreground">
+                {t("skills.defaultSourceOnly")}
+              </div>
             ) : (
-              sources.map((source) => (
-                <SettingsRow key={source} label={source} />
-              ))
+              sources.map((source) => <SettingsRow key={source} label={source} />)
             )}
           </SettingsCard>
         </SettingsSection>
@@ -261,14 +348,47 @@ export function SkillsPanel(): React.JSX.Element {
           title={t("skills.skillFoldersPaginated")}
           description={t("skills.skillFoldersDesc")}
           action={
-            <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!workspaceReady}
+              onClick={() => {
+                setCurrentPage(1);
+                setSkillsDialogOpen(true);
+              }}
+            >
+              {t("skills.openList")}
+            </Button>
+          }
+        >
+          <SettingsCard>
+            <SettingsRow
+              label={t("skills.allSkills")}
+              description={
+                workspaceReady
+                  ? t("skills.skillListDesc", { count: folders.length })
+                  : t("skills.selectWorkspaceFirst")
+              }
+            />
+          </SettingsCard>
+        </SettingsSection>
+      </div>
+
+      <Dialog open={skillsDialogOpen} onOpenChange={setSkillsDialogOpen}>
+        <DialogContent className="flex h-[min(88vh,48rem)] w-[min(96vw,78rem)] max-w-7xl flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>{t("skills.listDialogTitle")}</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 disabled={busy || !workspaceReady}
                 onClick={() => void handleImport()}
               >
-                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                <Sparkles className="mr-1 h-3.5 w-3.5" />
                 {t("skills.importFromDisk")}
               </Button>
               <Button
@@ -276,13 +396,11 @@ export function SkillsPanel(): React.JSX.Element {
                 disabled={busy || !workspaceReady}
                 onClick={openCreateEditor}
               >
-                <SquarePen className="h-3.5 w-3.5 mr-1" />
+                <SquarePen className="mr-1 h-3.5 w-3.5" />
                 {t("skills.newSkill")}
               </Button>
             </div>
-          }
-        >
-          <div className="space-y-3">
+
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -295,7 +413,11 @@ export function SkillsPanel(): React.JSX.Element {
 
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
-                {t("skills.matchCount", { filtered: filteredFolders.length, total: folders.length, selected: selectedCount })}
+                {t("skills.matchCount", {
+                  filtered: filteredFolders.length,
+                  total: folders.length,
+                  selected: selectedCount,
+                })}
               </span>
               <div className="flex items-center gap-2">
                 <Button
@@ -305,7 +427,9 @@ export function SkillsPanel(): React.JSX.Element {
                   disabled={pagedFolders.length === 0 || busy || !workspaceReady}
                   onClick={toggleSelectPage}
                 >
-                  {allCurrentPageSelected ? t("skills.deselectPageAll") : t("skills.selectPageAll")}
+                  {allCurrentPageSelected
+                    ? t("skills.deselectPageAll")
+                    : t("skills.selectPageAll")}
                 </Button>
                 <Button
                   variant="destructive"
@@ -319,7 +443,11 @@ export function SkillsPanel(): React.JSX.Element {
               </div>
             </div>
 
-            <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
+            <div
+              ref={listViewportRef}
+              className="min-h-0 flex-1 overflow-hidden rounded-xl border border-border/50 bg-card"
+            >
+              <ScrollArea className="h-full">
               {!workspaceReady ? (
                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                   {t("skills.selectWorkspaceFirst")}
@@ -333,36 +461,47 @@ export function SkillsPanel(): React.JSX.Element {
                   {t("skills.noMatchingSkills")}
                 </div>
               ) : (
-                <div key={currentPage} className="grid gap-2 p-3 md:grid-cols-2 xl:grid-cols-3">
-                  {pagedFolders.map((folderName) => {
-                    const checked = selected.has(folderName);
+                <div
+                  key={currentPage}
+                  className="grid gap-2 p-2.5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+                >
+                  {pagedFolders.map((folder) => {
+                    const checked = selected.has(folder.folderName);
                     return (
                       <button
-                        key={folderName}
+                        key={folder.folderName}
                         type="button"
                         className={cn(
-                          "group flex min-h-30 flex-col items-start rounded-lg border border-border/50 p-3 text-left transition-colors hover:border-primary/20 hover:bg-primary/5",
-                          highlightedCard === folderName && "animate-card-highlight",
+                          "group flex min-h-18 flex-col items-start rounded-lg border border-border/50 px-3 py-2.5 text-left transition-colors hover:border-primary/20 hover:bg-primary/5",
+                          highlightedCard === folder.folderName &&
+                            "animate-card-highlight",
                         )}
-                        onClick={() => void openEditEditor(folderName)}
+                        onClick={() => void openEditEditor(folder.folderName)}
                       >
                         <div className="flex w-full items-start justify-between gap-2">
-                          <span className="truncate text-sm font-semibold">{folderName}</span>
+                          <span className="truncate text-[13px] font-semibold leading-5">
+                            {folder.folderName}
+                          </span>
                           <input
                             type="checkbox"
                             className="mt-0.5 size-3.5 accent-primary"
                             checked={checked}
                             onClick={(e) => e.stopPropagation()}
-                            onChange={() => toggleSelect(folderName)}
+                            onChange={() => toggleSelect(folder.folderName)}
                           />
                         </div>
                         <div className="mt-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                           {t("skills.skillTag")}
                         </div>
-                        <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
-                          {t("skills.cardHint")}
+                        <div className="mt-1 text-[11px] text-muted-foreground">
+                          {t("skills.lastUpdated", {
+                            value: formatDateTimeWithYear(folder.updatedAt),
+                          })}
+                        </div>
+                        <p className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+                          {folder.description}
                         </p>
-                        <div className="mt-3 text-[11px] font-medium text-primary opacity-85 transition-opacity group-hover:opacity-100">
+                        <div className="mt-2 text-[11px] font-medium text-primary opacity-85 transition-opacity group-hover:opacity-100">
                           {t("skills.openEditor")}
                         </div>
                       </button>
@@ -370,12 +509,16 @@ export function SkillsPanel(): React.JSX.Element {
                   })}
                 </div>
               )}
+              </ScrollArea>
             </div>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/50 pt-2">
                 <div className="text-xs text-muted-foreground">
-                  {t("skills.pageInfo", { current: Math.min(currentPage, totalPages), total: totalPages })}
+                  {t("skills.pageInfo", {
+                    current: Math.min(currentPage, totalPages),
+                    total: totalPages,
+                  })}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -383,7 +526,9 @@ export function SkillsPanel(): React.JSX.Element {
                     size="sm"
                     className="h-7 px-2"
                     disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(1, prev - 1))
+                    }
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                     {t("skills.prevPage")}
@@ -393,7 +538,9 @@ export function SkillsPanel(): React.JSX.Element {
                     size="sm"
                     className="h-7 px-2"
                     disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                    }
                   >
                     {t("skills.nextPage")}
                     <ChevronRight className="h-3.5 w-3.5" />
@@ -402,15 +549,16 @@ export function SkillsPanel(): React.JSX.Element {
               </div>
             )}
           </div>
-        </SettingsSection>
-      </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Skill editor dialog */}
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="flex max-h-[min(88vh,48rem)] w-[min(96vw,56rem)] max-w-3xl flex-col overflow-hidden p-0">
           <DialogHeader className="shrink-0 border-b px-5 py-4">
             <DialogTitle>
-              {editorMode === "create" ? t("skills.createTitle") : t("skills.editTitle")}
+              {editorMode === "create"
+                ? t("skills.createTitle")
+                : t("skills.editTitle")}
             </DialogTitle>
           </DialogHeader>
 
@@ -418,7 +566,9 @@ export function SkillsPanel(): React.JSX.Element {
             <ScrollArea className="min-h-0 flex-1 rounded-xl border border-border/50">
               <div className="flex flex-col gap-4 p-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("skills.skillFolderName")}</label>
+                  <label className="text-sm font-medium">
+                    {t("skills.skillFolderName")}
+                  </label>
                   <Input
                     value={editorName}
                     onChange={(e) => setEditorName(e.target.value)}
@@ -428,14 +578,23 @@ export function SkillsPanel(): React.JSX.Element {
                 </div>
 
                 <div className="flex flex-col space-y-1.5">
-                  <label className="text-sm font-medium">{t("skills.skillMdContent")}</label>
+                  <label className="text-sm font-medium">
+                    {t("skills.skillMdContent")}
+                  </label>
                   <ScrollArea className="rounded-xl border border-border/50">
                     <textarea
                       value={editorMarkdown}
                       onChange={(e) => setEditorMarkdown(e.target.value)}
-                      placeholder={editorLoading ? t("skills.loadingPlaceholder") : t("skills.skillMdContent")}
+                      placeholder={
+                        editorLoading
+                          ? t("skills.loadingPlaceholder")
+                          : t("skills.skillMdContent")
+                      }
                       disabled={busy || editorLoading}
-                      className={cn(textAreaClassName, "min-h-60 border-0 bg-transparent")}
+                      className={cn(
+                        textAreaClassName,
+                        "min-h-60 border-0 bg-transparent",
+                      )}
                     />
                   </ScrollArea>
                 </div>
@@ -443,8 +602,12 @@ export function SkillsPanel(): React.JSX.Element {
             </ScrollArea>
           </div>
 
-          <DialogFooter className="shrink-0 border-t px-5 py-3 gap-2">
-            <Button variant="ghost" onClick={() => setEditorOpen(false)} disabled={busy}>
+          <DialogFooter className="gap-2 border-t px-5 py-3">
+            <Button
+              variant="ghost"
+              onClick={() => setEditorOpen(false)}
+              disabled={busy}
+            >
               {t("common:cancel")}
             </Button>
             <Button
@@ -457,8 +620,14 @@ export function SkillsPanel(): React.JSX.Element {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={deleteConfirm !== null} onOpenChange={(nextOpen) => !nextOpen && setDeleteConfirm(null)}>
+      <Dialog
+        open={deleteConfirm !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setDeleteConfirm(null);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("skills.confirmDeleteSkills")}</DialogTitle>
@@ -467,8 +636,15 @@ export function SkillsPanel(): React.JSX.Element {
             {t("skills.deleteSkillsWarning", { count: selectedCount })}
           </p>
           <DialogFooter className="gap-2">
-            <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>{t("common:cancel")}</Button>
-            <Button variant="destructive" onClick={() => void handleConfirmDelete()}>{t("common:delete")}</Button>
+            <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
+              {t("common:cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleConfirmDelete()}
+            >
+              {t("common:delete")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Loader2, AlertCircle, FileCode } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, FileCode } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useCurrentThread } from "@/lib/thread-context";
 import { getFileType, isBinaryFile } from "@/lib/file-types";
@@ -9,6 +9,7 @@ import { MediaViewer } from "./MediaViewer";
 import { PDFViewer } from "./PDFViewer";
 import { BinaryFileViewer } from "./BinaryFileViewer";
 import { normalizeLocalFilePath } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface FileViewerProps {
   filePath: string;
@@ -31,6 +32,7 @@ export function FileViewer({
   const fileName = normalizedFilePath.split("/").pop() || normalizedFilePath;
   const fileTypeInfo = useMemo(() => getFileType(fileName), [fileName]);
   const isBinary = useMemo(() => isBinaryFile(fileName), [fileName]);
+  const isHtmlFile = useMemo(() => /\.html?$/i.test(fileName), [fileName]);
 
   // Get cached content or load it
   const content = fileContents[normalizedFilePath];
@@ -176,7 +178,25 @@ export function FileViewer({
 
   // Default to code/text viewer
   if (content !== undefined) {
-    return <CodeViewer filePath={normalizedFilePath} content={content} />;
+    return (
+      <CodeViewer
+        filePath={normalizedFilePath}
+        content={content}
+        headerActions={isHtmlFile ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 shrink-0 gap-1 px-2"
+            onClick={() => {
+              void window.api.workspace.openInBrowser(threadId, normalizedFilePath);
+            }}
+          >
+            <ExternalLink className="size-3" />
+            <span className="text-xs">{t("codeViewer.openInBrowser")}</span>
+          </Button>
+        ) : undefined}
+      />
+    );
   }
 
   return null;

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ChevronLeft,
+  ChevronRight,
   Database,
   FolderTree,
   Pencil,
@@ -18,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/lib/toast";
 import { useAppStore } from "@/lib/store";
 import { formatDateTimeWithYear } from "@/lib/utils";
@@ -28,6 +31,8 @@ import {
   SettingsInput,
   SettingsRow,
 } from "./primitives";
+
+const MEMORY_PAGE_SIZE = 8;
 
 function promotionStatusLabel(
   status: MemoryDocumentSummary["promotionStatus"],
@@ -100,6 +105,8 @@ export function MemoryPanel(): React.JSX.Element {
   const [workspacePath, setWorkspacePath] = useState<string | null>(null);
   const [memoryDir, setMemoryDir] = useState<string | null>(null);
   const [memories, setMemories] = useState<MemoryDocumentSummary[]>([]);
+  const [memoryDialogOpen, setMemoryDialogOpen] = useState(false);
+  const [memoryPage, setMemoryPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorLoading, setEditorLoading] = useState(false);
@@ -140,6 +147,28 @@ export function MemoryPanel(): React.JSX.Element {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  const sortedMemories = useMemo(
+    () => [...memories].sort((left, right) => right.lastUpdatedAt.localeCompare(left.lastUpdatedAt)),
+    [memories],
+  );
+
+  const memoryTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(sortedMemories.length / MEMORY_PAGE_SIZE)),
+    [sortedMemories.length],
+  );
+
+  const pagedMemories = useMemo(() => {
+    const safePage = Math.min(memoryPage, memoryTotalPages);
+    const start = (safePage - 1) * MEMORY_PAGE_SIZE;
+    return sortedMemories.slice(start, start + MEMORY_PAGE_SIZE);
+  }, [sortedMemories, memoryPage, memoryTotalPages]);
+
+  useEffect(() => {
+    if (memoryPage > memoryTotalPages) {
+      setMemoryPage(memoryTotalPages);
+    }
+  }, [memoryPage, memoryTotalPages]);
 
   const handleThresholdBlur = async (): Promise<void> => {
     const parsed = Number.parseInt(thresholdDraft, 10);
@@ -352,104 +381,158 @@ export function MemoryPanel(): React.JSX.Element {
           description={t("memory.memoryListDesc", { count: memories.length })}
         >
           <SettingsCard>
-            {memories.length === 0 ? (
-              <div className="px-4 py-4 text-sm text-muted-foreground">
-                {workspacePath ? t("memory.empty") : t("memory.noWorkspace")}
+            <div className="flex items-center justify-between gap-3 px-4 py-4">
+              <div className="min-w-0 text-sm text-muted-foreground">
+                {workspacePath ? t("memory.memoryListDesc", { count: memories.length }) : t("memory.noWorkspace")}
               </div>
-            ) : (
-              memories.map((memory) => (
-                <div
-                  key={memory.routePath}
-                  className="border-b border-border px-4 py-3 last:border-b-0"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="text-sm font-medium text-foreground">
-                        {memory.title}
-                      </div>
-                      <div className="text-xs text-muted-foreground break-all">
-                        {memory.routePath}
-                      </div>
-                      <div className="text-xs leading-relaxed text-muted-foreground">
-                        {memory.summary || t("memory.noSummary")}
-                      </div>
-                    </div>
-                    <div
-                      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${promotionStatusClassName(memory.promotionStatus)}`}
-                    >
-                      {promotionStatusLabel(memory.promotionStatus)}
-                    </div>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      <span>
-                        {t("memory.recallCount", { count: memory.recallCount })}
-                      </span>
-                      <span>
-                        {t("memory.lastUpdated", {
-                          value: formatDateTimeWithYear(memory.lastUpdatedAt),
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2"
-                        onClick={() => {
-                          if (memory.promotionStatus === "promoted") {
-                            setUndoTarget(memory);
-                            return;
-                          }
-
-                          setSettleTarget(memory);
-                        }}
-                        disabled={
-                          loading ||
-                          !workspacePath ||
-                          settlingRoutePath === memory.routePath ||
-                          undoingRoutePath === memory.routePath
-                        }
-                      >
-                        {memory.promotionStatus === "promoted" ? (
-                          <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                        ) : (
-                          <Sparkles className="mr-1 h-3.5 w-3.5" />
-                        )}
-                        {memory.promotionStatus === "promoted"
-                          ? t("memory.undoSettlement")
-                          : t("memory.settleAsSkill")}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2"
-                        onClick={() => {
-                          void handleOpenEditor(memory.routePath);
-                        }}
-                        disabled={loading}
-                      >
-                        <Pencil className="mr-1 h-3.5 w-3.5" />
-                        {t("memory.edit")}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteTarget(memory)}
-                        disabled={loading}
-                      >
-                        <Trash2 className="mr-1 h-3.5 w-3.5" />
-                        {t("memory.delete")}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setMemoryPage(1);
+                  setMemoryDialogOpen(true);
+                }}
+                disabled={!workspacePath || loading}
+              >
+                {t("memory.openList")}
+              </Button>
+            </div>
           </SettingsCard>
         </SettingsSection>
       </div>
+
+      <Dialog open={memoryDialogOpen} onOpenChange={setMemoryDialogOpen}>
+        <DialogContent className="flex h-[min(88vh,48rem)] w-[min(96vw,72rem)] max-w-6xl flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>{t("memory.listDialogTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            {sortedMemories.length === 0 ? (
+              <div className="rounded-xl border border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                {workspacePath ? t("memory.empty") : t("memory.noWorkspace")}
+              </div>
+            ) : (
+              <div className="flex min-h-0 flex-1 flex-col gap-3">
+                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-border/60 bg-card">
+                  <ScrollArea className="h-full">
+                    {pagedMemories.map((memory) => (
+                      <div
+                        key={memory.routePath}
+                        className="border-b border-border px-4 py-3 last:border-b-0"
+                      >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="text-sm font-medium text-foreground">
+                            {memory.title}
+                          </div>
+                          <div className="text-xs text-muted-foreground break-all">
+                            {memory.routePath}
+                          </div>
+                          <div className="text-xs leading-relaxed text-muted-foreground">
+                            {memory.summary || t("memory.noSummary")}
+                          </div>
+                        </div>
+                        <div
+                          className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${promotionStatusClassName(memory.promotionStatus)}`}
+                        >
+                          {promotionStatusLabel(memory.promotionStatus)}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                          <span>{t("memory.recallCount", { count: memory.recallCount })}</span>
+                          <span>
+                            {t("memory.lastUpdated", {
+                              value: formatDateTimeWithYear(memory.lastUpdatedAt),
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => {
+                              if (memory.promotionStatus === "promoted") {
+                                setUndoTarget(memory);
+                                return;
+                              }
+                              setSettleTarget(memory);
+                            }}
+                            disabled={
+                              loading ||
+                              !workspacePath ||
+                              settlingRoutePath === memory.routePath ||
+                              undoingRoutePath === memory.routePath
+                            }
+                          >
+                            {memory.promotionStatus === "promoted" ? (
+                              <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                            ) : (
+                              <Sparkles className="mr-1 h-3.5 w-3.5" />
+                            )}
+                            {memory.promotionStatus === "promoted"
+                              ? t("memory.undoSettlement")
+                              : t("memory.settleAsSkill")}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => {
+                              void handleOpenEditor(memory.routePath);
+                            }}
+                            disabled={loading}
+                          >
+                            <Pencil className="mr-1 h-3.5 w-3.5" />
+                            {t("memory.edit")}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(memory)}
+                            disabled={loading}
+                          >
+                            <Trash2 className="mr-1 h-3.5 w-3.5" />
+                            {t("memory.delete")}
+                          </Button>
+                        </div>
+                      </div>
+                      </div>
+                    ))}
+                  </ScrollArea>
+                </div>
+                <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+                  <span>{t("memory.pageInfo", { current: memoryPage, total: memoryTotalPages })}</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2"
+                      disabled={memoryPage <= 1}
+                      onClick={() => setMemoryPage((page) => Math.max(1, page - 1))}
+                    >
+                      <ChevronLeft className="mr-1 h-3.5 w-3.5" />
+                      {t("memory.prevPage")}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2"
+                      disabled={memoryPage >= memoryTotalPages}
+                      onClick={() => setMemoryPage((page) => Math.min(memoryTotalPages, page + 1))}
+                    >
+                      {t("memory.nextPage")}
+                      <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={editorOpen}

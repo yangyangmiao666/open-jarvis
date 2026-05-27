@@ -9,7 +9,7 @@ import {
 } from "../services/memory-service";
 import { getOpenworkDir } from "../storage";
 import { decodeTextBuffer } from "../text-encoding";
-import type { MemoryPromotionCandidate } from "../types";
+import type { MemoryPromotionCandidate, SkillSummary } from "../types";
 
 function validateSkillFolderSegment(name: string): boolean {
   return (
@@ -66,6 +66,45 @@ async function promoteMemoryCandidate(
   }
 }
 
+async function getSkillUpdatedAt(root: string, folderName: string): Promise<string> {
+  const skillMarkdownPath = path.join(root, folderName, "SKILL.md");
+  const stat = await fs.stat(skillMarkdownPath).catch(async () =>
+    fs.stat(path.join(root, folderName)),
+  );
+  return stat.mtime.toISOString();
+}
+
+function parseSkillDescription(markdown: string): string {
+  const frontmatterMatch = markdown.match(/^---\s*\n([\s\S]*?)\n---\s*/);
+  const frontmatter = frontmatterMatch?.[1] ?? "";
+  const descriptionMatch = frontmatter.match(/^description:\s*(.+)$/m);
+  const frontmatterDescription = descriptionMatch?.[1]?.trim();
+  if (frontmatterDescription) {
+    return frontmatterDescription.replace(/^['"]|['"]$/g, "");
+  }
+
+  const withoutFrontmatter = frontmatterMatch
+    ? markdown.slice(frontmatterMatch[0].length)
+    : markdown;
+  const lines = withoutFrontmatter
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !line.startsWith("#"));
+
+  return lines[0] ?? "No description";
+}
+
+async function getSkillDescription(root: string, folderName: string): Promise<string> {
+  const skillMarkdownPath = path.join(root, folderName, "SKILL.md");
+  try {
+    const buf = await fs.readFile(skillMarkdownPath);
+    return parseSkillDescription(decodeTextBuffer(buf));
+  } catch {
+    return "No description";
+  }
+}
+
 export function registerSkillHandlers(ipcMain: IpcMain): void {
   ipcMain.handle("skills:listSources", async () => getSkillSources());
 
@@ -78,17 +117,38 @@ export function registerSkillHandlers(ipcMain: IpcMain): void {
     async (_e, threadId?: string) => {
       const root = resolveSkillsRoot(threadId);
       if (!root)
-        return { success: false as const, error: "No workspace", folders: [] };
+        return {
+          success: false as const,
+          error: "No workspace",
+          folders: [] as SkillSummary[],
+        };
       try {
         await fs.mkdir(root, { recursive: true });
         const names = await fs.readdir(root, { withFileTypes: true });
-        const folders = names.filter((d) => d.isDirectory()).map((d) => d.name);
+        const folders = await Promise.all(
+          names
+            .filter((d) => d.isDirectory())
+            .map(async (d) => {
+              const [updatedAt, description] = await Promise.all([
+                getSkillUpdatedAt(root, d.name),
+                getSkillDescription(root, d.name),
+              ]);
+              return {
+                folderName: d.name,
+                updatedAt,
+                description,
+              };
+            }),
+        );
+        folders.sort((left, right) =>
+          right.updatedAt.localeCompare(left.updatedAt),
+        );
         return { success: true as const, folders };
       } catch (e) {
         return {
           success: false as const,
           error: e instanceof Error ? e.message : "list failed",
-          folders: [] as string[],
+          folders: [] as SkillSummary[],
         };
       }
     },

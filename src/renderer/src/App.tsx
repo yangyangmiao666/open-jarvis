@@ -59,7 +59,7 @@ function AppShell({
   }, [setSettingsOpen]);
 
   return (
-    <div className="app-shell flex h-screen flex-col overflow-hidden bg-background">
+    <div className="app-shell flex h-full flex-col overflow-hidden bg-background">
       <div className="app-stage">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {isDarwin() ? <WindowTitleBar /> : null}
@@ -206,7 +206,7 @@ function App(): React.JSX.Element {
 
   if (isLoading) {
     return (
-      <div className="relative flex h-screen items-center justify-center overflow-hidden bg-background">
+      <div className="relative flex h-full items-center justify-center overflow-hidden bg-background">
         <div className="app-flat-surface animate-scale-in relative rounded-[30px] px-8 py-6 text-center shadow-none">
           <div className="text-section-header">Booting Interface</div>
           <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-foreground">

@@ -1228,6 +1228,17 @@ export function ChatContainer({
     );
   };
 
+  const handleOpenFile = useCallback(
+    (path: string, name: string): void => {
+      openFile(path, name);
+
+      if (/\.html?$/i.test(name) || /\.html?$/i.test(path)) {
+        void window.api.workspace.openInBrowser(threadId, path);
+      }
+    },
+    [openFile, threadId],
+  );
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <ScrollArea
@@ -1299,7 +1310,7 @@ export function ChatContainer({
                 key={message.id}
                 message={message}
                 threadId={threadId}
-                onOpenFile={openFile}
+                onOpenFile={handleOpenFile}
                 isStreaming={streamingAssistantIds.has(message.id)}
                 canResend={!isLoading && message.role === "user"}
                 canEdit={!isLoading && message.role === "user"}

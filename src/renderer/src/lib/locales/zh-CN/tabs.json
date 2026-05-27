@@ -21,7 +21,8 @@
     "previewLineCount": "{{count}} 行（预览）",
     "plainText": "纯文本",
     "truncationHint": "文件较大，仅预览前 {{maxChars}} 字符以降低卡顿；完整内容请用外部表格软件打开。",
-    "lineCount": "{{count}} 行"
+    "lineCount": "{{count}} 行",
+    "openInBrowser": "浏览器中查看"
   },
   "imageViewer": {
     "image": "图片",

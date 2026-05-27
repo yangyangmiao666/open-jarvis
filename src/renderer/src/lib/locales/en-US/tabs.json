@@ -21,7 +21,8 @@
     "previewLineCount": "{{count}} lines (preview)",
     "plainText": "Plain Text",
     "truncationHint": "The file is large; only the first {{maxChars}} characters are previewed to reduce lag. Open with an external tool for the full content.",
-    "lineCount": "{{count}} lines"
+    "lineCount": "{{count}} lines",
+    "openInBrowser": "Open in Browser"
   },
   "imageViewer": {
     "image": "Image",

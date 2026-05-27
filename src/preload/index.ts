@@ -17,6 +17,7 @@ import type {
   MemoryDocumentSummary,
   MemoryPromotionCandidate,
   MemorySettings,
+  SkillSummary,
 } from "../main/types";
 
 // Simple electron API - replaces @electron-toolkit/preload
@@ -371,6 +372,12 @@ const api = {
     ): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke("workspace:openCurrentFolder", { threadId });
     },
+    openInBrowser: (
+      threadId: string,
+      filePath: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke("workspace:openInBrowser", { threadId, filePath });
+    },
     loadFromDisk: (
       threadId: string,
     ): Promise<{
@@ -437,7 +444,7 @@ const api = {
       ipcRenderer.invoke("skills:setSources", paths),
     listWorkspaceSkillFolders: (
       threadId?: string,
-    ): Promise<{ success: boolean; folders?: string[]; error?: string }> =>
+    ): Promise<{ success: boolean; folders?: SkillSummary[]; error?: string }> =>
       ipcRenderer.invoke("skills:listWorkspaceSkillFolders", threadId),
     importFolder: (
       threadId?: string,

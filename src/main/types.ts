@@ -120,6 +120,12 @@ export interface MemoryPromotionCandidate {
   threshold: number;
 }
 
+export interface SkillSummary {
+  folderName: string;
+  updatedAt: string;
+  description: string;
+}
+
 // =============================================================================
 
 export interface Thread {
