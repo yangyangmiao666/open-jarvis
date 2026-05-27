@@ -132,6 +132,15 @@ interruption queue, and full local sandbox execution.
 - Markdown + YAML frontmatter format
 - Skill import, create, edit, rename
 
+### Memory & Skill Precipitation
+
+- Per-workspace memory directory `.open-jarvis/memories/` — auto-consolidated after each conversation
+- Agent auto-recalls relevant memories before planning (passive `ls` + `read_file` guidance)
+- Token Jaccard similarity matching (threshold 0.35) for smart memory merge vs. create
+- Skill promotion: memories reaching recall threshold (default 3) are prompted for precipitation into global skills
+- Undo settlement / reject promotion — fully reversible
+- Context assistant card: shows recalled memories and used skills in chat
+
 ### Proxy Support
 
 - HTTP / HTTPS / ALL_PROXY configuration
@@ -495,6 +504,15 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 - 全局技能目录 `~/.open-jarvis/skills/`
 - 支持 Markdown + YAML frontmatter 格式
 - 技能导入、创建、编辑、重命名
+
+### 记忆与技能沉淀
+
+- 工作区记忆目录 `.open-jarvis/memories/`，对话结束后自动沉淀关键经验
+- Agent 在规划前自动检索相关记忆（被动引导：`ls` + `read_file`）
+- Token Jaccard 相似度匹配（阈值 0.35），智能判断合并到已有记忆或创建新文件
+- 技能晋升：记忆召回次数达到阈值（默认 3 次）后自动提示沉淀为全局技能
+- 撤销沉淀 / 拒绝晋升 — 全链路可逆
+- 上下文辅助卡片：在对话中展示本轮召回的记忆和使用的技能
 
 ### 代理支持
 

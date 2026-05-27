@@ -200,6 +200,23 @@ open-jarvis/
   - 监听工作区文件变化（`fs.watch` + 500ms debounce）。
   - 通过 `workspace:files-changed` 事件驱动 UI 刷新。
 
+- **`src/main/services/memory-service.ts`**（1200+ 行）
+  - **记忆核心服务**：沉淀(consolidate)、召回追踪(extractRecalledMemoryPaths/updateRecallCounts)、晋升检测(maybeBuildPromotionCandidate)、相似度计算(calculateMemorySimilarity/tokenizeForSimilarity)、快照构建(buildMemoryRecallSnapshot/buildSkillUsageSnapshot)、路径解析(resolveMemoryRoutePath 四级匹配)。
+  - MEMORY_SYSTEM_PROMPT：指导后台 LLM 生成通用化、可复用的记忆 JSON。
+  - 前端展示数据全部由此服务构建。
+
+- **`src/main/memory-config.ts`**（90 行）
+  - 记忆目录路径配置：`MEMORY_ROUTE_PREFIX = "/memories/"`、存储目录 `.open-jarvis/memories/`。
+  - 遗留布局迁移 `migrateLegacyMemoryLayout()`：删除旧 AGENTS.md、提升 topics/ 子目录。
+
+- **`src/main/memory-settings.ts`**（20 行）
+  - 晋升阈值存取：`getSkillPromotionThreshold()` / `setMemorySettings()`，默认 3，范围 1-50。
+  - 使用 electron-store `settings.memorySettings` 键。
+
+- **`src/main/skill-config.ts`**（91 行）
+  - 全局技能源目录解析：固定为 `~/.open-jarvis/skills/`。
+  - `resolveSkillSourcesForWorkspace()` 无条件返回全局绝对路径，所有工作区共享技能。
+
 - **`src/main/types.ts`**（307 行）
   - 主进程共享类型：Thread、StreamEvent、ModelConfig、MCPServerConfig、ProxyConfig、HITLRequest、HITLDecision、OpenAICompatibleProfile、CustomModelApiFormat、CustomModelThinkingType、CustomModelThinkingEffort、WorkspaceApprovalRule、Subagent、Todo、FileInfo 等。
 
@@ -232,10 +249,12 @@ open-jarvis/
 
 - **`src/main/ipc/skills.ts`**（271 行）
   - 技能源目录、导入、创建（含 Markdown + YAML frontmatter）、读写 SKILL.md、重命名、删除（带确认）。
+  - **记忆晋升相关**: `skills:confirmPromotion`（确认晋升）、`skills:settleMemoryAsSkill`（手动沉淀）、`skills:undoMemorySettlement`（撤销沉淀，删技能文件夹+重置状态）、`skills:rejectPromotion`（拒绝晋升，标记 rejected）。
 
 - **`src/main/ipc/settings.ts`**（19 行）
   - `settings:getProxyConfig`、`settings:setProxyConfig`。
   - 设置代理后自动调用 `applyGlobalProxyDispatcher()`。
+  - **记忆相关**: `settings:getMemorySettings`、`settings:setMemorySettings`、`settings:listWorkspaceMemories`、`settings:getWorkspaceMemoryDocument`、`settings:updateWorkspaceMemoryDocument`（含重命名）、`settings:deleteWorkspaceMemoryDocument`。
 
 ## 4. Preload 契约
 
@@ -754,6 +773,30 @@ stream.stop() + agent.cancel()
 3. 视觉样式在 `src/renderer/src/components/chat/MessageBubble.tsx`（`_queued` 标记 → `opacity-60` + "排队中"角标）。
 4. `Message` 类型定义在 `src/renderer/src/types.ts`（`_queued?: boolean`）。
 5. 若改合并策略（如从 `\n\n` 拼接改为逐条发送），改 `ChatContainer.tsx` 中 `prevLoadingRef` effect 的合并逻辑。
+
+### 12.13 改记忆沉淀逻辑
+
+1. 核心服务在 `src/main/services/memory-service.ts`（`consolidateTaskMemory`、`generateMemoryDraft`、`resolveMemoryRoutePath`）。
+2. 沉淀提示词在同文件的 `MEMORY_SYSTEM_PROMPT`。
+3. 相似度算法在同文件的 `calculateMemorySimilarity` / `tokenizeForSimilarity`（Jaccard 系数，阈值 0.35）。
+4. 晋升阈值在 `src/main/memory-settings.ts`（默认 3，范围 1-50）。
+5. 沉淀触发在 `src/main/ipc/agent.ts`（流结束后调用 `consolidateTaskMemory`）。
+6. 晋升/撤销/拒绝 IPC 在 `src/main/ipc/skills.ts`（`confirmPromotion`、`undoMemorySettlement`、`rejectPromotion`）。
+
+### 12.14 改记忆召回行为
+
+1. 召回中间件在 `src/main/agent/runtime.ts`（`MemoryRecallMiddleware`，注入 `ls("/memories/")` 提醒）。
+2. 系统提示词记忆段落 `Long-Term Memory Workflow` 在 `src/main/agent/system-prompt.ts`。
+3. 召回追踪 `extractRecalledMemoryPaths` 在 `src/main/services/memory-service.ts`。
+4. 召回计数更新 `updateRecallCounts` 在同文件。
+5. 前端展示在 `src/renderer/src/components/chat/ChatContainer.tsx`（上下文辅助卡片 + 晋升确认条）。
+6. 前端状态在 `src/renderer/src/lib/thread-context.tsx`（`memoryRecall`、`pendingMemoryPromotions`、`skillUsage`）。
+
+### 12.15 改记忆/技能管理面板
+
+1. 记忆面板在 `src/renderer/src/components/chat/settings/MemoryPanel.tsx`（列表/编辑/沉淀/撤销/删除）。
+2. 技能面板在 `src/renderer/src/components/chat/settings/SkillsPanel.tsx`（列表/创建/编辑/导入/删除）。
+3. IPC 桥接在 `src/preload/index.ts`（`window.api.settings` 记忆方法 + `window.api.skills` 沉淀方法）。
 
 ## 13. 验证命令
 
