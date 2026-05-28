@@ -306,14 +306,78 @@ function stripFunctionExpressionsForJson(source: string): {
   };
 }
 
+function escapeLiteralNewlinesInStrings(source: string): string {
+  let i = 0;
+  const out: string[] = [];
+
+  while (i < source.length) {
+    const char = source[i];
+
+    if (char === '"' || char === "'") {
+      const quote = char;
+      out.push(char);
+      i += 1;
+
+      while (i < source.length) {
+        const current = source[i];
+
+        if (current === "\\") {
+          out.push(current);
+          i += 1;
+          if (i < source.length) {
+            out.push(source[i]);
+            i += 1;
+          }
+          continue;
+        }
+
+        if (current === "\n") {
+          out.push("\\n");
+          i += 1;
+          continue;
+        }
+
+        if (current === "\r") {
+          out.push("\\r");
+          i += 1;
+          continue;
+        }
+
+        out.push(current);
+        i += 1;
+
+        if (current === quote) {
+          break;
+        }
+      }
+
+      continue;
+    }
+
+    out.push(char);
+    i += 1;
+  }
+
+  return out.join("");
+}
+
+function evaluateEChartsOptionExpression(source: string): echarts.EChartsOption {
+  const normalizedSource = escapeLiteralNewlinesInStrings(source);
+
+  return new Function(
+    `"use strict"; return (${normalizedSource});`,
+  )() as echarts.EChartsOption;
+}
+
 function parseEChartsOption(source: string): { option: echarts.EChartsOption | null; error: string | null } {
   const trimmed = source.trim();
   const optionMatch = trimmed.match(/(?:const|let|var)?\s*option\s*=\s*([\s\S]*?);?\s*$/);
   const candidate = optionMatch?.[1]?.trim() || trimmed;
+  const normalizedCandidate = escapeLiteralNewlinesInStrings(candidate);
 
   try {
     return {
-      option: JSON.parse(candidate) as echarts.EChartsOption,
+      option: JSON.parse(normalizedCandidate) as echarts.EChartsOption,
       error: null,
     };
   } catch {
@@ -321,7 +385,7 @@ function parseEChartsOption(source: string): { option: echarts.EChartsOption | n
       // CSP 禁止 eval/new Function，这里改为无执行解析：
       // 将 function 回调占位为 null，让主体 option 结构可被 JSON.parse 并继续渲染。
       const { sanitized, replacedCount } = stripFunctionExpressionsForJson(
-        candidate,
+        normalizedCandidate,
       );
       const option = JSON.parse(sanitized) as echarts.EChartsOption;
       return {
@@ -332,11 +396,18 @@ function parseEChartsOption(source: string): { option: echarts.EChartsOption | n
             : null,
       };
     } catch {
+      try {
+        return {
+          option: evaluateEChartsOptionExpression(candidate),
+          error: null,
+        };
+      } catch {
     return {
       option: null,
       error:
-        "ECharts 代码块当前需要有效的 option 对象（支持 JSON 或含 function 的 JS 对象字面量），例如 {\"title\":{\"text\":\"Demo\"},\"xAxis\":{...}}。",
+        "ECharts 代码块当前需要有效的 option 对象（支持 JSON、含 function/箭头函数的 JS 对象字面量，以及常见的 map/三元表达式），例如 {\"title\":{\"text\":\"Demo\"},\"xAxis\":{...}}。",
     };
+      }
     }
   }
 }
