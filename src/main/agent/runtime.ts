@@ -370,16 +370,16 @@ function normalizeCustomModelThinkingEffort(
   }
 }
 
-function normalizeOpenAIReasoningEffort(
+function normalizeOpenAICompatibleReasoningEffort(
   profile: Pick<OpenAICompatibleProfile, "thinkingEffort">,
-): "low" | "medium" | "high" {
+): "high" | "max" {
   switch (profile.thinkingEffort) {
+    case "xhigh":
+    case "max":
+      return "max";
     case "low":
     case "medium":
     case "high":
-      return profile.thinkingEffort;
-    case "xhigh":
-    case "max":
     default:
       return "high";
   }
@@ -473,6 +473,103 @@ function getAIMessageReasoningContent(message: AIMessage): unknown {
   return (rawMessage as Record<string, unknown>)["reasoning_content"];
 }
 
+function isAssistantLikeMessage(message: unknown): boolean {
+  if (AIMessage.isInstance(message)) {
+    return true;
+  }
+
+  if (!message || typeof message !== "object") {
+    return false;
+  }
+
+  const record = message as Record<string, unknown>;
+  if (record["role"] === "assistant") {
+    return true;
+  }
+
+  if (record["type"] === "assistant" || record["type"] === "ai") {
+    return true;
+  }
+
+  const getType = record["_getType"];
+  if (typeof getType === "function") {
+    try {
+      const resolvedType = getType.call(message);
+      return resolvedType === "assistant" || resolvedType === "ai";
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+}
+
+function getAssistantLikeMessageReasoningContent(message: unknown): unknown {
+  if (AIMessage.isInstance(message)) {
+    return getAIMessageReasoningContent(message);
+  }
+
+  if (!message || typeof message !== "object") {
+    return undefined;
+  }
+
+  const record = message as Record<string, unknown>;
+  if (record["reasoning_content"] !== undefined) {
+    return record["reasoning_content"];
+  }
+
+  const additionalKwargs =
+    typeof record["additional_kwargs"] === "object" &&
+    record["additional_kwargs"] !== null
+      ? (record["additional_kwargs"] as Record<string, unknown>)
+      : null;
+
+  if (additionalKwargs?.["reasoning_content"] !== undefined) {
+    return additionalKwargs["reasoning_content"];
+  }
+
+  const rawResponse = additionalKwargs?.["__raw_response"];
+  if (typeof rawResponse !== "object" || rawResponse === null) {
+    return undefined;
+  }
+
+  const choices = (rawResponse as { choices?: unknown }).choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
+    return undefined;
+  }
+
+  const firstChoice = choices[0];
+  if (typeof firstChoice !== "object" || firstChoice === null) {
+    return undefined;
+  }
+
+  const rawMessage = (firstChoice as { message?: unknown }).message;
+  if (typeof rawMessage !== "object" || rawMessage === null) {
+    return undefined;
+  }
+
+  return (rawMessage as Record<string, unknown>)["reasoning_content"];
+}
+
+function applyOpenAICompatibleThinkingConfig(
+  body: OpenAICompatibleRequestBody,
+  profile: OpenAICompatibleProfile,
+): OpenAICompatibleRequestBody {
+  const thinkingType = normalizeCustomModelThinkingType(profile);
+  const nextBody: OpenAICompatibleRequestBody = { ...body };
+  nextBody["thinking"] = { type: thinkingType };
+  delete nextBody["extra_body"];
+
+  if (thinkingType === "enabled") {
+    nextBody["reasoning_effort"] =
+      normalizeOpenAICompatibleReasoningEffort(profile);
+  } else {
+    delete nextBody["reasoning_effort"];
+  }
+
+  return nextBody;
+}
+
 function hasOpenAICompatibleToolHistory(body: OpenAICompatibleRequestBody): boolean {
   const messages = body["messages"];
   if (!Array.isArray(messages)) {
@@ -520,11 +617,11 @@ function extractOpenAICompatibleReasoningReplay(
   messages: unknown[],
 ): OpenAICompatibleReasoningReplay {
   return messages.flatMap((message) => {
-    if (!AIMessage.isInstance(message)) {
+    if (!isAssistantLikeMessage(message)) {
       return [];
     }
 
-    return [getAIMessageReasoningContent(message)];
+    return [getAssistantLikeMessageReasoningContent(message)];
   });
 }
 
@@ -597,6 +694,9 @@ function summarizeOpenAICompatibleRequestBody(
     stream: body["stream"] === true,
     toolCount: Array.isArray(body["tools"]) ? body["tools"].length : 0,
     hasToolChoice: body["tool_choice"] !== undefined,
+    hasThinkingConfig:
+      typeof body["thinking"] === "object" && body["thinking"] !== null,
+    hasReasoningEffort: body["reasoning_effort"] !== undefined,
     hasParallelToolCalls: body["parallel_tool_calls"] !== undefined,
     hasResponseFormat: body["response_format"] !== undefined,
     hasUser: body["user"] !== undefined,
@@ -807,13 +907,18 @@ function createOpenAICompatibleFetch(
       return baseFetch(input, init);
     }
 
+    const configuredBody = applyOpenAICompatibleThinkingConfig(
+      parsedBody,
+      profile,
+    );
+
     const shouldReplayReasoningContent =
-      shouldReplayOpenAICompatibleReasoningContent(profile, parsedBody);
+      shouldReplayOpenAICompatibleReasoningContent(profile, configuredBody);
     const reasoningReplay = shouldReplayReasoningContent
       ? openAICompatibleReasoningReplayStorage.getStore()
       : undefined;
     const replayedBody = applyOpenAICompatibleReasoningReplay(
-      parsedBody,
+      configuredBody,
       reasoningReplay,
     );
 
@@ -930,13 +1035,8 @@ function createCustomOpenAIChatModel(
 
   const key = profile.apiKey?.trim() ?? "";
   const thinkingType = normalizeCustomModelThinkingType(profile);
-  const thinkingEffort = normalizeOpenAIReasoningEffort(profile);
+  const thinkingEffort = normalizeOpenAICompatibleReasoningEffort(profile);
   const reasoningContentMode = normalizeReasoningContentMode(profile);
-  const modelKwargs = {
-    thinking: {
-      type: thinkingType,
-    },
-  } as const;
 
   logInfo("Runtime", "Configuring OpenAI-format custom model", {
     modelId,
@@ -945,7 +1045,6 @@ function createCustomOpenAIChatModel(
     thinkingType,
     thinkingEffort: thinkingType === "enabled" ? thinkingEffort : null,
     reasoningContentMode,
-    modelKwargs,
     timeoutMs: MODEL_REQUEST_TIMEOUT_MS,
     proxyEnv: {
       NODE_USE_ENV_PROXY: process.env["NODE_USE_ENV_PROXY"] ?? null,
@@ -962,7 +1061,6 @@ function createCustomOpenAIChatModel(
       baseURL,
       fetch: createOpenAICompatibleFetch(modelId, profile),
     },
-    modelKwargs,
     useResponsesApi: false,
     streamUsage: true,
     timeout: MODEL_REQUEST_TIMEOUT_MS,
@@ -989,9 +1087,9 @@ function createCustomAnthropicChatModel(
     thinkingType === "enabled"
       ? ({ effort: thinkingEffort } as const)
       : undefined;
-  const invocationKwargs =
+  const thinking =
     thinkingType === "enabled"
-      ? ({ thinking: { type: "enabled" } } as const)
+      ? ({ thinking: { type: "adaptive" } } as const)
       : undefined;
 
   logInfo("Runtime", "Configuring Anthropic-format custom model", {
@@ -1000,6 +1098,7 @@ function createCustomAnthropicChatModel(
     profileModel: profile.model,
     thinkingType,
     thinkingEffort: outputConfig?.effort ?? null,
+    thinking,
   });
 
   const chatModel = new ChatAnthropic({
@@ -1007,8 +1106,8 @@ function createCustomAnthropicChatModel(
     anthropicApiKey: key.length > 0 ? key : "sk-placeholder-no-key",
     anthropicApiUrl: apiUrl,
     maxRetries: 1,
+    ...(thinking ? thinking : {}),
     ...(outputConfig ? { outputConfig } : {}),
-    ...(invocationKwargs ? { invocationKwargs } : {}),
   });
 
   return applyContextWindowProfile(
