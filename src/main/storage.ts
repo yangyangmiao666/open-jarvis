@@ -130,12 +130,31 @@ export function loadEnvFileToProcessEnv(): Record<string, string> {
 
 export function getProxyConfig(): ProxyConfig {
   const env = parseEnvFile();
-  const httpProxy = env["HTTP_PROXY"] ?? process.env["HTTP_PROXY"] ?? "";
-  const httpsProxy = env["HTTPS_PROXY"] ?? process.env["HTTPS_PROXY"] ?? "";
-  const allProxy = env["ALL_PROXY"] ?? process.env["ALL_PROXY"] ?? "";
+  const httpProxy = env["HTTP_PROXY"] ?? "";
+  const httpsProxy = env["HTTPS_PROXY"] ?? "";
+  const allProxy = env["ALL_PROXY"] ?? "";
   const hasProxyValues = !!(httpProxy || httpsProxy || allProxy);
-  const proxyMode = (env["PROXY_MODE"] as "system" | "custom" | undefined) ?? (hasProxyValues ? "custom" : "system");
+  const proxyMode = (env["PROXY_MODE"] as "system" | "custom" | undefined) ??
+    (hasProxyValues ? "custom" : "system");
   return { httpProxy, httpsProxy, allProxy, proxyMode };
+}
+
+export function clearProxyEnvFromProcess(): void {
+  const keys = [
+    "HTTP_PROXY",
+    "http_proxy",
+    "HTTPS_PROXY",
+    "https_proxy",
+    "ALL_PROXY",
+    "all_proxy",
+    "NO_PROXY",
+    "no_proxy",
+    "NODE_USE_ENV_PROXY",
+  ] as const;
+
+  for (const key of keys) {
+    delete process.env[key];
+  }
 }
 
 export function setProxyConfig(config: ProxyConfig): ProxyConfig {

@@ -10,7 +10,12 @@ import { registerThreadHandlers } from "./ipc/threads";
 import { registerModelHandlers } from "./ipc/models";
 import { registerSkillHandlers } from "./ipc/skills";
 import { initializeDatabase } from "./db";
-import { getOpenworkDir, loadEnvFileToProcessEnv } from "./storage";
+import {
+  clearProxyEnvFromProcess,
+  getOpenworkDir,
+  getProxyConfig,
+  loadEnvFileToProcessEnv,
+} from "./storage";
 import { logError, logInfo } from "./logger";
 import { applyGlobalProxyDispatcher, getProxyConfigFromEnv } from "./proxy-config";
 
@@ -117,7 +122,7 @@ function createWindow(): void {
       mainWindow?.maximize();
       settingsStore.set("windowLaunchedBefore", true);
     } else if (
-      (settingsStore.get("windowWasMaximized", false) as boolean) === true
+      (settingsStore.get("windowWasMaximized", false) as boolean)
     ) {
       mainWindow?.maximize();
     }
@@ -147,7 +152,11 @@ function createWindow(): void {
 
 app.whenReady().then(async () => {
   const loadedEnv = loadEnvFileToProcessEnv();
-  await applyGlobalProxyDispatcher(getProxyConfigFromEnv());
+  const proxyConfig = getProxyConfig();
+  if (proxyConfig.proxyMode !== "custom") {
+    clearProxyEnvFromProcess();
+  }
+  await applyGlobalProxyDispatcher(proxyConfig.proxyMode === "custom" ? proxyConfig : getProxyConfigFromEnv());
 
   logInfo("Main", "App starting", {
     packaged: app.isPackaged,
@@ -155,6 +164,7 @@ app.whenReady().then(async () => {
     arch: process.arch,
     resourcesPath: process.resourcesPath,
     loadedEnvKeys: Object.keys(loadedEnv),
+    proxyMode: proxyConfig.proxyMode ?? "system",
     proxyEnv: {
       NODE_USE_ENV_PROXY: process.env["NODE_USE_ENV_PROXY"] ?? null,
       HTTP_PROXY: process.env["HTTP_PROXY"] ? "<set>" : null,

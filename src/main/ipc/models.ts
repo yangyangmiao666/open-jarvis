@@ -92,29 +92,46 @@ function resolveWorkspacePathFromMetadata(
     (store.get("workspacePath", null) as string | null);
 }
 
+function normalizeWorkspaceFileInput(filePath: string): string {
+  if (process.platform !== "win32") {
+    return filePath;
+  }
+
+  if (/^\/[A-Za-z]:[\\/]/.test(filePath)) {
+    return filePath.slice(1);
+  }
+
+  if (/^[A-Za-z]:[\\/]/.test(filePath) || /^[\\/]{2}/.test(filePath)) {
+    return filePath;
+  }
+
+  return filePath.replace(/^[\\/]+/, "");
+}
+
 async function resolveWorkspaceFilePath(
   workspacePath: string,
   filePath: string,
 ): Promise<{ success: true; resolvedPath: string } | { success: false; error: string }> {
   const resolvedWorkspace = path.resolve(workspacePath);
+  const normalizedFilePath = normalizeWorkspaceFileInput(filePath);
   let resolvedPath: string;
 
-  if (path.isAbsolute(filePath)) {
-    resolvedPath = path.resolve(filePath);
+  if (path.isAbsolute(normalizedFilePath)) {
+    resolvedPath = path.resolve(normalizedFilePath);
     if (
       !pathStartsWith(resolvedPath, resolvedWorkspace) &&
       !(await fs.stat(resolvedPath).catch(() => null))
     ) {
       const relativePart =
         process.platform === "win32"
-          ? filePath
-          : filePath.startsWith("/")
-            ? filePath.slice(1)
-            : filePath;
+          ? normalizedFilePath
+          : normalizedFilePath.startsWith("/")
+            ? normalizedFilePath.slice(1)
+            : normalizedFilePath;
       resolvedPath = path.resolve(workspacePath, relativePart);
     }
   } else {
-    resolvedPath = path.resolve(workspacePath, filePath);
+    resolvedPath = path.resolve(workspacePath, normalizedFilePath);
   }
 
   if (!pathStartsWith(resolvedPath, resolvedWorkspace)) {
