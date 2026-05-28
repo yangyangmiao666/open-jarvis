@@ -252,14 +252,15 @@ open-jarvis/
 │   │   │   ├── approval.ts      # Approval mode
 │   │   │   ├── mcp.ts           # MCP config
 │   │   │   ├── skills.ts        # Skill management
-│   │   │   └── settings.ts      # Proxy config
+│   │   │   └── settings.ts      # Proxy, memory, global config, tooling, notifications
 │   │   ├── checkpointer/        # Checkpoint storage
 │   │   │   └── sqljs-saver.ts   # Per-thread SQLite checkpoint
 │   │   ├── db/                  # Persistent database
 │   │   │   └── index.ts         # Thread, run, assistant CRUD
 │   │   ├── services/            # Auxiliary services
 │   │   │   ├── title-generator.ts
-│   │   │   └── workspace-watcher.ts
+│   │   │   ├── workspace-watcher.ts
+│   │   │   └── memory-service.ts # Memory consolidation, recall, promotion
 │   │   ├── storage.ts           # ~/.open-jarvis directory & .env management
 │   │   ├── approval-settings.ts # Approval rules & workspace rules
 │   │   ├── mcp-config.ts        # MCP config CRUD
@@ -269,6 +270,10 @@ open-jarvis/
 │   │   ├── text-encoding.ts     # UTF-8 / GB18030 decoding
 │   │   ├── proxy-config.ts      # Proxy config & global dispatcher
 │   │   ├── global-config.ts     # Global config export/import
+│   │   ├── memory-config.ts     # Memory directory path config
+│   │   ├── memory-runtime.ts    # Memory runtime helpers
+│   │   ├── memory-settings.ts   # Memory promotion threshold settings
+│   │   ├── json-file-store.ts   # JSON file store utility
 │   │   ├── logger.ts            # Logging
 │   │   └── types.ts             # Main process shared types
 │   ├── preload/                 # contextBridge bridge layer
@@ -282,12 +287,13 @@ open-jarvis/
 │   │   │   ├── electron-transport.ts  # IPC → LangGraph Transport
 │   │   │   └── ...
 │   │   └── components/          # UI components
-│   │       ├── chat/            # Chat area (20 components)
+│   │       ├── chat/            # Chat area
+│   │       │   └── settings/    # Settings panels (General, API Key, MCP, Skills, Memory, Proxy, OpenAI Compatible, Usage Logs, About)
 │   │       ├── panels/          # Right panel
 │   │       ├── tabs/            # Tabs & file preview
 │   │       ├── sidebar/         # Thread sidebar
 │   │       ├── kanban/          # Kanban view
-│   │       └── ui/              # Base components (Radix UI)
+│   │       └── ui/              # Base components (13 Radix UI primitives)
 │   ├── model-context.ts         # Model context window config
 │   └── types.ts                 # Renderer shared types
 ├── resources/tooling/           # Embedded toolchain (per platform)
@@ -312,7 +318,7 @@ open-jarvis/
 ├──────────────────────────┴───────────────────────────────────┤
 │                      Preload Layer                           │
 │   8 namespaces: agent / threads / approval / models /        │
-│   workspace / mcp / skills / settings                        │
+│   workspace / mcp / skills / settings                       │
 ├──────────────────────────────────────────────────────────────┤
 │                      Main Process                            │
 │   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
@@ -629,14 +635,15 @@ open-jarvis/
 │   │   │   ├── approval.ts      # 审批模式
 │   │   │   ├── mcp.ts           # MCP 配置
 │   │   │   ├── skills.ts        # 技能管理
-│   │   │   └── settings.ts      # 代理配置
+│   │   │   └── settings.ts      # 代理、记忆、全局配置、工具链、桌面通知
 │   │   ├── checkpointer/        # 检查点存储
 │   │   │   └── sqljs-saver.ts   # 每线程 SQLite 检查点
 │   │   ├── db/                  # 持久化数据库
 │   │   │   └── index.ts         # 线程、运行、助手 CRUD
 │   │   ├── services/            # 辅助服务
 │   │   │   ├── title-generator.ts
-│   │   │   └── workspace-watcher.ts
+│   │   │   ├── workspace-watcher.ts
+│   │   │   └── memory-service.ts # 记忆沉淀、召回、晋升
 │   │   ├── storage.ts           # ~/.open-jarvis 目录与 .env 管理
 │   │   ├── approval-settings.ts # 审批规则与工作区规则
 │   │   ├── mcp-config.ts        # MCP 配置 CRUD
@@ -646,6 +653,10 @@ open-jarvis/
 │   │   ├── text-encoding.ts     # UTF-8 / GB18030 解码
 │   │   ├── proxy-config.ts      # 代理配置与全局分发器
 │   │   ├── global-config.ts     # 全局配置导入/导出
+│   │   ├── memory-config.ts     # 记忆目录路径配置
+│   │   ├── memory-runtime.ts    # 记忆运行时辅助
+│   │   ├── memory-settings.ts   # 记忆晋升阈值设置
+│   │   ├── json-file-store.ts   # JSON 文件存储工具
 │   │   ├── logger.ts            # 日志
 │   │   └── types.ts             # 主进程共享类型
 │   ├── preload/                 # contextBridge 桥接层
@@ -659,12 +670,13 @@ open-jarvis/
 │   │   │   ├── electron-transport.ts  # IPC → LangGraph Transport
 │   │   │   └── ...
 │   │   └── components/          # UI 组件
-│   │       ├── chat/            # 对话区（20 个组件）
+│   │       ├── chat/            # 对话区
+│   │       │   └── settings/    # 设置面板（通用、API Key、MCP、技能、记忆、代理、OpenAI 兼容、使用日志、关于）
 │   │       ├── panels/          # 右侧面板
 │   │       ├── tabs/            # 标签页与文件预览
 │   │       ├── sidebar/         # 左侧会话栏
 │   │       ├── kanban/          # 看板视图
-│   │       └── ui/              # 基础组件（Radix UI）
+│   │       └── ui/              # 基础组件（13 个 Radix UI 原语）
 │   ├── model-context.ts         # 模型上下文窗口配置
 │   └── types.ts                 # 渲染层共享类型
 ├── resources/tooling/           # 嵌入式工具链（按平台）

@@ -63,7 +63,7 @@
 ```
 open-jarvis/
   src/
-    main/                 # Electron 主进程（27 个 TS 文件）
+    main/                 # Electron 主进程（33 个 TS 文件）
     preload/              # contextBridge → window.api（2 个文件）
     renderer/src/         # React 19 + Tailwind 4 UI
     model-context.ts      # 模型上下文窗口配置
@@ -74,7 +74,6 @@ open-jarvis/
   release/                # electron-builder 产物
   docs/                   # 截图与源码导览
   out/                    # 构建输出（main / preload / renderer）
-  verify_sandbox_temp/    # 本地验证嵌入式工具链/沙箱时使用的临时目录
 ```
 
 ## 3. 主进程地图
@@ -93,7 +92,7 @@ open-jarvis/
 
 ### 3.2 Agent 运行时
 
-- **`src/main/agent/runtime.ts`**（745 行）
+- **`src/main/agent/runtime.ts`**（1337 行）
   - `createAgentRuntime(options)`：核心工厂函数，组装 DeepAgent。
   - **模型路由**：
     - `claude*` → `ChatAnthropic`
@@ -109,7 +108,7 @@ open-jarvis/
   - Skills 通过 `resolveSkillSourcesForWorkspace()` 解析。
   - `RuntimeToolErrorMiddleware`：全局工具调用错误中间件，捕获异常后返回 `ToolMessage` 而非崩溃。
 
-- **`src/main/agent/system-prompt.ts`**（122 行）
+- **`src/main/agent/system-prompt.ts`**（180 行）
   - Agent 基础行为约束：简洁回复、文件分页读取、shell 执行规则（必须用嵌入式 uv/bun）、HITL 审批处理、todo 管理、子代理委派、代码引用格式。
   - 需要改智能体默认策略时，**优先改这里**而不是散落在 UI 文案中。
 
@@ -200,7 +199,7 @@ open-jarvis/
   - 监听工作区文件变化（`fs.watch` + 500ms debounce）。
   - 通过 `workspace:files-changed` 事件驱动 UI 刷新。
 
-- **`src/main/services/memory-service.ts`**（1200+ 行）
+- **`src/main/services/memory-service.ts`**（1703 行）
   - **记忆核心服务**：沉淀(consolidate)、召回追踪(extractRecalledMemoryPaths/updateRecallCounts)、晋升检测(maybeBuildPromotionCandidate)、相似度计算(calculateMemorySimilarity/tokenizeForSimilarity)、快照构建(buildMemoryRecallSnapshot/buildSkillUsageSnapshot)、路径解析(resolveMemoryRoutePath 四级匹配)。
   - MEMORY_SYSTEM_PROMPT：指导后台 LLM 生成通用化、可复用的记忆 JSON。
   - 前端展示数据全部由此服务构建。
@@ -251,20 +250,22 @@ open-jarvis/
   - 技能源目录、导入、创建（含 Markdown + YAML frontmatter）、读写 SKILL.md、重命名、删除（带确认）。
   - **记忆晋升相关**: `skills:confirmPromotion`（确认晋升）、`skills:settleMemoryAsSkill`（手动沉淀）、`skills:undoMemorySettlement`（撤销沉淀，删技能文件夹+重置状态）、`skills:rejectPromotion`（拒绝晋升，标记 rejected）。
 
-- **`src/main/ipc/settings.ts`**（19 行）
-  - `settings:getProxyConfig`、`settings:setProxyConfig`。
-  - 设置代理后自动调用 `applyGlobalProxyDispatcher()`。
-  - **记忆相关**: `settings:getMemorySettings`、`settings:setMemorySettings`、`settings:listWorkspaceMemories`、`settings:getWorkspaceMemoryDocument`、`settings:updateWorkspaceMemoryDocument`（含重命名）、`settings:deleteWorkspaceMemoryDocument`。
+- **`src/main/ipc/settings.ts`**（393 行）
+  - 代理：`settings:getProxyConfig`、`settings:setProxyConfig`（设置后自动调用 `applyGlobalProxyDispatcher()`）。
+  - 记忆：`settings:getMemorySettings`、`settings:setMemorySettings`、`settings:listWorkspaceMemories`、`settings:getWorkspaceMemoryDocument`、`settings:updateWorkspaceMemoryDocument`（含重命名）、`settings:deleteWorkspaceMemoryDocument`。
+  - 全局配置：`settings:exportGlobalConfigToFile`、`settings:importGlobalConfigFromFile`。
+  - 工具链版本：`settings:getToolingVersions`。
+  - 桌面通知：`settings:showDesktopNotification`。
 
 ## 4. Preload 契约
 
-- **`src/preload/index.ts`**（404 行）
+- **`src/preload/index.ts`**（532 行）
   - 通过 `contextBridge` 暴露 `window.api`，包含 8 个命名空间：agent, threads, approval, models, workspace, mcp, skills, settings。
   - 渲染层只应通过这里访问主进程能力。
   - 流式事件订阅返回清理函数。
   - `window.electron` 暴露原始 IPC 访问（`ipcRenderer.send/on/invoke`）和平台信息。
 
-- **`src/preload/index.d.ts`**（196 行）
+- **`src/preload/index.d.ts`**
   - `window.api` 的类型契约。
   - 任何新增 IPC 或方法签名变更，**都必须同步这里**，否则渲染层类型会漂移。
   - 当前 `approval`、`mcp`、`workspace`、`skills`、`settings` 都已经是独立契约面，不要只改实现不改声明。
@@ -297,7 +298,7 @@ open-jarvis/
   - `createThread()` 会继承当前线程的 `model`、`workspacePath`、`approvalMode`。
   - 删除最后一个线程时会立刻补一个新线程，避免 `currentThreadId === null` 造成工作区相关状态悬空。
 
-- **`src/renderer/src/lib/thread-context.tsx`**（1100 行）
+- **`src/renderer/src/lib/thread-context.tsx`**（1597 行）
   - 线程内状态源：`messages`、`todos`、`workspaceFiles`、`workspacePath`、`subagents`、`pendingApproval`、`currentModel`、`tokenUsage`、`openFiles`、`activeTab`、`fileContents`、`draftInput`、`approvalMode`、`interruptionQueue` 等。
   - `ThreadProvider` 为每个活跃线程挂接 `useStream()` + `ElectronIPCTransport`。
   - 新线程默认状态：消息空数组、草稿空字符串、无工作区文件、审批模式 `manual`、插嘴队列空数组。
@@ -314,7 +315,7 @@ open-jarvis/
 
 ### 5.4 对话与消息
 
-- **`src/renderer/src/components/chat/ChatContainer.tsx`**（1206 行）
+- **`src/renderer/src/components/chat/ChatContainer.tsx`**（1997 行）
   - 对话主容器，负责消息发送、流式状态、错误提示、审批状态接入。
   - **插嘴队列逻辑**：`displayMessages` 合并线程消息、流式消息和 `interruptionQueue`；`submitUserMessage` 在 loading 时将消息入队（`_queued: true`），非 loading 时正常提交；`prevLoadingRef` effect 在流结束后自动合并队列消息并发送给大模型；取消操作清空队列。
   - 流式处理时显示动态提示，基于当前状态生成上下文相关提示信息。
@@ -325,7 +326,7 @@ open-jarvis/
   - `_queued` 标记的消息：半透明（`opacity-60`）+ "排队中"角标。
   - 支持单条消息与整会话导出 Markdown。
 
-- **`src/renderer/src/components/chat/ToolCallRenderer.tsx`**（742 行）
+- **`src/renderer/src/components/chat/ToolCallRenderer.tsx`**（797 行）
   - 工具调用卡片与结果展示。
   - 待审批工具会显示专门的状态与批准/拒绝/编辑交互。
   - 支持"记住此决定"复选框，勾选后写入工作区审批规则。
@@ -346,22 +347,22 @@ open-jarvis/
 - **`src/renderer/src/components/chat/WorkspacePicker.tsx`**
   - 工作区关联入口，支持选择/更换/同步。
 
-- **`src/renderer/src/components/chat/SettingsHubDialog.tsx`**
-  - 设置总入口，根据 `SettingsOpenRequest` 定向打开子对话框。
+- **`src/renderer/src/components/chat/SettingsDialog.tsx`**
+  - 设置总入口，根据 `SettingsOpenRequest` 定向打开子面板。
 
 - **`src/renderer/src/components/chat/ChatTodos.tsx`**
   - 对话区任务列表展示。
 
-- **`src/renderer/src/components/chat/MCPConfigDialog.tsx`**
+- **`src/renderer/src/components/chat/settings/MCPConfigPanel.tsx`**
   - MCP 服务器配置 UI，支持三种传输方式、自定义 headers、导入导出 JSON。
 
-- **`src/renderer/src/components/chat/OpenAICompatibleDialog.tsx`**
+- **`src/renderer/src/components/chat/settings/OpenAICompatiblePanel.tsx`**
   - 自定义 OpenAI 兼容模型配置 UI，支持 API 格式、思考类型/力度、上下文窗口。
 
 - **`src/renderer/src/components/chat/ApiKeyDialog.tsx`**
   - API Key 配置 UI（Anthropic / OpenAI / Google）。
 
-- **`src/renderer/src/components/chat/ProxyConfigDialog.tsx`**
+- **`src/renderer/src/components/chat/settings/ProxyConfigPanel.tsx`**
   - 代理配置 UI（HTTP / HTTPS / ALL_PROXY）。
 
 - **`src/renderer/src/components/chat/ShikiCodePreview.tsx`**
@@ -381,8 +382,20 @@ open-jarvis/
 - **`src/renderer/src/components/panels/FilesystemPanel.tsx`**
   - 文件系统面板组件。
 
-- **`src/renderer/src/components/panels/SkillsDialog.tsx`**
-  - 工作区技能管理 UI。
+- **`src/renderer/src/components/chat/settings/SkillsPanel.tsx`**
+  - 技能管理 UI（列表/创建/编辑/导入/删除）。
+
+- **`src/renderer/src/components/chat/settings/MemoryPanel.tsx`**
+  - 记忆管理 UI（列表/编辑/沉淀/撤销/删除）。
+
+- **`src/renderer/src/components/chat/settings/GeneralPanel.tsx`**
+  - 通用设置面板。
+
+- **`src/renderer/src/components/chat/settings/AboutPanel.tsx`**
+  - 关于面板。
+
+- **`src/renderer/src/components/chat/settings/UsageLogsPanel.tsx`**
+  - 使用日志面板。
 
 - **`src/renderer/src/components/panels/TodoPanel.tsx`**
   - todo 面板组件。
@@ -426,7 +439,7 @@ open-jarvis/
 
 ### 5.8 常用库文件
 
-- **`src/renderer/src/lib/electron-transport.ts`**（1308 行）
+- **`src/renderer/src/lib/electron-transport.ts`**（1537 行）
   - 将主进程流事件适配为 LangGraph SDK 的 transport。
   - 实现 `UseStreamTransport` 接口。
   - 处理 LangChain 序列化格式（`lc: 1, type: "constructor", id, kwargs`）。
@@ -459,7 +472,7 @@ open-jarvis/
 ### 5.9 UI 基础组件
 
 - **`src/renderer/src/components/ui/`**
-  - 11 个 Radix UI 封装组件：button, dialog, popover, scroll-area, context-menu, badge, card, separator, input, resizable, toast(sonner)。
+  - 13 个 Radix UI 封装组件：button, dialog, popover, scroll-area, context-menu, badge, card, separator, input, resizable, select, switch, toast(sonner)。
   - 遵循 shadcn/ui 风格约定。
 
 ### 5.10 设计系统
@@ -622,7 +635,7 @@ workspace:loadFromDisk → 返回文件列表
 ### 10.4 代理配置流程
 
 ```
-用户在 ProxyConfigDialog 设置代理
+用户在 ProxyConfigPanel 设置代理
     ↓
 window.api.settings.setProxyConfig(config)
     ↓
@@ -688,7 +701,7 @@ stream.stop() + agent.cancel()
 | `approval:getMode/setMode/shouldAutoApprove` | 双向 | approval.ts | 审批管理 |
 | `mcp:listServers/upsertServer/deleteServer/importServers/exportServers/getEnabledForThread/setEnabledForThread` | 双向 | mcp.ts | MCP 配置 |
 | `skills:listSources/setSources/listWorkspaceSkillFolders/importFolder/createSkill/*` | 双向 | skills.ts | 技能管理 |
-| `settings:getProxyConfig/setProxyConfig` | 双向 | settings.ts | 代理配置 |
+| `settings:getProxyConfig/setProxyConfig/getMemorySettings/setMemorySettings/listWorkspaceMemories/getWorkspaceMemoryDocument/updateWorkspaceMemoryDocument/deleteWorkspaceMemoryDocument/exportGlobalConfigToFile/importGlobalConfigFromFile/getToolingVersions/showDesktopNotification` | 双向 | settings.ts | 代理、记忆、全局配置、工具链版本、桌面通知 |
 
 ## 12. 常见修改路线
 
@@ -731,7 +744,7 @@ stream.stop() + agent.cancel()
 
 1. CRUD 与导入导出先看 `src/main/ipc/mcp.ts`、`src/main/mcp-config.ts`。
 2. 传输实现与缓存失效看 `src/main/agent/mcp-runtime.ts`。
-3. 渲染层入口在 `src/renderer/src/components/chat/MCPConfigDialog.tsx`。
+3. 渲染层入口在 `src/renderer/src/components/chat/settings/MCPConfigPanel.tsx`。
 
 ### 12.7 改上下文窗口 / token 统计
 
@@ -747,14 +760,14 @@ stream.stop() + agent.cancel()
 
 ### 12.9 改代理配置
 
-1. UI 入口在 `src/renderer/src/components/chat/ProxyConfigDialog.tsx`。
+1. UI 入口在 `src/renderer/src/components/chat/settings/ProxyConfigPanel.tsx`。
 2. IPC 在 `src/main/ipc/settings.ts`。
 3. 全局分发器配置在 `src/main/proxy-config.ts`。
 4. 命令执行时的代理别名注入在 `local-sandbox.ts` 的 `withProxyEnvAliases()`。
 
 ### 12.10 改 OpenAI 兼容模型配置
 
-1. UI 入口在 `src/renderer/src/components/chat/OpenAICompatibleDialog.tsx`。
+1. UI 入口在 `src/renderer/src/components/chat/settings/OpenAICompatiblePanel.tsx`。
 2. 配置 CRUD 在 `src/main/openai-compatible-profiles.ts`。
 3. 模型实例化与消息归一化在 `src/main/agent/runtime.ts`。
 4. 新增 `apiFormat` / `thinkingType` / `thinkingEffort` 字段需同步 `src/main/types.ts` 的 `OpenAICompatibleProfile`。
