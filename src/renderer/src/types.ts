@@ -68,6 +68,7 @@ export interface WorkspaceApprovalRule {
 }
 
 export interface MemorySettings {
+  memoryConsolidationEnabled: boolean;
   skillPromotionRecallThreshold: number;
 }
 

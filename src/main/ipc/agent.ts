@@ -11,6 +11,7 @@ import {
 } from "../agent/runtime";
 import {rememberWorkspaceApproval} from "../approval-settings";
 import {getThread} from "../db";
+import {isMemoryConsolidationEnabled} from "../memory-settings";
 import {buildSkillUsageSnapshot, consolidateTaskMemory} from "../services/memory-service";
 import {getOpenworkDir} from "../storage";
 import {logError, logInfo, logWarn} from "../logger";
@@ -368,25 +369,32 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         // Send done event (only if not aborted)
         if (!abortController.signal.aborted) {
           if (lastValuesState) {
+            const memoryConsolidationEnabled = isMemoryConsolidationEnabled();
             try {
-              event.sender.send(channel, {
-                type: "custom",
-                data: {
-                  type: "memory_consolidation_status",
-                  active: true,
-                },
-              });
-              const consolidation = await consolidateTaskMemory({
-                threadId,
-                workspacePath,
-                model: getBackgroundTaskModel(modelId),
-                state: lastValuesState,
-                trigger: "invoke",
-              });
-              const skillUsageSnapshot = await buildSkillUsageSnapshot({
-                workspacePath,
-                state: lastValuesState,
-              });
+              const consolidation = memoryConsolidationEnabled
+                ? await (async () => {
+                    event.sender.send(channel, {
+                      type: "custom",
+                      data: {
+                        type: "memory_consolidation_status",
+                        active: true,
+                      },
+                    });
+                    return consolidateTaskMemory({
+                      threadId,
+                      workspacePath,
+                      model: getBackgroundTaskModel(modelId),
+                      state: lastValuesState,
+                      trigger: "invoke",
+                    });
+                  })()
+                : { promotionCandidates: [], recallSnapshot: null };
+              const skillUsageSnapshot = memoryConsolidationEnabled
+                ? await buildSkillUsageSnapshot({
+                    workspacePath,
+                    state: lastValuesState,
+                  })
+                : null;
               if (consolidation.recallSnapshot) {
                 event.sender.send(channel, {
                   type: "custom",
@@ -423,13 +431,15 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                     : String(memoryError),
               });
             } finally {
-              event.sender.send(channel, {
-                type: "custom",
-                data: {
-                  type: "memory_consolidation_status",
-                  active: false,
-                },
-              });
+              if (memoryConsolidationEnabled) {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "memory_consolidation_status",
+                    active: false,
+                  },
+                });
+              }
             }
           }
 
@@ -609,25 +619,32 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
 
         if (!abortController.signal.aborted) {
           if (lastValuesState) {
+            const memoryConsolidationEnabled = isMemoryConsolidationEnabled();
             try {
-              event.sender.send(channel, {
-                type: "custom",
-                data: {
-                  type: "memory_consolidation_status",
-                  active: true,
-                },
-              });
-              const consolidation = await consolidateTaskMemory({
-                threadId,
-                workspacePath,
-                model: getBackgroundTaskModel(modelId),
-                state: lastValuesState,
-                trigger: "resume",
-              });
-              const skillUsageSnapshot = await buildSkillUsageSnapshot({
-                workspacePath,
-                state: lastValuesState,
-              });
+              const consolidation = memoryConsolidationEnabled
+                ? await (async () => {
+                    event.sender.send(channel, {
+                      type: "custom",
+                      data: {
+                        type: "memory_consolidation_status",
+                        active: true,
+                      },
+                    });
+                    return consolidateTaskMemory({
+                      threadId,
+                      workspacePath,
+                      model: getBackgroundTaskModel(modelId),
+                      state: lastValuesState,
+                      trigger: "resume",
+                    });
+                  })()
+                : { promotionCandidates: [], recallSnapshot: null };
+              const skillUsageSnapshot = memoryConsolidationEnabled
+                ? await buildSkillUsageSnapshot({
+                    workspacePath,
+                    state: lastValuesState,
+                  })
+                : null;
               if (consolidation.recallSnapshot) {
                 event.sender.send(channel, {
                   type: "custom",
@@ -664,13 +681,15 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                     : String(memoryError),
               });
             } finally {
-              event.sender.send(channel, {
-                type: "custom",
-                data: {
-                  type: "memory_consolidation_status",
-                  active: false,
-                },
-              });
+              if (memoryConsolidationEnabled) {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "memory_consolidation_status",
+                    active: false,
+                  },
+                });
+              }
             }
           }
 

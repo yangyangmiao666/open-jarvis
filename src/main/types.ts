@@ -93,6 +93,7 @@ export interface ProxyConfig {
 }
 
 export interface MemorySettings {
+  memoryConsolidationEnabled: boolean;
   skillPromotionRecallThreshold: number;
 }
 

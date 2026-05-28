@@ -271,10 +271,6 @@ export function ChatContainer({
       setMentionOpen(false);
       return;
     }
-    if (i > 0 && v[i - 1] !== " " && v[i - 1] !== "\n") {
-      setMentionOpen(false);
-      return;
-    }
     const afterAt = v.slice(i + 1, pos);
     if (afterAt.includes(" ") || afterAt.includes("\n")) {
       setMentionOpen(false);

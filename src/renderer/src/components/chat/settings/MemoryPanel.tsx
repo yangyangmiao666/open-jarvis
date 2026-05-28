@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  CheckSquare,
   ChevronLeft,
   ChevronRight,
   Database,
@@ -30,6 +31,7 @@ import {
   SettingsCard,
   SettingsInput,
   SettingsRow,
+  SettingsToggle,
 } from "./primitives";
 
 const MEMORY_PAGE_SIZE = 8;
@@ -116,8 +118,9 @@ export function MemoryPanel(): React.JSX.Element {
   const [editorTitle, setEditorTitle] = useState("");
   const [editorSummary, setEditorSummary] = useState("");
   const [editorBody, setEditorBody] = useState("");
-  const [deleteTarget, setDeleteTarget] =
-    useState<MemoryDocumentSummary | null>(null);
+  const [selectedRoutePaths, setSelectedRoutePaths] = useState<string[]>([]);
+  const [deleteTargets, setDeleteTargets] = useState<MemoryDocumentSummary[]>([]);
+  const [deletingMemories, setDeletingMemories] = useState(false);
   const [settleTarget, setSettleTarget] =
     useState<MemoryDocumentSummary | null>(null);
   const [undoTarget, setUndoTarget] =
@@ -139,6 +142,11 @@ export function MemoryPanel(): React.JSX.Element {
       setWorkspacePath(memoryResult.workspacePath);
       setMemoryDir(memoryResult.memoryDir);
       setMemories(memoryResult.memories);
+      setSelectedRoutePaths((prev) =>
+        prev.filter((routePath) =>
+          memoryResult.memories.some((memory) => memory.routePath === routePath),
+        ),
+      );
     } finally {
       setLoading(false);
     }
@@ -164,6 +172,14 @@ export function MemoryPanel(): React.JSX.Element {
     return sortedMemories.slice(start, start + MEMORY_PAGE_SIZE);
   }, [sortedMemories, memoryPage, memoryTotalPages]);
 
+  const selectedCount = selectedRoutePaths.length;
+  const allPagedSelected =
+    pagedMemories.length > 0 &&
+    pagedMemories.every((memory) => selectedRoutePaths.includes(memory.routePath));
+  const somePagedSelected = pagedMemories.some((memory) =>
+    selectedRoutePaths.includes(memory.routePath),
+  );
+
   useEffect(() => {
     if (memoryPage > memoryTotalPages) {
       setMemoryPage(memoryTotalPages);
@@ -180,6 +196,15 @@ export function MemoryPanel(): React.JSX.Element {
     });
     setMemorySettings(next);
     setThresholdDraft(String(next.skillPromotionRecallThreshold));
+  };
+
+  const handleMemoryConsolidationToggle = async (
+    checked: boolean,
+  ): Promise<void> => {
+    const next = await window.api.settings.setMemorySettings({
+      memoryConsolidationEnabled: checked,
+    });
+    setMemorySettings(next);
   };
 
   const resetEditor = (): void => {
@@ -263,22 +288,72 @@ export function MemoryPanel(): React.JSX.Element {
   };
 
   const handleDeleteMemory = async (): Promise<void> => {
-    if (!deleteTarget) {
+    if (deleteTargets.length === 0 || deletingMemories) {
       return;
     }
 
-    const result = await window.api.settings.deleteWorkspaceMemoryDocument(
-      currentThreadId ?? undefined,
-      deleteTarget.routePath,
+    setDeletingMemories(true);
+    try {
+      const results = await Promise.all(
+        deleteTargets.map((memory) =>
+          window.api.settings.deleteWorkspaceMemoryDocument(
+            currentThreadId ?? undefined,
+            memory.routePath,
+          ),
+        ),
+      );
+
+      const firstError = results.find((result) => !result.success);
+      if (firstError) {
+        toast.error(firstError.error ?? t("memory.deleteFailed"));
+        return;
+      }
+
+      toast.success(
+        deleteTargets.length > 1
+          ? t("memory.deletedMultiple", { count: deleteTargets.length })
+          : t("memory.deleted"),
+      );
+      setSelectedRoutePaths((prev) =>
+        prev.filter(
+          (routePath) =>
+            !deleteTargets.some((memory) => memory.routePath === routePath),
+        ),
+      );
+      setDeleteTargets([]);
+      await loadData();
+    } finally {
+      setDeletingMemories(false);
+    }
+  };
+
+  const toggleMemorySelection = (routePath: string, checked: boolean): void => {
+    setSelectedRoutePaths((prev) => {
+      if (checked) {
+        return prev.includes(routePath) ? prev : [...prev, routePath];
+      }
+      return prev.filter((item) => item !== routePath);
+    });
+  };
+
+  const toggleCurrentPageSelection = (checked: boolean): void => {
+    const pageRoutePaths = pagedMemories.map((memory) => memory.routePath);
+    setSelectedRoutePaths((prev) => {
+      if (checked) {
+        return Array.from(new Set([...prev, ...pageRoutePaths]));
+      }
+      return prev.filter((routePath) => !pageRoutePaths.includes(routePath));
+    });
+  };
+
+  const openDeleteSelectionDialog = (): void => {
+    const targets = sortedMemories.filter((memory) =>
+      selectedRoutePaths.includes(memory.routePath),
     );
-    if (!result.success) {
-      toast.error(result.error ?? t("memory.deleteFailed"));
+    if (targets.length === 0) {
       return;
     }
-
-    toast.success(t("memory.deleted"));
-    setDeleteTarget(null);
-    await loadData();
+    setDeleteTargets(targets);
   };
 
   const handleSettleAsSkill = async (): Promise<void> => {
@@ -337,6 +412,15 @@ export function MemoryPanel(): React.JSX.Element {
           description={t("memory.description")}
         >
           <SettingsCard>
+            <SettingsToggle
+              label={t("memory.consolidationEnabled")}
+              description={t("memory.consolidationEnabledDesc")}
+              checked={memorySettings?.memoryConsolidationEnabled ?? true}
+              onCheckedChange={(checked) => {
+                void handleMemoryConsolidationToggle(checked);
+              }}
+              disabled={!memorySettings}
+            />
             <SettingsInput
               label={t("memory.recallThreshold")}
               description={t("memory.recallThresholdDesc")}
@@ -385,17 +469,30 @@ export function MemoryPanel(): React.JSX.Element {
               <div className="min-w-0 text-sm text-muted-foreground">
                 {workspacePath ? t("memory.memoryListDesc", { count: memories.length }) : t("memory.noWorkspace")}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setMemoryPage(1);
-                  setMemoryDialogOpen(true);
-                }}
-                disabled={!workspacePath || loading}
-              >
-                {t("memory.openList")}
-              </Button>
+              <div className="flex items-center gap-2">
+                {selectedCount > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={openDeleteSelectionDialog}
+                    disabled={loading}
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                    {t("memory.deleteSelected", { count: selectedCount })}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setMemoryPage(1);
+                    setMemoryDialogOpen(true);
+                  }}
+                  disabled={!workspacePath || loading}
+                >
+                  {t("memory.openList")}
+                </Button>
+              </div>
             </div>
           </SettingsCard>
         </SettingsSection>
@@ -413,6 +510,34 @@ export function MemoryPanel(): React.JSX.Element {
               </div>
             ) : (
               <div className="flex min-h-0 flex-1 flex-col gap-3">
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-border"
+                      checked={allPagedSelected}
+                      ref={(element) => {
+                        if (element) {
+                          element.indeterminate = somePagedSelected && !allPagedSelected;
+                        }
+                      }}
+                      onChange={(event) => toggleCurrentPageSelection(event.target.checked)}
+                    />
+                    <span>{t("memory.selectCurrentPage")}</span>
+                  </div>
+                  {selectedCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={openDeleteSelectionDialog}
+                      disabled={loading}
+                    >
+                      <CheckSquare className="mr-1 h-3.5 w-3.5" />
+                      {t("memory.deleteSelected", { count: selectedCount })}
+                    </Button>
+                  )}
+                </div>
                 <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-border/60 bg-card">
                   <ScrollArea className="h-full">
                     {pagedMemories.map((memory) => (
@@ -420,7 +545,16 @@ export function MemoryPanel(): React.JSX.Element {
                         key={memory.routePath}
                         className="border-b border-border px-4 py-3 last:border-b-0"
                       >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-4 w-4 shrink-0 rounded border-border"
+                          checked={selectedRoutePaths.includes(memory.routePath)}
+                          onChange={(event) =>
+                            toggleMemorySelection(memory.routePath, event.target.checked)
+                          }
+                        />
+                      <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="text-sm font-medium text-foreground">
                             {memory.title}
@@ -437,6 +571,7 @@ export function MemoryPanel(): React.JSX.Element {
                         >
                           {promotionStatusLabel(memory.promotionStatus)}
                         </div>
+                      </div>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
@@ -491,7 +626,7 @@ export function MemoryPanel(): React.JSX.Element {
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2 text-destructive hover:text-destructive"
-                            onClick={() => setDeleteTarget(memory)}
+                            onClick={() => setDeleteTargets([memory])}
                             disabled={loading}
                           >
                             <Trash2 className="mr-1 h-3.5 w-3.5" />
@@ -715,10 +850,10 @@ export function MemoryPanel(): React.JSX.Element {
       </Dialog>
 
       <Dialog
-        open={deleteTarget !== null}
+        open={deleteTargets.length > 0}
         onOpenChange={(nextOpen) => {
           if (!nextOpen) {
-            setDeleteTarget(null);
+            setDeleteTargets([]);
           }
         }}
       >
@@ -727,10 +862,18 @@ export function MemoryPanel(): React.JSX.Element {
             <DialogTitle>{t("memory.confirmDeleteTitle")}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            {t("memory.confirmDeleteDesc", { name: deleteTarget?.title ?? "" })}
+            {deleteTargets.length > 1
+              ? t("memory.confirmDeleteMultiDesc", { count: deleteTargets.length })
+              : t("memory.confirmDeleteDesc", {
+                  name: deleteTargets[0]?.title ?? "",
+                })}
           </p>
           <DialogFooter className="gap-2">
-            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteTargets([])}
+              disabled={deletingMemories}
+            >
               {t("common:cancel")}
             </Button>
             <Button
@@ -738,6 +881,7 @@ export function MemoryPanel(): React.JSX.Element {
               onClick={() => {
                 void handleDeleteMemory();
               }}
+              disabled={deletingMemories}
             >
               {t("common:delete")}
             </Button>

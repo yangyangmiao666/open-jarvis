@@ -57,6 +57,8 @@
   "memory": {
     "title": "记忆设置",
     "description": "管理当前工作区的持久化记忆目录、召回阈值和记忆文档列表。",
+    "consolidationEnabled": "启用记忆沉淀",
+    "consolidationEnabledDesc": "关闭后，新的对话轮次不再生成持久化记忆，也不会触发相关沉淀提示。",
     "recallThreshold": "技能沉淀召回阈值",
     "recallThresholdDesc": "当某条工作区记忆被召回次数大于等于这个阈值后，系统会提示将它沉淀为全局技能。",
     "workspacePath": "当前工作区",
@@ -84,6 +86,7 @@
     "bodyField": "正文",
     "updated": "记忆已更新",
     "deleted": "记忆已删除",
+    "deletedMultiple": "已删除 {{count}} 条记忆",
     "settled": "记忆已沉淀为全局技能",
     "undoSettled": "已撤销该记忆的技能沉淀",
     "loadFailed": "加载记忆失败",
@@ -98,6 +101,9 @@
     "confirmUndoDesc": "确定要撤销「{{name}}」对应的全局技能沉淀吗？这会删除生成的技能文件夹。",
     "confirmDeleteTitle": "确认删除记忆",
     "confirmDeleteDesc": "确定要删除「{{name}}」吗？此操作不可撤销。",
+    "confirmDeleteMultiDesc": "确定要删除选中的 {{count}} 条记忆吗？此操作不可撤销。",
+    "selectCurrentPage": "选择当前页",
+    "deleteSelected": "删除所选（{{count}}）",
     "pageInfo": "第 {{current}} / {{total}} 页",
     "prevPage": "上一页",
     "nextPage": "下一页"

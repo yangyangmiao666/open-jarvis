@@ -57,6 +57,8 @@
   "memory": {
     "title": "Memory Settings",
     "description": "Manage the current workspace memory directory, recall threshold, and persisted memory documents.",
+    "consolidationEnabled": "Enable Memory Consolidation",
+    "consolidationEnabledDesc": "When turned off, new conversation turns will no longer create persisted memories or show consolidation progress prompts.",
     "recallThreshold": "Skill Distillation Recall Threshold",
     "recallThresholdDesc": "When a workspace memory's recall count reaches or exceeds this threshold, the app will suggest settling it into a global skill.",
     "workspacePath": "Current Workspace",
@@ -84,6 +86,7 @@
     "bodyField": "Body",
     "updated": "Memory updated",
     "deleted": "Memory deleted",
+    "deletedMultiple": "Deleted {{count}} memories",
     "settled": "Memory settled into a global skill",
     "undoSettled": "Memory skill settlement has been undone",
     "loadFailed": "Failed to load memory",
@@ -98,6 +101,9 @@
     "confirmUndoDesc": "Are you sure you want to undo the global skill settlement for \"{{name}}\"? This will remove the generated skill folder.",
     "confirmDeleteTitle": "Delete memory?",
     "confirmDeleteDesc": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "confirmDeleteMultiDesc": "Are you sure you want to delete the selected {{count}} memories? This action cannot be undone.",
+    "selectCurrentPage": "Select current page",
+    "deleteSelected": "Delete selected ({{count}})",
     "pageInfo": "Page {{current}} / {{total}}",
     "prevPage": "Previous",
     "nextPage": "Next"

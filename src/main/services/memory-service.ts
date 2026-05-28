@@ -8,7 +8,10 @@ import {
   MEMORY_ROUTE_PREFIX,
 } from "../memory-config";
 import { logInfo, logWarn } from "../logger";
-import { getSkillPromotionThreshold } from "../memory-settings";
+import {
+  getSkillPromotionThreshold,
+  isMemoryConsolidationEnabled,
+} from "../memory-settings";
 import { resolveSkillSourcesForWorkspace } from "../skill-config";
 import type {
   MemoryDocument,
@@ -1255,6 +1258,10 @@ async function generateMemoryDraft(options: {
 export async function consolidateTaskMemory(
   options: ConsolidateTaskMemoryOptions,
 ): Promise<ConsolidateTaskMemoryResult> {
+  if (!isMemoryConsolidationEnabled()) {
+    return { promotionCandidates: [], recallSnapshot: null };
+  }
+
   const transcript = extractConversationTranscript(options.state);
   if (transcript.length === 0) {
     return { promotionCandidates: [], recallSnapshot: null };
