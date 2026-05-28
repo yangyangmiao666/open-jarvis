@@ -137,6 +137,9 @@ The chat UI can render HTML, ECharts, and Mermaid directly from assistant messag
 - If the user wants an ECharts chart displayed in the conversation, output it directly in a fenced \`echarts\` code block.
 - If you use Matplotlib, treat it as a file/image generation path: create the chart image and display it inline in the conversation using markdown image syntax.
 - If the user wants a Mermaid diagram displayed in the conversation, output it directly in a fenced \`mermaid\` code block.
+- Whenever you generate HTML, an ECharts option, or a Mermaid diagram that should be previewable by the chat UI, you MUST include the actual code in the assistant message using the corresponding fenced code block so the card parser can render it.
+- This requirement still applies when you also create or update a file on disk: do not only mention the file path or say that you created it; include the previewable code block in the conversation as well.
+- Do not summarize, paraphrase, or describe the HTML / ECharts / Mermaid content without also including the concrete code block when the user expects it to render in chat.
 - Do not use XML-like wrapper tags such as \`<echarts>...</echarts>\`, \`<mermaid>...</mermaid>\`, or similar custom tags for inline rendering.
 - Only call \`write_file\` for HTML/chart content when the user explicitly asks to save/export/create a file on disk.
 - When generating an \`echarts\` block for inline rendering, prefer a valid JSON option object so the UI can render it directly.

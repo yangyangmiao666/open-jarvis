@@ -2,6 +2,7 @@ import {
   AlertCircle,
   BarChart3,
   Copy,
+  Download,
   Eye,
   EyeOff,
   GitBranch,
@@ -16,6 +17,7 @@ import {
 import React, {
   Component,
   memo,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -48,6 +50,7 @@ interface MarkdownRichCodeBlockProps {
   language?: string;
   code: string;
   hideSource?: boolean;
+  isStreaming?: boolean;
 }
 
 interface PreviewErrorBoundaryProps {
@@ -109,7 +112,23 @@ function normalizeLanguage(language?: string): string {
 function buildHtmlDocument(source: string): string {
   const trimmed = source.trim();
   if (/<!doctype\s+html/i.test(trimmed) || /<html[\s>]/i.test(trimmed)) {
-    return trimmed;
+    if (/<meta[^>]+http-equiv=["']Content-Security-Policy["']/i.test(trimmed)) {
+      return /<html[^>]*\slang=/i.test(trimmed)
+        ? trimmed
+        : trimmed.replace(/<html([^>]*)>/i, `<html$1 lang="zh-CN">`);
+    }
+
+    const injectedCsp = `<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob: https: http:; script-src 'unsafe-inline' 'unsafe-eval' blob: data: https: http:; script-src-elem 'unsafe-inline' blob: data: https: http:; style-src 'unsafe-inline' https: http:; img-src data: blob: https: http:; font-src data: blob: https: http:; connect-src data: blob: https: http: ws: wss:; worker-src blob: data:;">`;
+
+    const htmlWithLang = /<html[^>]*\slang=/i.test(trimmed)
+      ? trimmed
+      : trimmed.replace(/<html([^>]*)>/i, `<html$1 lang="zh-CN">`);
+
+    if (/<head[^>]*>/i.test(htmlWithLang)) {
+      return htmlWithLang.replace(/<head([^>]*)>/i, `<head$1>\n    ${injectedCsp}`);
+    }
+
+    return htmlWithLang.replace(/<html([^>]*)>/i, `<html$1>\n  <head>\n    ${injectedCsp}\n  </head>`);
   }
 
   return `<!doctype html>
@@ -117,6 +136,7 @@ function buildHtmlDocument(source: string): string {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob: https: http:; script-src 'unsafe-inline' 'unsafe-eval' blob: data: https: http:; script-src-elem 'unsafe-inline' blob: data: https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src data: blob: https: http:; font-src data: blob: https: http:; connect-src data: blob: https: http: ws: wss:; worker-src blob: data:;" />
     <style>
       :root { color-scheme: light dark; }
       body {
@@ -337,6 +357,7 @@ interface DiagramViewportProps {
   className?: string;
   contentClassName?: string;
   controlsClassName?: string;
+  onSaveImage?: () => void;
 }
 
 function DiagramViewport({
@@ -345,6 +366,7 @@ function DiagramViewport({
   className,
   contentClassName,
   controlsClassName,
+  onSaveImage,
 }: DiagramViewportProps): React.JSX.Element {
   const [state, setState] = useState<DiagramViewportState>({
     scale: 1,
@@ -371,8 +393,18 @@ function DiagramViewport({
   };
 
   return (
-    <div className={cn("relative w-full min-w-0 overflow-hidden rounded-[18px] border border-border/60 bg-white dark:bg-background", className)}>
-      <div className={cn("absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full border border-border/70 bg-background/88 p-1 shadow-sm backdrop-blur-sm", controlsClassName)}>
+    <div
+      className={cn(
+        "group/viewport relative w-full min-w-0 overflow-hidden rounded-[18px] border border-border/60 bg-white dark:bg-background",
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          "pointer-events-none absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full border border-border/70 bg-background/88 p-1 opacity-0 shadow-sm backdrop-blur-sm transition-opacity duration-150 group-hover/viewport:pointer-events-auto group-hover/viewport:opacity-100 group-focus-within/viewport:pointer-events-auto group-focus-within/viewport:opacity-100",
+          controlsClassName,
+        )}
+      >
         <Button type="button" variant="ghost" size="icon-sm" onClick={() => zoomBy(-SCALE_STEP)} title="缩小">
           <ZoomOut className="size-3.5" />
         </Button>
@@ -382,6 +414,11 @@ function DiagramViewport({
         <Button type="button" variant="ghost" size="icon-sm" onClick={() => zoomBy(SCALE_STEP)} title="放大">
           <ZoomIn className="size-3.5" />
         </Button>
+        {onSaveImage ? (
+          <Button type="button" variant="ghost" size="icon-sm" onClick={onSaveImage} title="保存图片">
+            <Download className="size-3.5" />
+          </Button>
+        ) : null}
       </div>
       <div
         className="relative cursor-grab overflow-hidden active:cursor-grabbing"
@@ -442,7 +479,11 @@ function PreviewFrame({
   code: string;
   expanded?: boolean;
 }): React.JSX.Element {
-  const srcDoc = useMemo(() => buildHtmlDocument(code), [code]);
+  const documentHtml = useMemo(() => buildHtmlDocument(code), [code]);
+  const previewUrl = useMemo(
+    () => `data:text/html;charset=utf-8,${encodeURIComponent(documentHtml)}`,
+    [documentHtml],
+  );
 
   return (
     <DiagramViewport
@@ -452,8 +493,8 @@ function PreviewFrame({
     >
       <iframe
         title="HTML Preview"
-        sandbox="allow-scripts"
-        srcDoc={srcDoc}
+        sandbox="allow-scripts allow-same-origin"
+        src={previewUrl}
         className={cn(
           "rounded-[18px] border border-border/60 bg-white",
           expanded ? "h-160 w-275" : "h-80 w-full min-w-0",
@@ -471,6 +512,7 @@ function EChartsPreview({
   expanded?: boolean;
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
+  const chartInstanceRef = useRef<echarts.ECharts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const parsed = useMemo(() => parseEChartsOption(code), [code]);
 
@@ -490,6 +532,7 @@ function EChartsPreview({
         renderer: "canvas",
       });
       chart.setOption(parsed.option);
+      chartInstanceRef.current = chart;
 
       resizeObserver = new ResizeObserver(() => {
         chart?.resize();
@@ -508,10 +551,49 @@ function EChartsPreview({
     }
 
     return () => {
+      chartInstanceRef.current = null;
       resizeObserver?.disconnect();
       chart?.dispose();
     };
   }, [parsed.error, parsed.option]);
+
+  const handleSaveImage = useCallback(() => {
+    const chart = chartInstanceRef.current;
+    if (!chart) {
+      toast.error("图表尚未渲染，无法保存");
+      return;
+    }
+    try {
+      // 确保图表完全渲染
+      chart.resize();
+
+      const chartOption = chart.getOption() as echarts.EChartsOption & {
+        backgroundColor?: unknown;
+      };
+      const optionBackground = Array.isArray(chartOption.backgroundColor)
+        ? chartOption.backgroundColor[0]
+        : chartOption.backgroundColor;
+      const containerBackground = window.getComputedStyle(chart.getDom()).backgroundColor;
+      const exportBackgroundColor =
+        typeof optionBackground === "string"
+          ? optionBackground
+          : containerBackground && containerBackground !== "rgba(0, 0, 0, 0)"
+            ? containerBackground
+            : undefined;
+
+      const url = chart.getDataURL({
+        type: "png",
+        pixelRatio: 10,
+        backgroundColor: exportBackgroundColor,
+      });
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "echarts-chart.png";
+      link.click();
+    } catch {
+      toast.error("图片保存失败");
+    }
+  }, []);
 
   if (error) {
     return (
@@ -523,7 +605,11 @@ function EChartsPreview({
   }
 
   return (
-    <DiagramViewport minHeight={expanded ? 640 : 320} contentClassName={expanded ? "p-6" : undefined}>
+    <DiagramViewport
+      minHeight={expanded ? 640 : 320}
+      contentClassName={expanded ? "p-6" : undefined}
+      onSaveImage={handleSaveImage}
+    >
       <div
         ref={containerRef}
         className={cn(
@@ -543,7 +629,9 @@ function MermaidPreview({
   expanded?: boolean;
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
+  const svgStringRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasSvg, setHasSvg] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -557,6 +645,8 @@ function MermaidPreview({
       const trimmed = code.trim();
       if (trimmed.length === 0) {
         setError("Mermaid 代码块为空，无法渲染图表。");
+        setHasSvg(false);
+        svgStringRef.current = null;
         container.innerHTML = "";
         return;
       }
@@ -575,14 +665,18 @@ function MermaidPreview({
           return;
         }
 
+        svgStringRef.current = svg;
         container.innerHTML = svg;
+        setHasSvg(true);
         setError(null);
       } catch (renderError) {
         if (!active || !container) {
           return;
         }
 
+        svgStringRef.current = null;
         container.innerHTML = "";
+        setHasSvg(false);
         const message =
           renderError instanceof Error
             ? renderError.message
@@ -598,8 +692,99 @@ function MermaidPreview({
       if (container) {
         container.innerHTML = "";
       }
+      svgStringRef.current = null;
+      setHasSvg(false);
     };
   }, [code]);
+
+  const handleSaveImage = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) {
+      toast.error("暂无可保存的图表");
+      return;
+    }
+
+    // 从 DOM 中获取实际渲染的 SVG（包含所有计算后的样式）
+    const renderedSvg = container.querySelector("svg");
+    if (!renderedSvg) {
+      toast.error("暂无可保存的图表");
+      return;
+    }
+
+    // 克隆 SVG 以避免影响显示
+    const svgClone = renderedSvg.cloneNode(true) as SVGSVGElement;
+
+    // 确保 xmlns 属性存在
+    svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+    // 优先使用 viewBox / bbox 获取真实逻辑尺寸，避免 width="100%" 导致导出变糊
+    let width = 0;
+    let height = 0;
+    const viewBox = svgClone.getAttribute("viewBox");
+    if (viewBox) {
+      const parts = viewBox.trim().split(/[\s,]+/);
+      width = parseFloat(parts[2] ?? "0") || 0;
+      height = parseFloat(parts[3] ?? "0") || 0;
+    }
+
+    if (!width || !height) {
+      try {
+        const bbox = renderedSvg.getBBox();
+        width = bbox.width || width;
+        height = bbox.height || height;
+      } catch {
+        // ignore and continue to attribute fallback
+      }
+    }
+
+    if (!width || !height) {
+      const attrWidth = svgClone.getAttribute("width") ?? "0";
+      const attrHeight = svgClone.getAttribute("height") ?? "0";
+      width = parseFloat(attrWidth) || 0;
+      height = parseFloat(attrHeight) || 0;
+    }
+
+    // 确保尺寸有效
+    if (width === 0 || height === 0) {
+      width = 1600;
+      height = 1200;
+    }
+
+    svgClone.setAttribute("width", String(width));
+    svgClone.setAttribute("height", String(height));
+
+    // 序列化 SVG
+    const serialized = new XMLSerializer().serializeToString(svgClone);
+    const dataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
+
+    const SCALE = 10;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(width * SCALE);
+    canvas.height = Math.ceil(height * SCALE);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      toast.error("图片保存失败");
+      return;
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(SCALE, SCALE);
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, width, height);
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/png");
+      link.download = "mermaid-diagram.png";
+      link.click();
+    };
+    img.onerror = () => {
+      toast.error("图片保存失败");
+    };
+    img.src = dataUri;
+  }, []);
 
   if (error) {
     return (
@@ -611,12 +796,16 @@ function MermaidPreview({
   }
 
   return (
-    <DiagramViewport minHeight={expanded ? 640 : 260} contentClassName={expanded ? "p-8" : undefined}>
+    <DiagramViewport
+      minHeight={expanded ? 540 : 260}
+      contentClassName={expanded ? "p-8" : undefined}
+      onSaveImage={hasSvg ? handleSaveImage : undefined}
+    >
       <div
         ref={containerRef}
         className={cn(
           "mermaid-preview flex items-center justify-center rounded-[18px] bg-white p-4 dark:bg-background",
-          expanded ? "min-h-135 min-w-245 p-8" : "min-h-55 w-full min-w-0",
+          expanded ? "min-h-100 min-w-200 p-8" : "min-h-55 w-full min-w-0",
         )}
       />
     </DiagramViewport>
@@ -638,12 +827,12 @@ function PreviewDialog({
 }): React.JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(96vw,78rem)] max-w-312 gap-4 p-5 sm:p-6">
-        <DialogHeader className="pr-14">
+      <DialogContent className="flex max-h-[92dvh] w-[min(96vw,78rem)] max-w-312 flex-col gap-4 overflow-hidden p-5 sm:p-6">
+        <DialogHeader className="shrink-0 pr-14">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="overflow-hidden rounded-3xl border border-border/70 bg-background-elevated/70">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-3xl border border-border/70 bg-background-elevated/70">
           {children}
         </div>
       </DialogContent>
@@ -655,6 +844,7 @@ export const MarkdownRichCodeBlock = memo(function MarkdownRichCodeBlock({
   language,
   code,
   hideSource = false,
+  isStreaming = false,
 }: MarkdownRichCodeBlockProps): React.JSX.Element {
   const normalizedLanguage = normalizeLanguage(language);
   const isHtml = HTML_LANGUAGES.has(normalizedLanguage);
@@ -662,14 +852,38 @@ export const MarkdownRichCodeBlock = memo(function MarkdownRichCodeBlock({
   const isMermaid = MERMAID_LANGUAGES.has(normalizedLanguage);
   const supportsPreview = isHtml || isECharts || isMermaid;
   const supportsInteractivePreview = isECharts || isMermaid;
-  const [showPreview, setShowPreview] = useState(supportsPreview);
-  const [showCode, setShowCode] = useState(!hideSource);
+
+  // 流式输出期间：展示代码（无法渲染不完整结构）；流结束后：自动切换到预览
+  const [showPreview, setShowPreview] = useState(supportsPreview && !isStreaming);
+  const [showCode, setShowCode] = useState(isStreaming || !hideSource);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const prevIsStreamingRef = useRef(isStreaming);
+  const isStreamingRef = useRef(isStreaming);
 
   useEffect(() => {
-    setShowPreview(supportsPreview);
-    setShowCode(!hideSource);
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
+  // 语言 / hideSource 变化时重置显示状态
+  useEffect(() => {
+    if (isStreamingRef.current) {
+      setShowPreview(false);
+      setShowCode(true);
+    } else {
+      setShowPreview(supportsPreview);
+      setShowCode(!hideSource);
+    }
   }, [hideSource, supportsPreview, language]);
+
+  // 流结束 → 自动切换到预览
+  useEffect(() => {
+    const wasStreaming = prevIsStreamingRef.current;
+    prevIsStreamingRef.current = isStreaming;
+    if (wasStreaming && !isStreaming && supportsPreview) {
+      setShowPreview(true);
+      setShowCode(false);
+    }
+  }, [isStreaming, supportsPreview]);
 
   if (!supportsPreview) {
     return (

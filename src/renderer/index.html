@@ -5,11 +5,11 @@
     <title>Open-Jarvis</title>
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; frame-src 'self' blob: data:;"
+      content="default-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https: http:; script-src-elem 'self' 'unsafe-inline' data: blob: https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https: http:; media-src 'self' blob: data: https: http:; connect-src 'self' data: blob: https: http: ws: wss:; font-src 'self' data: blob: https: http:; worker-src 'self' data: blob:; frame-src 'self' blob: data:;"
     />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
