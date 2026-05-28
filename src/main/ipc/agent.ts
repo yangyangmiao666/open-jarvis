@@ -369,6 +369,13 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         if (!abortController.signal.aborted) {
           if (lastValuesState) {
             try {
+              event.sender.send(channel, {
+                type: "custom",
+                data: {
+                  type: "memory_consolidation_status",
+                  active: true,
+                },
+              });
               const consolidation = await consolidateTaskMemory({
                 threadId,
                 workspacePath,
@@ -414,6 +421,14 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                   memoryError instanceof Error
                     ? memoryError.message
                     : String(memoryError),
+              });
+            } finally {
+              event.sender.send(channel, {
+                type: "custom",
+                data: {
+                  type: "memory_consolidation_status",
+                  active: false,
+                },
               });
             }
           }
@@ -595,6 +610,13 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         if (!abortController.signal.aborted) {
           if (lastValuesState) {
             try {
+              event.sender.send(channel, {
+                type: "custom",
+                data: {
+                  type: "memory_consolidation_status",
+                  active: true,
+                },
+              });
               const consolidation = await consolidateTaskMemory({
                 threadId,
                 workspacePath,
@@ -640,6 +662,14 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                   memoryError instanceof Error
                     ? memoryError.message
                     : String(memoryError),
+              });
+            } finally {
+              event.sender.send(channel, {
+                type: "custom",
+                data: {
+                  type: "memory_consolidation_status",
+                  active: false,
+                },
               });
             }
           }

@@ -55,6 +55,22 @@ interface ConsolidateTaskMemoryResult {
   recallSnapshot: MemoryRecallSnapshot | null;
 }
 
+interface ConversationComplexitySummary {
+  userMessages: number;
+  assistantMessages: number;
+  toolMessages: number;
+  toolCallCount: number;
+  totalContentChars: number;
+  longestMessageChars: number;
+  hasCodeBlock: boolean;
+  hasFileLikeReference: boolean;
+}
+
+interface SimplePromptSummary {
+  total: number;
+  simpleCount: number;
+}
+
 interface SkillDocumentRecord {
   filePath: string;
   folderName: string;
@@ -774,6 +790,172 @@ function extractConversationTranscript(state: unknown): string {
   return lines.join("\n").trim();
 }
 
+function summarizeConversationComplexity(
+  state: unknown,
+): ConversationComplexitySummary {
+  const messages = extractMessages(state);
+  const summary: ConversationComplexitySummary = {
+    userMessages: 0,
+    assistantMessages: 0,
+    toolMessages: 0,
+    toolCallCount: 0,
+    totalContentChars: 0,
+    longestMessageChars: 0,
+    hasCodeBlock: false,
+    hasFileLikeReference: false,
+  };
+
+  for (const message of messages) {
+    const kwargs = message.kwargs ?? {};
+    const classId = Array.isArray(message.id) ? message.id : [];
+    const className = String(classId[classId.length - 1] ?? "");
+    const content = stringifyConversationContent(kwargs.content);
+    const trimmedContent = content.trim();
+    const toolCalls = collectToolCalls(message);
+
+    if (className.includes("Human")) {
+      summary.userMessages += 1;
+    } else if (className.includes("Tool")) {
+      summary.toolMessages += 1;
+    } else {
+      summary.assistantMessages += 1;
+    }
+
+    summary.toolCallCount += toolCalls.length;
+
+    if (trimmedContent.length > 0) {
+      summary.totalContentChars += trimmedContent.length;
+      summary.longestMessageChars = Math.max(
+        summary.longestMessageChars,
+        trimmedContent.length,
+      );
+      if (trimmedContent.includes("```") || trimmedContent.includes("\n")) {
+        summary.hasCodeBlock = true;
+      }
+      if (
+        /\/src\/|\.tsx\b|\.ts\b|\.js\b|\.jsx\b|\.py\b|\/memories\//i.test(
+          trimmedContent,
+        )
+      ) {
+        summary.hasFileLikeReference = true;
+      }
+    }
+  }
+
+  return summary;
+}
+
+function extractUserMessageTexts(state: unknown): string[] {
+  const messages = extractMessages(state);
+  const userMessages: string[] = [];
+
+  for (const message of messages) {
+    const kwargs = message.kwargs ?? {};
+    const classId = Array.isArray(message.id) ? message.id : [];
+    const className = String(classId[classId.length - 1] ?? "");
+
+    if (!className.includes("Human")) {
+      continue;
+    }
+
+    const content = stringifyConversationContent(kwargs.content);
+    if (content.length > 0) {
+      userMessages.push(content);
+    }
+  }
+
+  return userMessages;
+}
+
+function isLikelySimpleScenarioQuestion(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (normalized.length === 0 || normalized.length > 120) {
+    return false;
+  }
+
+  if (normalized.includes("```") || /\/src\/|\.tsx\b|\.ts\b|\.js\b|\.jsx\b|\.py\b/i.test(normalized)) {
+    return false;
+  }
+
+  const simpleQuestionPatterns = [
+    /^(你|您)(是什么|是啥|是谁|叫什么|用的什么模型|是什么模型)/,
+    /^(请)?解释一下.{0,40}(是什么|是啥|什么意思)/,
+    /^(介绍一下|说一下|讲讲).{0,40}$/,
+    /^what('?s| is) .{0,50}\?*$/,
+    /^who are you\?*$/,
+    /^which model are you\?*$/,
+    /^explain .{0,50}$/,
+    /^tell me about .{0,50}$/,
+  ];
+
+  if (simpleQuestionPatterns.some((pattern) => pattern.test(normalized))) {
+    return true;
+  }
+
+  return (
+    normalized.includes("什么模型") ||
+    normalized.includes("你是什么") ||
+    normalized.includes("解释一下") ||
+    normalized.includes("介绍一下") ||
+    normalized.includes("是什么")
+  );
+}
+
+function summarizeSimplePrompts(state: unknown): SimplePromptSummary {
+  const userMessages = extractUserMessageTexts(state);
+  return {
+    total: userMessages.length,
+    simpleCount: userMessages.filter((message) =>
+      isLikelySimpleScenarioQuestion(message),
+    ).length,
+  };
+}
+
+function shouldSkipMemoryConsolidation(options: {
+  state: unknown;
+  transcript: string;
+  recalledMemoryPaths: string[];
+}): boolean {
+  if (options.transcript.length === 0) {
+    return true;
+  }
+
+  if (options.recalledMemoryPaths.length > 0) {
+    return false;
+  }
+
+  const summary = summarizeConversationComplexity(options.state);
+  const simplePrompts = summarizeSimplePrompts(options.state);
+
+  const isRepeatedSimpleScenarioConversation =
+    simplePrompts.total > 0 && simplePrompts.total === simplePrompts.simpleCount;
+
+  if (
+    isRepeatedSimpleScenarioConversation &&
+    summary.toolMessages <= 2 &&
+    summary.toolCallCount <= 2 &&
+    summary.totalContentChars <= 1200 &&
+    summary.longestMessageChars <= 320 &&
+    !summary.hasCodeBlock &&
+    !summary.hasFileLikeReference
+  ) {
+    return true;
+  }
+
+  if (summary.toolMessages > 0 || summary.toolCallCount > 0) {
+    return false;
+  }
+
+  return (
+    summary.userMessages <= 1 &&
+    summary.assistantMessages <= 1 &&
+    summary.totalContentChars <= 320 &&
+    summary.longestMessageChars <= 220 &&
+    !summary.hasCodeBlock &&
+    !summary.hasFileLikeReference
+  );
+}
+
 function extractRecalledMemoryPaths(state: unknown): string[] {
   const messages = extractMessages(state);
   const recalledPaths = new Set<string>();
@@ -1079,6 +1261,22 @@ export async function consolidateTaskMemory(
   }
 
   const recalledMemoryPaths = extractRecalledMemoryPaths(options.state);
+
+  if (
+    shouldSkipMemoryConsolidation({
+      state: options.state,
+      transcript,
+      recalledMemoryPaths,
+    })
+  ) {
+    logInfo("Memory", "Skipping memory consolidation for simple exchange", {
+      threadId: options.threadId,
+      trigger: options.trigger,
+      transcriptLength: transcript.length,
+    });
+    return { promotionCandidates: [], recallSnapshot: null };
+  }
+
   await ensureWorkspaceMemoryBootstrapFiles(options.workspacePath);
   await updateRecallCounts(options.workspacePath, recalledMemoryPaths);
   const recallSnapshot = await buildMemoryRecallSnapshot({

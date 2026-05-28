@@ -201,6 +201,7 @@ export function ChatContainer({
     messages: threadMessages,
     pendingApprovals,
     pendingApproval,
+    isMemoryConsolidating,
     pendingMemoryPromotions,
     memoryRecall,
     skillUsage,
@@ -1445,6 +1446,22 @@ export function ChatContainer({
         ref={overlayRef}
         className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex flex-col items-center gap-3"
       >
+        {isMemoryConsolidating && (
+          <div className="pointer-events-auto w-full max-w-4xl rounded-3xl border border-border/70 bg-background-elevated/95 px-4 py-3 shadow-[0_20px_45px_color-mix(in_srgb,#000_12%,transparent)] backdrop-blur">
+            <div className="flex items-center gap-3 text-sm">
+              <div className="size-2 shrink-0 rounded-full bg-status-nominal animate-pulse" />
+              <div className="min-w-0">
+                <div className="font-medium text-foreground">
+                  正在进行记忆沉淀
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  正在整理本轮较有复用价值的经验，简单问答会自动跳过。
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {pendingMemoryPromotions.length > 0 && (
           <div className="pointer-events-auto w-full max-w-4xl rounded-3xl border border-status-nominal/40 bg-background-elevated px-4 py-4 shadow-[0_20px_45px_color-mix(in_srgb,#000_18%,transparent)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

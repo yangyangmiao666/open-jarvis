@@ -263,6 +263,7 @@ export interface ThreadState {
   subagents: Subagent[];
   pendingApprovals: HITLRequest[];
   pendingApproval: HITLRequest | null;
+  isMemoryConsolidating: boolean;
   pendingMemoryPromotions: MemoryPromotionCandidate[];
   memoryRecall: MemoryRecallSnapshot | null;
   skillUsage: SkillUsageSnapshot | null;
@@ -349,6 +350,7 @@ const createDefaultThreadState = (): ThreadState => ({
   subagents: [],
   pendingApprovals: [],
   pendingApproval: null,
+  isMemoryConsolidating: false,
   pendingMemoryPromotions: [],
   memoryRecall: null,
   skillUsage: null,
@@ -395,6 +397,7 @@ const ThreadContext = createContext<ThreadContextValue | null>(null);
 // Custom event types from the stream
 interface CustomEventData {
   type?: string;
+  active?: boolean;
   request?: HITLRequest;
   requests?: HITLRequest[];
   candidate?: MemoryPromotionCandidate;
@@ -888,6 +891,11 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
               pendingMemoryPromotions,
             });
           }
+          break;
+        case "memory_consolidation_status":
+          updateThreadState(threadId, () => ({
+            isMemoryConsolidating: Boolean(data.active),
+          }));
           break;
         case "memory_recall":
           updateThreadState(threadId, () => ({
