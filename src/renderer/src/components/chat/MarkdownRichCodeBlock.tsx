@@ -13,7 +13,15 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  Component,
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ErrorInfo,
+} from "react";
 import * as echarts from "echarts";
 import mermaid from "mermaid";
 import { cn } from "@/lib/utils";
@@ -40,6 +48,58 @@ interface MarkdownRichCodeBlockProps {
   language?: string;
   code: string;
   hideSource?: boolean;
+}
+
+interface PreviewErrorBoundaryProps {
+  children: React.JSX.Element;
+  fallbackTitle: string;
+}
+
+interface PreviewErrorBoundaryState {
+  hasError: boolean;
+  message: string;
+}
+
+class PreviewErrorBoundary extends Component<
+  PreviewErrorBoundaryProps,
+  PreviewErrorBoundaryState
+> {
+  state: PreviewErrorBoundaryState = {
+    hasError: false,
+    message: "",
+  };
+
+  static getDerivedStateFromError(error: unknown): PreviewErrorBoundaryState {
+    return {
+      hasError: true,
+      message:
+        error instanceof Error
+          ? error.message
+          : "预览渲染失败，生成的代码可能存在语法或结构问题。",
+    };
+  }
+
+  componentDidCatch(error: unknown, errorInfo: ErrorInfo): void {
+    console.error("[MarkdownRichCodeBlock] Preview render failed", {
+      error,
+      errorInfo,
+    });
+  }
+
+  render(): React.JSX.Element {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-55 items-center gap-3 rounded-[18px] border border-status-warning/30 bg-status-warning/8 px-4 py-5 text-sm text-status-warning">
+          <AlertCircle className="size-4 shrink-0" />
+          <span>
+            {this.props.fallbackTitle}渲染失败：{this.state.message}
+          </span>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 function normalizeLanguage(language?: string): string {
@@ -73,6 +133,159 @@ ${source}
 </html>`;
 }
 
+function isIdentifierBoundary(char: string | undefined): boolean {
+  if (!char) {
+    return true;
+  }
+  return !/[A-Za-z0-9_$]/.test(char);
+}
+
+function stripFunctionExpressionsForJson(source: string): {
+  sanitized: string;
+  replacedCount: number;
+} {
+  let i = 0;
+  let replacedCount = 0;
+  const out: string[] = [];
+
+  while (i < source.length) {
+    const char = source[i];
+
+    if (char === '"' || char === "'") {
+      const quote = char;
+      out.push(char);
+      i += 1;
+      while (i < source.length) {
+        const current = source[i];
+        out.push(current);
+        i += 1;
+        if (current === "\\") {
+          if (i < source.length) {
+            out.push(source[i]);
+            i += 1;
+          }
+          continue;
+        }
+        if (current === quote) {
+          break;
+        }
+      }
+      continue;
+    }
+
+    if (
+      source.startsWith("function", i) &&
+      isIdentifierBoundary(source[i - 1]) &&
+      isIdentifierBoundary(source[i + "function".length])
+    ) {
+      const start = i;
+      i += "function".length;
+
+      while (i < source.length && /\s/.test(source[i])) {
+        i += 1;
+      }
+
+      if (source[i] !== "(") {
+        out.push(source[start]);
+        i = start + 1;
+        continue;
+      }
+
+      let parenDepth = 0;
+      while (i < source.length) {
+        const current = source[i];
+        if (current === "(") {
+          parenDepth += 1;
+          i += 1;
+          continue;
+        }
+        if (current === ")") {
+          parenDepth -= 1;
+          i += 1;
+          if (parenDepth === 0) {
+            break;
+          }
+          continue;
+        }
+        if (current === '"' || current === "'") {
+          const quote = current;
+          i += 1;
+          while (i < source.length) {
+            const strChar = source[i];
+            i += 1;
+            if (strChar === "\\") {
+              i += 1;
+              continue;
+            }
+            if (strChar === quote) {
+              break;
+            }
+          }
+          continue;
+        }
+        i += 1;
+      }
+
+      while (i < source.length && /\s/.test(source[i])) {
+        i += 1;
+      }
+
+      if (source[i] !== "{") {
+        out.push(source[start]);
+        i = start + 1;
+        continue;
+      }
+
+      let braceDepth = 0;
+      while (i < source.length) {
+        const current = source[i];
+        if (current === "{") {
+          braceDepth += 1;
+          i += 1;
+          continue;
+        }
+        if (current === "}") {
+          braceDepth -= 1;
+          i += 1;
+          if (braceDepth === 0) {
+            break;
+          }
+          continue;
+        }
+        if (current === '"' || current === "'") {
+          const quote = current;
+          i += 1;
+          while (i < source.length) {
+            const strChar = source[i];
+            i += 1;
+            if (strChar === "\\") {
+              i += 1;
+              continue;
+            }
+            if (strChar === quote) {
+              break;
+            }
+          }
+          continue;
+        }
+        i += 1;
+      }
+
+      out.push("null");
+      replacedCount += 1;
+      continue;
+    }
+
+    out.push(char);
+    i += 1;
+  }
+
+  return {
+    sanitized: out.join(""),
+    replacedCount,
+  };
+}
+
 function parseEChartsOption(source: string): { option: echarts.EChartsOption | null; error: string | null } {
   const trimmed = source.trim();
   const optionMatch = trimmed.match(/(?:const|let|var)?\s*option\s*=\s*([\s\S]*?);?\s*$/);
@@ -84,10 +297,27 @@ function parseEChartsOption(source: string): { option: echarts.EChartsOption | n
       error: null,
     };
   } catch {
+    try {
+      // CSP 禁止 eval/new Function，这里改为无执行解析：
+      // 将 function 回调占位为 null，让主体 option 结构可被 JSON.parse 并继续渲染。
+      const { sanitized, replacedCount } = stripFunctionExpressionsForJson(
+        candidate,
+      );
+      const option = JSON.parse(sanitized) as echarts.EChartsOption;
+      return {
+        option,
+        error:
+          replacedCount > 0
+            ? "检测到 function 回调，已自动降级为静态值后渲染（颜色/formatter 等动态逻辑可能与原始效果略有差异）。"
+            : null,
+      };
+    } catch {
     return {
       option: null,
-      error: "ECharts 代码块当前需要有效的 JSON option 对象，例如 {\"title\":{\"text\":\"Demo\"},\"xAxis\":{...}}。",
+      error:
+        "ECharts 代码块当前需要有效的 option 对象（支持 JSON 或含 function 的 JS 对象字面量），例如 {\"title\":{\"text\":\"Demo\"},\"xAxis\":{...}}。",
     };
+    }
   }
 }
 
@@ -226,7 +456,7 @@ function PreviewFrame({
         srcDoc={srcDoc}
         className={cn(
           "rounded-[18px] border border-border/60 bg-white",
-          expanded ? "h-[640px] w-[1100px]" : "h-[320px] w-full min-w-0",
+          expanded ? "h-160 w-275" : "h-80 w-full min-w-0",
         )}
       />
     </DiagramViewport>
@@ -245,31 +475,47 @@ function EChartsPreview({
   const parsed = useMemo(() => parseEChartsOption(code), [code]);
 
   useEffect(() => {
-    if (!containerRef.current || !parsed.option) {
-      setError(parsed.error);
+    const container = containerRef.current;
+    if (!container || !parsed.option) {
+      setError(parsed.error ?? null);
       return;
     }
 
     setError(null);
-    const chart = echarts.init(containerRef.current, undefined, {
-      renderer: "canvas",
-    });
-    chart.setOption(parsed.option);
+    let chart: echarts.ECharts | null = null;
+    let resizeObserver: ResizeObserver | null = null;
 
-    const resizeObserver = new ResizeObserver(() => {
-      chart.resize();
-    });
-    resizeObserver.observe(containerRef.current);
+    try {
+      chart = echarts.init(container, undefined, {
+        renderer: "canvas",
+      });
+      chart.setOption(parsed.option);
+
+      resizeObserver = new ResizeObserver(() => {
+        chart?.resize();
+      });
+      resizeObserver.observe(container);
+    } catch (renderError) {
+      setError(
+        renderError instanceof Error
+          ? renderError.message
+          : "ECharts 渲染失败，请检查 option 结构是否有效。",
+      );
+      if (chart) {
+        chart.dispose();
+      }
+      return;
+    }
 
     return () => {
-      resizeObserver.disconnect();
-      chart.dispose();
+      resizeObserver?.disconnect();
+      chart?.dispose();
     };
   }, [parsed.error, parsed.option]);
 
   if (error) {
     return (
-      <div className="flex min-h-[220px] items-center gap-3 rounded-[18px] border border-status-warning/30 bg-status-warning/8 px-4 py-5 text-sm text-status-warning">
+      <div className="flex min-h-55 items-center gap-3 rounded-[18px] border border-status-warning/30 bg-status-warning/8 px-4 py-5 text-sm text-status-warning">
         <AlertCircle className="size-4 shrink-0" />
         <span>{error}</span>
       </div>
@@ -282,7 +528,7 @@ function EChartsPreview({
         ref={containerRef}
         className={cn(
           "rounded-[18px] border border-border/60 bg-background",
-          expanded ? "h-[640px] w-[1100px]" : "h-[320px] w-full min-w-0",
+          expanded ? "h-160 w-275" : "h-80 w-full min-w-0",
         )}
       />
     </DiagramViewport>
@@ -357,7 +603,7 @@ function MermaidPreview({
 
   if (error) {
     return (
-      <div className="flex min-h-[220px] items-center gap-3 rounded-[18px] border border-status-warning/30 bg-status-warning/8 px-4 py-5 text-sm text-status-warning">
+      <div className="flex min-h-55 items-center gap-3 rounded-[18px] border border-status-warning/30 bg-status-warning/8 px-4 py-5 text-sm text-status-warning">
         <AlertCircle className="size-4 shrink-0" />
         <span>{error}</span>
       </div>
@@ -370,7 +616,7 @@ function MermaidPreview({
         ref={containerRef}
         className={cn(
           "mermaid-preview flex items-center justify-center rounded-[18px] bg-white p-4 dark:bg-background",
-          expanded ? "min-h-[540px] min-w-[980px] p-8" : "min-h-[220px] w-full min-w-0",
+          expanded ? "min-h-135 min-w-245 p-8" : "min-h-55 w-full min-w-0",
         )}
       />
     </DiagramViewport>
@@ -392,12 +638,12 @@ function PreviewDialog({
 }): React.JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(96vw,78rem)] max-w-[78rem] gap-4 p-5 sm:p-6">
+      <DialogContent className="w-[min(96vw,78rem)] max-w-312 gap-4 p-5 sm:p-6">
         <DialogHeader className="pr-14">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="overflow-hidden rounded-[24px] border border-border/70 bg-background-elevated/70">
+        <div className="overflow-hidden rounded-3xl border border-border/70 bg-background-elevated/70">
           {children}
         </div>
       </DialogContent>
@@ -531,14 +777,21 @@ export const MarkdownRichCodeBlock = memo(function MarkdownRichCodeBlock({
         </div>
       </div>
       <div className="space-y-4 p-4">
-        {showPreview ? renderPreview(false) : null}
+        {showPreview ? (
+          <PreviewErrorBoundary
+            key={`${normalizedLanguage}-${code}-inline`}
+            fallbackTitle={previewTitle}
+          >
+            {renderPreview(false) ?? <div />}
+          </PreviewErrorBoundary>
+        ) : null}
         {showCode ? (
           <pre className="overflow-x-auto rounded-[18px] border border-border/60 bg-background/80 p-4 text-sm leading-6">
             <code>{code}</code>
           </pre>
         ) : null}
         {!showPreview && !showCode ? (
-          <div className="flex min-h-[120px] items-center justify-center rounded-[18px] border border-dashed border-border/60 bg-background/50 px-4 py-6 text-sm text-muted-foreground">
+          <div className="flex min-h-30 items-center justify-center rounded-[18px] border border-dashed border-border/60 bg-background/50 px-4 py-6 text-sm text-muted-foreground">
             当前已隐藏预览和代码，可使用右上角按钮切换显示模式。
           </div>
         ) : null}
@@ -551,7 +804,12 @@ export const MarkdownRichCodeBlock = memo(function MarkdownRichCodeBlock({
       title={`${previewTitle} · 放大查看`}
       description={supportsInteractivePreview ? "弹窗中支持按钮缩放与鼠标拖动，适合查看复杂图表与流程图。" : "弹窗中可以放大查看完整内容，同时仍可切换代码。"}
     >
-      {renderPreview(true) ?? <div />}
+      <PreviewErrorBoundary
+        key={`${normalizedLanguage}-${code}-dialog`}
+        fallbackTitle={previewTitle}
+      >
+        {renderPreview(true) ?? <div />}
+      </PreviewErrorBoundary>
     </PreviewDialog>
     </>
   );
