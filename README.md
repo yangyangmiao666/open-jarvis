@@ -559,7 +559,7 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 ### 环境要求
 
 - [Bun](https://bun.sh/) >= 1.0
-- Node.js >= 20（开发时需要，运行时由 Electron 提供）
+- Node.js >= 24（开发时需要，运行时由 Electron 提供）
 
 ### 安装依赖
 
