@@ -141,7 +141,7 @@
   "copyMarkdownTitle": "复制当前会话全部消息为 Markdown（含工具调用与结果）",
   "clickToRemove": "点击移除",
   "inputPlaceholder": {
-    "idle": "输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件",
+    "idle": "输入消息… Enter 发送，Shift+Enter 换行，@ 引用文件，/ 指定技能",
     "loading": "输入消息插嘴… Enter 排队发送，等当前回复完成后自动提交"
   },
   "chatTodos": {

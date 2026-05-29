@@ -1,13 +1,12 @@
 import { IpcMain, dialog } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { getSkillSources, setSkillSources } from "../skill-config";
+import { getGlobalSkillsRoot, getSkillSources, setSkillSources } from "../skill-config";
 import {
   createMemoryPromotionCandidate,
   getMemoryPromotionSkillFolder,
   markMemoryPromotionStatus,
 } from "../services/memory-service";
-import { getOpenworkDir } from "../storage";
 import { decodeTextBuffer } from "../text-encoding";
 import type { MemoryPromotionCandidate, SkillSummary } from "../types";
 
@@ -27,10 +26,6 @@ function slugifySkillName(raw: string): string | null {
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return safe || null;
-}
-
-function getGlobalSkillsRoot(): string {
-  return path.join(getOpenworkDir(), "skills");
 }
 
 function resolveSkillsRoot(threadId?: string): string | null {

@@ -12,7 +12,10 @@ import {
 import {rememberWorkspaceApproval} from "../approval-settings";
 import {getThread} from "../db";
 import {isMemoryConsolidationEnabled} from "../memory-settings";
-import {buildSkillUsageSnapshot, consolidateTaskMemory} from "../services/memory-service";
+import {
+  buildContextAssistSnapshots,
+  consolidateTaskMemory,
+} from "../services/memory-service";
 import {getOpenworkDir} from "../storage";
 import {logError, logInfo, logWarn} from "../logger";
 import type {AgentCancelParams, AgentInterruptParams, AgentInvokeParams, AgentResumeParams,} from "../types";
@@ -371,6 +374,10 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           if (lastValuesState) {
             const memoryConsolidationEnabled = isMemoryConsolidationEnabled();
             try {
+              const contextAssist = await buildContextAssistSnapshots({
+                workspacePath,
+                state: lastValuesState,
+              });
               const consolidation = memoryConsolidationEnabled
                 ? await (async () => {
                     event.sender.send(channel, {
@@ -378,6 +385,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                       data: {
                         type: "memory_consolidation_status",
                         active: true,
+                        enabled: true,
                       },
                     });
                     return consolidateTaskMemory({
@@ -389,27 +397,21 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                     });
                   })()
                 : { promotionCandidates: [], recallSnapshot: null };
-              const skillUsageSnapshot = memoryConsolidationEnabled
-                ? await buildSkillUsageSnapshot({
-                    workspacePath,
-                    state: lastValuesState,
-                  })
-                : null;
-              if (consolidation.recallSnapshot) {
+              if (contextAssist.recallSnapshot) {
                 event.sender.send(channel, {
                   type: "custom",
                   data: {
                     type: "memory_recall",
-                    memoryRecall: consolidation.recallSnapshot,
+                    memoryRecall: contextAssist.recallSnapshot,
                   },
                 });
               }
-              if (skillUsageSnapshot) {
+              if (contextAssist.skillUsageSnapshot) {
                 event.sender.send(channel, {
                   type: "custom",
                   data: {
                     type: "skill_usage",
-                    skillUsage: skillUsageSnapshot,
+                    skillUsage: contextAssist.skillUsageSnapshot,
                   },
                 });
               }
@@ -437,6 +439,16 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                   data: {
                     type: "memory_consolidation_status",
                     active: false,
+                    enabled: true,
+                  },
+                });
+              } else {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "memory_consolidation_status",
+                    active: false,
+                    enabled: false,
                   },
                 });
               }
@@ -621,6 +633,10 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           if (lastValuesState) {
             const memoryConsolidationEnabled = isMemoryConsolidationEnabled();
             try {
+              const contextAssist = await buildContextAssistSnapshots({
+                workspacePath,
+                state: lastValuesState,
+              });
               const consolidation = memoryConsolidationEnabled
                 ? await (async () => {
                     event.sender.send(channel, {
@@ -628,6 +644,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                       data: {
                         type: "memory_consolidation_status",
                         active: true,
+                        enabled: true,
                       },
                     });
                     return consolidateTaskMemory({
@@ -639,27 +656,21 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                     });
                   })()
                 : { promotionCandidates: [], recallSnapshot: null };
-              const skillUsageSnapshot = memoryConsolidationEnabled
-                ? await buildSkillUsageSnapshot({
-                    workspacePath,
-                    state: lastValuesState,
-                  })
-                : null;
-              if (consolidation.recallSnapshot) {
+              if (contextAssist.recallSnapshot) {
                 event.sender.send(channel, {
                   type: "custom",
                   data: {
                     type: "memory_recall",
-                    memoryRecall: consolidation.recallSnapshot,
+                    memoryRecall: contextAssist.recallSnapshot,
                   },
                 });
               }
-              if (skillUsageSnapshot) {
+              if (contextAssist.skillUsageSnapshot) {
                 event.sender.send(channel, {
                   type: "custom",
                   data: {
                     type: "skill_usage",
-                    skillUsage: skillUsageSnapshot,
+                    skillUsage: contextAssist.skillUsageSnapshot,
                   },
                 });
               }
@@ -687,6 +698,16 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
                   data: {
                     type: "memory_consolidation_status",
                     active: false,
+                    enabled: true,
+                  },
+                });
+              } else {
+                event.sender.send(channel, {
+                  type: "custom",
+                  data: {
+                    type: "memory_consolidation_status",
+                    active: false,
+                    enabled: false,
                   },
                 });
               }

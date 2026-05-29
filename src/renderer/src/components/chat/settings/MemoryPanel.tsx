@@ -415,7 +415,7 @@ export function MemoryPanel(): React.JSX.Element {
             <SettingsToggle
               label={t("memory.consolidationEnabled")}
               description={t("memory.consolidationEnabledDesc")}
-              checked={memorySettings?.memoryConsolidationEnabled ?? true}
+              checked={memorySettings?.memoryConsolidationEnabled ?? false}
               onCheckedChange={(checked) => {
                 void handleMemoryConsolidationToggle(checked);
               }}

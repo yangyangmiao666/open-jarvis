@@ -1,6 +1,7 @@
 import {memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useTranslation} from "react-i18next";
 import {
+  BookOpen,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -22,7 +23,9 @@ import {
   Image,
   LayoutList,
   ListTodo,
+  MemoryStick,
   Loader2,
+  PlugZap,
   XCircle,
 } from "lucide-react";
 import {cn} from "@/lib/utils";
@@ -30,7 +33,12 @@ import {useAppStore} from "@/lib/store";
 import {useThreadState} from "@/lib/thread-context";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
-import type {Todo} from "@/types";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import type {ResourceStatsSnapshot, Todo} from "@/types";
 import {WorkspaceFileListTable} from "./WorkspaceFileListTable";
 import {buildFileTree, type TreeNode, type WorkspaceFileInfo,} from "@/lib/workspace-file-tree";
 
@@ -152,6 +160,37 @@ export function RightPanel(): React.JSX.Element {
   const [tasksOpen, setTasksOpen] = useState(true);
   const [filesOpen, setFilesOpen] = useState(true);
   const [agentsOpen, setAgentsOpen] = useState(true);
+  const [resourceStats, setResourceStats] = useState<ResourceStatsSnapshot | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadResourceStats(): Promise<void> {
+      try {
+        if (currentThreadId) {
+          await window.api.mcp.bootstrap(currentThreadId);
+        }
+        const stats = await window.api.settings.getResourceStats(
+          currentThreadId ?? undefined,
+        );
+        if (!cancelled) {
+          setResourceStats(stats);
+        }
+      } catch (error) {
+        console.error("[RightPanel] Failed to load resource stats:", error);
+      }
+    }
+
+    void loadResourceStats();
+    const timer = window.setInterval(() => {
+      void loadResourceStats();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [currentThreadId, threadState?.enabledMcpServerIds, threadState?.workspacePath]);
 
   // Store content heights in pixels (null = auto/equal distribution)
   const [tasksHeight, setTasksHeight] = useState<number | null>(null);
@@ -362,6 +401,10 @@ export function RightPanel(): React.JSX.Element {
       ref={containerRef}
       className="flex h-full w-full flex-col overflow-hidden border-l border-border/60 bg-background-elevated"
     >
+      <div className="border-b border-border/65 bg-background/65 px-3 py-2">
+        <ResourceSummaryCard stats={resourceStats} />
+      </div>
+
       {/* TASKS */}
       <div className="flex shrink-0 flex-col border-b border-border/65 bg-background-elevated">
         <SectionHeader
@@ -420,6 +463,160 @@ export function RightPanel(): React.JSX.Element {
         )}
       </div>
     </aside>
+  );
+}
+
+function ResourceSummaryCard({
+  stats,
+}: {
+  stats: ResourceStatsSnapshot | null;
+}): React.JSX.Element {
+  const { t } = useTranslation("panels");
+
+  const items = [
+    {
+      key: "memories",
+      label: t("resources.memories"),
+      shortLabel: t("resources.memoriesShort"),
+      icon: MemoryStick,
+      loaded: stats?.memories.loaded ?? 0,
+      failed: stats?.memories.failed ?? 0,
+      loading: 0,
+      entries:
+        stats?.memories.items.map((item) => ({
+          title: item.title,
+          subtitle: item.summary,
+        })) ?? [],
+    },
+    {
+      key: "skills",
+      label: t("resources.skills"),
+      shortLabel: t("resources.skillsShort"),
+      icon: BookOpen,
+      loaded: stats?.skills.loaded ?? 0,
+      failed: stats?.skills.failed ?? 0,
+      loading: 0,
+      entries:
+        stats?.skills.items.map((item) => ({
+          title: item.folderName,
+          subtitle: item.description,
+        })) ?? [],
+    },
+    {
+      key: "mcp",
+      label: t("resources.mcpTools"),
+      shortLabel: t("resources.mcpShort"),
+      icon: PlugZap,
+      loaded: stats?.mcp.loaded ?? 0,
+      failed: stats?.mcp.failed ?? 0,
+      loading: stats?.mcp.loading ?? 0,
+      entries:
+        stats?.mcp.items.map((item) => ({
+          title: item.toolName,
+          subtitle: item.serverName,
+        })) ?? [],
+    },
+  ];
+
+  return (
+    <div className="flex items-center justify-center gap-1.5">
+      {items.map(
+        ({
+          key,
+          label,
+          shortLabel,
+          icon: Icon,
+          loaded,
+          failed,
+          loading,
+          entries,
+        }) => (
+          <Popover key={key}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="group flex items-center gap-1 rounded-full border border-border/70 bg-background/75 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/35 hover:text-foreground"
+                aria-label={label}
+              >
+                <Icon className="size-3.5 text-primary" />
+                <span className="font-medium">{shortLabel}</span>
+                <span className="tabular-nums text-foreground">{loaded}</span>
+                {(failed > 0 || loading > 0) && (
+                  <span
+                    className={cn(
+                      "tabular-nums",
+                      failed > 0
+                        ? "text-status-critical"
+                        : "text-status-info",
+                    )}
+                  >
+                    /{failed > 0 ? failed : loading}
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 p-3">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Icon className="size-4 text-primary" />
+                  <span className="text-sm font-medium">{label}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 text-[11px]">
+                  <span className="rounded-full bg-status-nominal/15 px-2 py-1 text-status-nominal">
+                    {t("resources.loadedCount", { count: loaded })}
+                  </span>
+                  {loading > 0 && (
+                    <span className="rounded-full bg-status-info/10 px-2 py-1 text-status-info">
+                      {t("resources.loadingCount", { count: loading })}
+                    </span>
+                  )}
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-1",
+                      failed > 0
+                        ? "bg-status-critical/10 text-status-critical"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {t("resources.failedCount", { count: failed })}
+                  </span>
+                </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {loading > 0
+                    ? t("resources.detailWithLoading")
+                    : failed > 0
+                      ? t("resources.detailWithFailures")
+                      : t("resources.detailHealthy")}
+                </p>
+                <div className="max-h-80 space-y-1.5 overflow-y-auto pr-1">
+                  {entries.length > 0 ? (
+                    entries.map((entry) => (
+                      <div
+                        key={`${key}-${entry.title}-${entry.subtitle}`}
+                        className="rounded-xl border border-border/60 bg-background/45 px-3 py-2"
+                      >
+                        <div className="text-xs font-medium text-foreground">
+                          {entry.title}
+                        </div>
+                        {entry.subtitle ? (
+                          <div className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+                            {entry.subtitle}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
+                      {t("resources.emptyList")}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        ),
+      )}
+    </div>
   );
 }
 

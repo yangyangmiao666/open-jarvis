@@ -58,6 +58,10 @@ interface ConsolidateTaskMemoryResult {
   recallSnapshot: MemoryRecallSnapshot | null;
 }
 
+export function collectRecalledMemoryPathsFromState(state: unknown): string[] {
+  return extractRecalledMemoryPaths(state);
+}
+
 interface ConversationComplexitySummary {
   userMessages: number;
   assistantMessages: number;
@@ -1376,6 +1380,31 @@ export async function consolidateTaskMemory(
   });
 
   return { promotionCandidates, recallSnapshot };
+}
+
+export async function buildContextAssistSnapshots(options: {
+  workspacePath: string;
+  state: unknown;
+}): Promise<{
+  recallSnapshot: MemoryRecallSnapshot | null;
+  skillUsageSnapshot: SkillUsageSnapshot | null;
+}> {
+  const recalledMemoryPaths = extractRecalledMemoryPaths(options.state);
+  const [recallSnapshot, skillUsageSnapshot] = await Promise.all([
+    buildMemoryRecallSnapshot({
+      workspacePath: options.workspacePath,
+      routePaths: recalledMemoryPaths,
+    }),
+    buildSkillUsageSnapshot({
+      workspacePath: options.workspacePath,
+      state: options.state,
+    }),
+  ]);
+
+  return {
+    recallSnapshot,
+    skillUsageSnapshot,
+  };
 }
 
 export async function buildMemoryRecallSnapshot(options: {

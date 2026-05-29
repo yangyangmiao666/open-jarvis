@@ -1,5 +1,5 @@
 import type { IpcMain } from "electron";
-import { BrowserWindow, Notification, dialog } from "electron";
+import { BrowserWindow, Notification, clipboard, dialog, nativeImage } from "electron";
 import * as fs from "fs/promises";
 import { getThread } from "../db";
 import { getWorkspaceMemoryDir } from "../memory-config";
@@ -27,12 +27,21 @@ import type {
   MemoryDocumentSummary,
   MemorySettings,
   ProxyConfig,
+  ResourceStatsSnapshot,
   ThreadMetadata,
 } from "../types";
 import { getEmbeddedToolingRuntime } from "../tooling";
 import Store from "electron-store";
+import { getGlobalSkillsRoot } from "../skill-config";
+import { getMCPServers } from "../mcp-config";
+import { getMCPRuntimeSnapshot } from "../agent/mcp-runtime";
+import { getOpenworkDir } from "../storage";
+import { decodeTextBuffer } from "../text-encoding";
 
-const store = new Store();
+const store = new Store({
+  name: "settings",
+  cwd: getOpenworkDir(),
+});
 
 function parseThreadMetadata(rawMetadata: unknown): ThreadMetadata {
   if (!rawMetadata) {
@@ -63,6 +72,96 @@ async function resolveWorkspacePath(threadId?: string): Promise<string | null> {
   return typeof metadata.workspacePath === "string"
     ? metadata.workspacePath
     : (store.get("workspacePath", null) as string | null);
+}
+
+async function listSkillItems(rootDir: string): Promise<
+  Array<{ folderName: string; description: string }>
+> {
+  try {
+    const entries = await fs.readdir(rootDir, { withFileTypes: true });
+    const directories = entries.filter((entry) => entry.isDirectory());
+    const items = await Promise.all(
+      directories.map(async (entry) => {
+        const markdownPath = `${rootDir}/${entry.name}/SKILL.md`;
+        try {
+          const buf = await fs.readFile(markdownPath);
+          const content = decodeTextBuffer(buf);
+          const firstContentLine = content
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .find((line) => line.length > 0 && !line.startsWith("#") && line !== "---");
+          return {
+            folderName: entry.name,
+            description: firstContentLine ?? "",
+          };
+        } catch {
+          return {
+            folderName: entry.name,
+            description: "",
+          };
+        }
+      }),
+    );
+    items.sort((left, right) => left.folderName.localeCompare(right.folderName));
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+async function buildResourceStats(
+  threadId?: string,
+): Promise<ResourceStatsSnapshot> {
+  const workspacePath = await resolveWorkspacePath(threadId);
+  const skillsRoot = getGlobalSkillsRoot();
+  const globalEnabledMcpServerIds =
+    ((store.get("enabledMcpServerIds", []) as string[]) ?? []);
+  const [skillItems, memoryDocuments] = await Promise.all([
+    listSkillItems(skillsRoot),
+    workspacePath
+      ? listWorkspaceMemoryDocuments(workspacePath).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+
+  const threadEnabledMcpServerIds = threadId
+    ? parseThreadMetadata(getThread(threadId)?.metadata).enabledMcpServerIds
+    : undefined;
+  const enabledIds = new Set(
+    threadEnabledMcpServerIds ?? globalEnabledMcpServerIds,
+  );
+  const mcpServers = getMCPServers().filter(
+    (server) => server.enabled && enabledIds.has(server.id),
+  );
+  const mcpSnapshot = getMCPRuntimeSnapshot(mcpServers);
+
+  return {
+    skills: {
+      loaded: skillItems.length,
+      failed: 0,
+      items: skillItems,
+    },
+    memories: {
+      loaded: memoryDocuments.length,
+      failed: 0,
+      items: memoryDocuments.map((document) => ({
+        routePath: document.routePath,
+        title: document.title,
+        summary: document.summary,
+      })),
+    },
+    mcp: {
+      loaded: mcpSnapshot.toolCount,
+      failed: mcpSnapshot.failedServerCount,
+      loading: mcpSnapshot.loadingServerCount,
+      enabledServers: mcpSnapshot.enabledServerCount,
+      items: mcpSnapshot.servers.flatMap((server) =>
+        (server.toolNames ?? []).map((toolName) => ({
+          toolName,
+          serverName: server.serverName,
+        })),
+      ),
+    },
+  };
 }
 
 export function registerSettingsHandlers(ipcMain: IpcMain): void {
@@ -144,6 +243,13 @@ export function registerSettingsHandlers(ipcMain: IpcMain): void {
             error instanceof Error ? error.message : "list memories failed",
         };
       }
+    },
+  );
+
+  ipcMain.handle(
+    "settings:getResourceStats",
+    async (_event, threadId?: string): Promise<ResourceStatsSnapshot> => {
+      return buildResourceStats(threadId);
     },
   );
 
@@ -395,6 +501,37 @@ export function registerSettingsHandlers(ipcMain: IpcMain): void {
             error instanceof Error
               ? error.message
               : "Failed to show notification",
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "settings:writeImageToClipboard",
+    async (
+      _event,
+      payload: { dataUrl: string },
+    ): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const dataUrl = payload.dataUrl?.trim();
+        if (!dataUrl) {
+          return { success: false, error: "Image data is required" };
+        }
+
+        const image = nativeImage.createFromDataURL(dataUrl);
+        if (image.isEmpty()) {
+          return { success: false, error: "Invalid image data" };
+        }
+
+        clipboard.writeImage(image);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to write image to clipboard",
         };
       }
     },

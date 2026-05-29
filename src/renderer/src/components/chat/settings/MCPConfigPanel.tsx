@@ -213,7 +213,77 @@ export function MCPConfigPanel(): React.JSX.Element {
       ? [...enabledMcpServerIds, serverId]
       : enabledMcpServerIds.filter((sid) => sid !== serverId);
     setEnabledMcpServerIds(nextIds);
-    void window.api.mcp.setEnabledForThread(undefined, nextIds);
+
+    void (async () => {
+      try {
+        await window.api.mcp.setEnabledForThread(undefined, nextIds);
+        const snapshot = checked
+          ? await window.api.mcp.bootstrap()
+          : await window.api.mcp.getRuntimeSnapshot();
+        const server = servers.find((item) => item.id === serverId);
+        const status = snapshot.servers.find((item) => item.serverId === serverId);
+
+        if (!checked) {
+          toast.success(
+            t("mcpConfig.serverDisabled", {
+              name: server?.name ?? t("mcpConfig.currentConfig"),
+            }),
+          );
+          return;
+        }
+
+        if (status?.state === "ready") {
+          toast.success(
+            t("mcpConfig.serverLoaded", {
+              name: status.serverName,
+              count: status.toolCount,
+            }),
+          );
+          return;
+        }
+
+        if (status?.state === "error") {
+          const errorMessage =
+            status.error?.trim() || t("mcpConfig.serverLoadFailedGeneric");
+          toast.error(
+            t("mcpConfig.serverLoadFailed", {
+              name: status.serverName,
+              error: errorMessage,
+            }),
+          );
+          return;
+        }
+
+        if (status?.state === "loading") {
+          toast.success(
+            t("mcpConfig.serverLoading", {
+              name: status.serverName,
+            }),
+          );
+          return;
+        }
+
+        toast.error(
+          t("mcpConfig.serverLoadFailed", {
+            name: server?.name ?? t("mcpConfig.currentConfig"),
+            error: t("mcpConfig.serverLoadFailedGeneric"),
+          }),
+        );
+      } catch (error) {
+        setEnabledMcpServerIds(enabledMcpServerIds);
+        toast.error(
+          t("mcpConfig.serverLoadFailed", {
+            name:
+              servers.find((item) => item.id === serverId)?.name ??
+              t("mcpConfig.currentConfig"),
+            error:
+              error instanceof Error
+                ? error.message
+                : t("mcpConfig.serverLoadFailedGeneric"),
+          }),
+        );
+      }
+    })();
   };
 
   const handleImport = async (): Promise<void> => {

@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useObjectUrlFromBase64 } from "@/lib/media-blob";
-import { ZoomIn, ZoomOut, Maximize2, RotateCw, Hand } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, RotateCw, Hand, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  buildDataUrlFromBase64,
+  copyImageDataUrlToClipboard,
+} from "@/lib/image-clipboard";
 
 interface ImageViewerProps {
   filePath: string;
@@ -78,6 +82,12 @@ export function ImageViewer({
 
   const handleRotate = (): void => {
     setRotation((prev) => (prev + 90) % 360);
+  };
+
+  const handleCopyImage = (): void => {
+    void copyImageDataUrlToClipboard(
+      buildDataUrlFromBase64(base64Content, mimeType),
+    );
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
@@ -165,6 +175,15 @@ export function ImageViewer({
             className="h-7 px-2"
           >
             <RotateCw className="size-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCopyImage}
+            className="h-7 px-2"
+          >
+            <Copy className="size-4" />
           </Button>
 
           <Button

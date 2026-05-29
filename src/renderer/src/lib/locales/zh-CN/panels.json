@@ -4,6 +4,24 @@
     "files": "文件",
     "subagents": "子智能体"
   },
+  "resources": {
+    "title": "资源加载",
+    "skills": "Skills 技能",
+    "skillsShort": "技能",
+    "memories": "Memories 记忆",
+    "memoriesShort": "记忆",
+    "mcpTools": "MCP 工具",
+    "mcpShort": "工具",
+    "loadedCount": "已加载 {{count}}",
+    "loadingCount": "加载中 {{count}}",
+    "failedCount": "失败 {{count}}",
+    "detailHealthy": "当前资源状态正常，可直接使用。",
+    "detailWithLoading": "部分资源仍在后台加载中，稍后会自动更新。",
+    "detailWithFailures": "部分资源加载失败，可在对应配置面板查看详情并重试。",
+    "more": "查看更多资源状态",
+    "emptyList": "当前没有可展示的条目",
+    "moreItems": "另有 {{count}} 项未展开"
+  },
   "filesBadge": "{{count}}个文件",
   "taskStatus": {
     "pending": "待处理",

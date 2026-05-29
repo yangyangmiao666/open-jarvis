@@ -9,7 +9,9 @@ import { registerSettingsHandlers } from "./ipc/settings";
 import { registerThreadHandlers } from "./ipc/threads";
 import { registerModelHandlers } from "./ipc/models";
 import { registerSkillHandlers } from "./ipc/skills";
+import { syncBundledSkillsToGlobalRoot } from "./skill-config";
 import { initializeDatabase } from "./db";
+import { getMCPServers } from "./mcp-config";
 import {
   clearProxyEnvFromProcess,
   getOpenworkDir,
@@ -18,6 +20,7 @@ import {
 } from "./storage";
 import { logError, logInfo } from "./logger";
 import { applyGlobalProxyDispatcher, getProxyConfigFromEnv } from "./proxy-config";
+import { bootstrapMCPServers } from "./agent/mcp-runtime";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -212,6 +215,7 @@ app.whenReady().then(async () => {
 
   // Initialize database
   await initializeDatabase();
+  await syncBundledSkillsToGlobalRoot();
   logInfo("Main", "Database initialized and IPC registration begins");
 
   // Register IPC handlers
@@ -222,6 +226,10 @@ app.whenReady().then(async () => {
   registerMCPHandlers(ipcMain);
   registerSettingsHandlers(ipcMain);
   registerSkillHandlers(ipcMain);
+
+  void bootstrapMCPServers(
+    getMCPServers().filter((server) => server.enabled),
+  );
 
   createWindow();
 

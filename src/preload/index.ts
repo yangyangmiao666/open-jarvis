@@ -9,6 +9,7 @@ import type {
   HITLRequest,
   HITLDecision,
   MCPImportResult,
+  MCPRuntimeSnapshot,
   MCPServerConfig,
   OpenAICompatibleProfile,
   ProxyConfig,
@@ -17,6 +18,7 @@ import type {
   MemoryDocumentSummary,
   MemoryPromotionCandidate,
   MemorySettings,
+  ResourceStatsSnapshot,
   SkillSummary,
 } from "../main/types";
 
@@ -261,6 +263,12 @@ const api = {
         serverIds,
       });
     },
+    getRuntimeSnapshot: (threadId?: string): Promise<MCPRuntimeSnapshot> => {
+      return ipcRenderer.invoke("mcp:getRuntimeSnapshot", threadId);
+    },
+    bootstrap: (threadId?: string): Promise<MCPRuntimeSnapshot> => {
+      return ipcRenderer.invoke("mcp:bootstrap", threadId);
+    },
   },
   settings: {
     getProxyConfig: (): Promise<ProxyConfig> => {
@@ -352,6 +360,16 @@ const api = {
       body: string;
     }): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke("settings:showDesktopNotification", payload);
+    },
+    writeImageToClipboard: (payload: {
+      dataUrl: string;
+    }): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke("settings:writeImageToClipboard", payload);
+    },
+    getResourceStats: (
+      threadId?: string,
+    ): Promise<ResourceStatsSnapshot> => {
+      return ipcRenderer.invoke("settings:getResourceStats", threadId);
     },
   },
   workspace: {

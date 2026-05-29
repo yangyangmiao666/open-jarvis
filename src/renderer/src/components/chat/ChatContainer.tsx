@@ -160,6 +160,11 @@ interface StreamMessage {
   is_error?: boolean;
 }
 
+interface ExplicitSkillSelection {
+  folderName: string;
+  description: string;
+}
+
 interface ChatContainerProps {
   threadId: string;
   onOpenSettings: (request?: SettingsOpenRequest) => void;
@@ -180,9 +185,16 @@ export function ChatContainer({
   const composingRef = useRef(false);
 
   const [referencedPaths, setReferencedPaths] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<ExplicitSkillSelection[]>(
+    [],
+  );
+  const [availableSkills, setAvailableSkills] = useState<ExplicitSkillSelection[]>(
+    [],
+  );
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
+  const [mentionMode, setMentionMode] = useState<"file" | "skill">("file");
   const [streamTipTick, setStreamTipTick] = useState(0);
   const [overlayInset, setOverlayInset] = useState(176);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -202,6 +214,7 @@ export function ChatContainer({
     pendingApprovals,
     pendingApproval,
     isMemoryConsolidating,
+    memoryConsolidationEnabled,
     pendingMemoryPromotions,
     memoryRecall,
     skillUsage,
@@ -244,10 +257,46 @@ export function ChatContainer({
 
   const mentionCandidates = useMemo(() => {
     const q = mentionQuery.toLowerCase();
+    if (mentionMode === "skill") {
+      return availableSkills
+        .filter(
+          (skill) =>
+            skill.folderName.toLowerCase().includes(q) ||
+            skill.description.toLowerCase().includes(q),
+        )
+        .slice(0, 40);
+    }
     return workspaceFiles
       .filter((f) => f.path.toLowerCase().includes(q))
       .slice(0, 40);
-  }, [workspaceFiles, mentionQuery]);
+  }, [availableSkills, mentionMode, workspaceFiles, mentionQuery]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSkills(): Promise<void> {
+      try {
+        const result =
+          await window.api.skills.listWorkspaceSkillFolders(threadId);
+        if (!cancelled && result.success && result.folders) {
+          setAvailableSkills(
+            result.folders.map((folder) => ({
+              folderName: folder.folderName,
+              description: folder.description,
+            })),
+          );
+        }
+      } catch (error) {
+        console.error("[ChatContainer] Failed to load skills:", error);
+      }
+    }
+
+    void loadSkills();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [threadId]);
 
   useEffect(() => {
     setMentionActiveIndex(0);
@@ -264,20 +313,22 @@ export function ChatContainer({
 
   const parseMentionAtCursor = (v: string, pos: number): void => {
     let i = pos - 1;
-    while (i >= 0 && v[i] !== "@" && v[i] !== "\n") {
+    while (i >= 0 && v[i] !== "@" && v[i] !== "/" && v[i] !== "\n") {
       i--;
     }
-    if (i < 0 || v[i] !== "@") {
+    if (i < 0 || (v[i] !== "@" && v[i] !== "/")) {
       setMentionOpen(false);
       return;
     }
-    const afterAt = v.slice(i + 1, pos);
-    if (afterAt.includes(" ") || afterAt.includes("\n")) {
+    const trigger = v[i];
+    const query = v.slice(i + 1, pos);
+    if (query.includes(" ") || query.includes("\n")) {
       setMentionOpen(false);
       return;
     }
     mentionStartRef.current = i;
-    setMentionQuery(afterAt);
+    setMentionMode(trigger === "@" ? "file" : "skill");
+    setMentionQuery(query);
     setMentionOpen(true);
   };
 
@@ -291,7 +342,7 @@ export function ChatContainer({
     parseMentionAtCursor(v, pos);
   };
 
-  const pickMention = (path: string): void => {
+  const pickMention = (value: string): void => {
     const ta = inputRef.current;
     if (!ta) return;
     const v = ta.value;
@@ -300,7 +351,20 @@ export function ChatContainer({
     const before = v.slice(0, start);
     const after = v.slice(pos);
     setInput(before + after);
-    setReferencedPaths((prev) => [...new Set([...prev, path])]);
+    if (mentionMode === "skill") {
+      const pickedSkill = availableSkills.find(
+        (skill) => skill.folderName === value,
+      );
+      if (pickedSkill) {
+        setSelectedSkills((prev) =>
+          prev.some((skill) => skill.folderName === pickedSkill.folderName)
+            ? prev
+            : [...prev, pickedSkill],
+        );
+      }
+    } else {
+      setReferencedPaths((prev) => [...new Set([...prev, value])]);
+    }
     setMentionOpen(false);
     requestAnimationFrame(() => {
       ta.focus();
@@ -921,6 +985,13 @@ export function ChatContainer({
       setInput("");
 
       const isFirstMessage = threadMessages.length === 0;
+      const explicitSkillsPrompt =
+        selectedSkills.length > 0
+          ? `请优先使用以下指定技能，不要忽略它们：\n${selectedSkills
+              .map((skill) => `- ${skill.folderName}${skill.description ? `：${skill.description}` : ""}`)
+              .join("\n")}\n\n`
+          : "";
+      const finalMessageText = `${explicitSkillsPrompt}${messageText}`;
 
       appendMessage(userMessage);
 
@@ -936,7 +1007,7 @@ export function ChatContainer({
 
       await stream.submit(
         {
-          messages: [{ type: "human", content: messageText }],
+          messages: [{ type: "human", content: finalMessageText }],
         },
         {
           config: {
@@ -951,6 +1022,7 @@ export function ChatContainer({
         },
       );
       setReferencedPaths([]);
+      setSelectedSkills([]);
     },
     [
       appendMessage,
@@ -1188,7 +1260,7 @@ export function ChatContainer({
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (mentionOpen && mentionCandidates.length > 0) {
+      if (mentionOpen && mentionCandidates.length > 0) {
       if (e.key === "Escape") {
         e.preventDefault();
         setMentionOpen(false);
@@ -1209,7 +1281,15 @@ export function ChatContainer({
       if (e.key === "Enter" && !e.shiftKey && !composingRef.current) {
         e.preventDefault();
         const f = mentionCandidates[mentionActiveIndex];
-        if (f) pickMention(f.path);
+        if (f) {
+          if (mentionMode === "skill") {
+            pickMention((f as ExplicitSkillSelection).folderName);
+          } else {
+            pickMention(
+              (f as { path: string }).path,
+            );
+          }
+        }
         return;
       }
     } else if (mentionOpen && e.key === "Escape") {
@@ -1553,6 +1633,11 @@ export function ChatContainer({
                           ? "本次回答参考了这些历史记忆"
                           : "本次回答使用了这些技能"}
                     </div>
+                    {memoryConsolidationEnabled === false && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        当前已关闭记忆沉淀，本次仅展示命中的记忆与技能，不会自动写入新记忆。
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1763,6 +1848,26 @@ export function ChatContainer({
                 ))}
               </div>
             )}
+            {selectedSkills.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedSkills.map((skill) => (
+                  <button
+                    key={skill.folderName}
+                    type="button"
+                    onClick={() =>
+                      setSelectedSkills((prev) =>
+                        prev.filter((item) => item.folderName !== skill.folderName),
+                      )
+                    }
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] text-primary hover:bg-primary/14"
+                    title={t("clickToRemove")}
+                  >
+                    /{skill.folderName}
+                    <X className="size-3 shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="relative flex items-end gap-3">
               <div className="min-w-0 flex-1 overflow-hidden rounded-[22px] border border-border bg-background-elevated focus-within:ring-2 focus-within:ring-ring/55">
                 <textarea
@@ -1804,7 +1909,11 @@ export function ChatContainer({
                 >
                   {mentionCandidates.map((f, idx) => (
                     <button
-                      key={f.path}
+                      key={
+                        mentionMode === "skill"
+                          ? (f as ExplicitSkillSelection).folderName
+                          : (f as { path: string }).path
+                      }
                       data-mention-index={idx}
                       type="button"
                       className={cn(
@@ -1816,11 +1925,32 @@ export function ChatContainer({
                       onMouseEnter={() => setMentionActiveIndex(idx)}
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        pickMention(f.path);
+                        if (mentionMode === "skill") {
+                          pickMention(
+                            (f as ExplicitSkillSelection).folderName,
+                          );
+                        } else {
+                          pickMention((f as { path: string }).path);
+                        }
                       }}
                     >
-                      {f.is_dir ? "📁 " : ""}
-                      {f.path}
+                      {mentionMode === "skill" ? (
+                        <>
+                          <span className="font-medium">
+                            /{(f as ExplicitSkillSelection).folderName}
+                          </span>
+                          {(f as ExplicitSkillSelection).description ? (
+                            <span className="ml-2 text-muted-foreground">
+                              {(f as ExplicitSkillSelection).description}
+                            </span>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          {(f as { is_dir?: boolean }).is_dir ? "📁 " : ""}
+                          {(f as { path: string }).path}
+                        </>
+                      )}
                     </button>
                   ))}
                 </div>

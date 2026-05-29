@@ -248,7 +248,12 @@
     "formMode": "表单",
     "jsonMode": "JSON",
     "invalidJson": "JSON 格式无效",
-    "saveFailed": "保存失败"
+    "saveFailed": "保存失败",
+    "serverLoaded": "MCP 服务器「{{name}}」已加载，发现 {{count}} 个工具",
+    "serverLoading": "MCP 服务器「{{name}}」正在加载",
+    "serverDisabled": "MCP 服务器「{{name}}」已关闭",
+    "serverLoadFailed": "MCP 服务器「{{name}}」加载失败：{{error}}",
+    "serverLoadFailedGeneric": "未能成功初始化该 MCP 服务器"
   },
   "proxyConfig": {
     "title": "代理配置",

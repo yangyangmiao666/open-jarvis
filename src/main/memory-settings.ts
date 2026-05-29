@@ -6,7 +6,7 @@ const memorySettingsStore = new Store<{ memorySettings?: MemorySettings }>({
 });
 
 export const DEFAULT_SKILL_PROMOTION_RECALL_THRESHOLD = 3;
-export const DEFAULT_MEMORY_CONSOLIDATION_ENABLED = true;
+export const DEFAULT_MEMORY_CONSOLIDATION_ENABLED = false;
 
 export function getMemorySettings(): MemorySettings {
   const stored = memorySettingsStore.get("memorySettings");

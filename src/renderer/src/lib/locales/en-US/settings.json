@@ -248,7 +248,12 @@
     "formMode": "Form",
     "jsonMode": "JSON",
     "invalidJson": "Invalid JSON format",
-    "saveFailed": "Save failed"
+    "saveFailed": "Save failed",
+    "serverLoaded": "MCP server \"{{name}}\" loaded with {{count}} tools",
+    "serverLoading": "MCP server \"{{name}}\" is loading",
+    "serverDisabled": "MCP server \"{{name}}\" disabled",
+    "serverLoadFailed": "Failed to load MCP server \"{{name}}\": {{error}}",
+    "serverLoadFailedGeneric": "The MCP server could not be initialized"
   },
   "proxyConfig": {
     "title": "Proxy Configuration",

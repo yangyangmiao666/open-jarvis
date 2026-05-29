@@ -1,6 +1,7 @@
-import { Maximize2 } from "lucide-react";
+import { Copy, Maximize2 } from "lucide-react";
 import { useInlineMedia } from "@/lib/inline-media";
 import { useTranslation } from "react-i18next";
+import { copyImageUrlToClipboard } from "@/lib/image-clipboard";
 
 interface InlineImagePreviewProps {
   threadId: string;
@@ -25,6 +26,13 @@ export function InlineImagePreview({
     filePath,
     mimeType,
   );
+
+  const handleCopy = (): void => {
+    if (!url) {
+      return;
+    }
+    void copyImageUrlToClipboard(url);
+  };
 
   return (
     <div
@@ -53,12 +61,24 @@ export function InlineImagePreview({
             loading="lazy"
           />
           {onClick && (
-            <button
-              className="absolute right-2 top-2 rounded-md bg-background/80 p-1 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
-              onClick={onClick}
-            >
-              <Maximize2 className="size-3.5 text-foreground" />
-            </button>
+            <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <button
+                className="rounded-md bg-background/80 p-1 backdrop-blur-sm"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleCopy();
+                }}
+                title={t("common:copyImage", { ns: "common", defaultValue: "复制图片" })}
+              >
+                <Copy className="size-3.5 text-foreground" />
+              </button>
+              <button
+                className="rounded-md bg-background/80 p-1 backdrop-blur-sm"
+                onClick={onClick}
+              >
+                <Maximize2 className="size-3.5 text-foreground" />
+              </button>
+            </div>
           )}
         </div>
       )}

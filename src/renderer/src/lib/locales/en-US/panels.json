@@ -4,6 +4,24 @@
     "files": "Files",
     "subagents": "Sub-agents"
   },
+  "resources": {
+    "title": "Resource Status",
+    "skills": "Skills",
+    "skillsShort": "SK",
+    "memories": "Memories",
+    "memoriesShort": "ME",
+    "mcpTools": "MCP Tools",
+    "mcpShort": "MCP",
+    "loadedCount": "Loaded {{count}}",
+    "loadingCount": "Loading {{count}}",
+    "failedCount": "Failed {{count}}",
+    "detailHealthy": "All tracked resources are available now.",
+    "detailWithLoading": "Some resources are still loading in the background and will update automatically.",
+    "detailWithFailures": "Some resources failed to load. Check the related settings panel for details and retry.",
+    "more": "More resource details",
+    "emptyList": "No items to show right now",
+    "moreItems": "{{count}} more items not shown"
+  },
   "filesBadge": "{{count}} files",
   "taskStatus": {
     "pending": "Pending",

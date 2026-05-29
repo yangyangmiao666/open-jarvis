@@ -11,6 +11,7 @@ import {
 } from "react";
 import i18n from "@/lib/locales";
 import { sendDesktopNotification } from "@/lib/notifications";
+import { toast } from "@/lib/toast";
 import { useAppStore } from "@/lib/store";
 import {
   appendPersistedTokenUsageStats,
@@ -264,6 +265,7 @@ export interface ThreadState {
   pendingApprovals: HITLRequest[];
   pendingApproval: HITLRequest | null;
   isMemoryConsolidating: boolean;
+  memoryConsolidationEnabled: boolean;
   pendingMemoryPromotions: MemoryPromotionCandidate[];
   memoryRecall: MemoryRecallSnapshot | null;
   skillUsage: SkillUsageSnapshot | null;
@@ -351,6 +353,7 @@ const createDefaultThreadState = (): ThreadState => ({
   pendingApprovals: [],
   pendingApproval: null,
   isMemoryConsolidating: false,
+  memoryConsolidationEnabled: false,
   pendingMemoryPromotions: [],
   memoryRecall: null,
   skillUsage: null,
@@ -398,6 +401,7 @@ const ThreadContext = createContext<ThreadContextValue | null>(null);
 interface CustomEventData {
   type?: string;
   active?: boolean;
+  enabled?: boolean;
   request?: HITLRequest;
   requests?: HITLRequest[];
   candidate?: MemoryPromotionCandidate;
@@ -748,6 +752,14 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       return i18n.t("chat:error.authFailed");
     }
 
+    if (
+      /api key|connection error|network error|fetch failed|model.*failed|anthropic|openai|gemini|provider/i.test(
+        errorMessage,
+      )
+    ) {
+      return `模型连接失败：${errorMessage}`;
+    }
+
     // Return the original message for other errors
     return errorMessage;
   }, []);
@@ -758,6 +770,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       console.error("[ThreadContext] Stream error:", { threadId, error });
       const userFriendlyMessage = parseErrorMessage(error);
       updateThreadState(threadId, () => ({ error: userFriendlyMessage }));
+      toast.error(userFriendlyMessage);
     },
     [parseErrorMessage, updateThreadState],
   );
@@ -893,8 +906,12 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           }
           break;
         case "memory_consolidation_status":
-          updateThreadState(threadId, () => ({
+          updateThreadState(threadId, (state) => ({
             isMemoryConsolidating: Boolean(data.active),
+            memoryConsolidationEnabled:
+              typeof data.enabled === "boolean"
+                ? data.enabled
+                : state.memoryConsolidationEnabled,
           }));
           break;
         case "memory_recall":
@@ -1053,7 +1070,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             ),
           );
           updateThreadState(threadId, () => ({ enabledMcpServerIds: nextIds }));
-          void window.api.mcp.setEnabledForThread(undefined, nextIds);
+          void window.api.mcp.setEnabledForThread(threadId, nextIds);
+          void window.api.mcp.bootstrap(threadId);
         },
         setSubagents: (subagents: Subagent[]) => {
           updateThreadState(threadId, () => ({ subagents }));
@@ -1222,6 +1240,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             window.api.mcp.getEnabledForThread(threadId),
             window.api.approval.getMode(threadId),
           ]);
+        void window.api.mcp.bootstrap(threadId);
 
         const metadata = parseThreadMetadata(thread?.metadata);
         threadMetadataCacheRef.current[threadId] = metadata;

@@ -7,6 +7,7 @@ import type {
   HITLRequest,
   HITLDecision,
   MCPImportResult,
+  MCPRuntimeSnapshot,
   MCPServerConfig,
   OpenAICompatibleProfile,
   ProxyConfig,
@@ -15,6 +16,7 @@ import type {
   MemoryDocumentSummary,
   MemoryPromotionCandidate,
   MemorySettings,
+  ResourceStatsSnapshot,
   SkillSummary,
 } from "../main/types";
 
@@ -113,6 +115,8 @@ interface CustomAPI {
       threadId: string | undefined,
       serverIds: string[],
     ) => Promise<string[]>;
+    getRuntimeSnapshot: (threadId?: string) => Promise<MCPRuntimeSnapshot>;
+    bootstrap: (threadId?: string) => Promise<MCPRuntimeSnapshot>;
   };
   settings: {
     getProxyConfig: () => Promise<ProxyConfig>;
@@ -169,6 +173,10 @@ interface CustomAPI {
       title: string;
       body: string;
     }) => Promise<{ success: boolean; error?: string }>;
+    writeImageToClipboard: (payload: {
+      dataUrl: string;
+    }) => Promise<{ success: boolean; error?: string }>;
+    getResourceStats: (threadId?: string) => Promise<ResourceStatsSnapshot>;
   };
   workspace: {
     get: (threadId?: string) => Promise<string | null>;

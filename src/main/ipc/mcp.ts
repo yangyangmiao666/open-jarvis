@@ -9,9 +9,15 @@ import {
 } from "../mcp-config";
 import { getThread, updateThread } from "../db";
 import { getOpenworkDir } from "../storage";
+import {
+  bootstrapMCPServers,
+  getMCPRuntimeSnapshot,
+  resetMCPConnection,
+} from "../agent/mcp-runtime";
 import type {
   MCPEnabledServersParams,
   MCPImportInput,
+  MCPRuntimeSnapshot,
   MCPServerConfig,
   ThreadMetadata,
 } from "../types";
@@ -35,6 +41,25 @@ function getThreadMetadata(threadId?: string): ThreadMetadata {
   return JSON.parse(thread.metadata) as ThreadMetadata;
 }
 
+function getEnabledServerIds(threadId?: string): string[] {
+  if (!threadId) {
+    return (store.get("enabledMcpServerIds", []) as string[]) ?? [];
+  }
+
+  return getThreadMetadata(threadId).enabledMcpServerIds ?? [];
+}
+
+function getEnabledServerConfigs(threadId?: string): MCPServerConfig[] {
+  const enabledIds = new Set(getEnabledServerIds(threadId));
+  return getMCPServers().filter(
+    (server) => server.enabled && enabledIds.has(server.id),
+  );
+}
+
+function getAllLoadableServerConfigs(): MCPServerConfig[] {
+  return getMCPServers().filter((server) => server.enabled);
+}
+
 export function registerMCPHandlers(ipcMain: IpcMain): void {
   ipcMain.handle("mcp:listServers", async () => {
     return getMCPServers();
@@ -46,16 +71,26 @@ export function registerMCPHandlers(ipcMain: IpcMain): void {
       _event,
       config: MCPServerConfig | (Omit<MCPServerConfig, "id"> & { id?: string }),
     ) => {
-      return upsertMCPServer(config);
+      const previousId = "id" in config && config.id ? config.id : null;
+      if (previousId) {
+        await resetMCPConnection(previousId);
+      }
+      const next = upsertMCPServer(config);
+      await bootstrapMCPServers(getAllLoadableServerConfigs());
+      return next;
     },
   );
 
   ipcMain.handle("mcp:deleteServer", async (_event, id: string) => {
+    await resetMCPConnection(id);
     deleteMCPServer(id);
   });
 
   ipcMain.handle("mcp:importServers", async (_event, { json }: MCPImportInput) => {
-    return importMCPServersFromJson(json);
+    const result = importMCPServersFromJson(json);
+    await Promise.all(result.imported.map((server) => resetMCPConnection(server.id)));
+    await bootstrapMCPServers(getAllLoadableServerConfigs());
+    return result;
   });
 
   ipcMain.handle("mcp:exportServers", async () => {
@@ -63,11 +98,7 @@ export function registerMCPHandlers(ipcMain: IpcMain): void {
   });
 
   ipcMain.handle("mcp:getEnabledForThread", async (_event, threadId?: string) => {
-    if (!threadId) {
-      return (store.get("enabledMcpServerIds", []) as string[]) ?? [];
-    }
-
-    return getThreadMetadata(threadId).enabledMcpServerIds ?? [];
+    return getEnabledServerIds(threadId);
   });
 
   ipcMain.handle(
@@ -79,6 +110,7 @@ export function registerMCPHandlers(ipcMain: IpcMain): void {
 
       if (!threadId) {
         store.set("enabledMcpServerIds", nextIds);
+        await bootstrapMCPServers(getAllLoadableServerConfigs());
         return nextIds;
       }
 
@@ -89,7 +121,23 @@ export function registerMCPHandlers(ipcMain: IpcMain): void {
           enabledMcpServerIds: nextIds,
         }),
       });
+      await bootstrapMCPServers(getEnabledServerConfigs(threadId));
       return nextIds;
     },
   );
+
+  ipcMain.handle(
+    "mcp:getRuntimeSnapshot",
+    async (_event, threadId?: string): Promise<MCPRuntimeSnapshot> => {
+      return getMCPRuntimeSnapshot(getEnabledServerConfigs(threadId));
+    },
+  );
+
+  ipcMain.handle("mcp:bootstrap", async (_event, threadId?: string) => {
+    const servers = threadId
+      ? getEnabledServerConfigs(threadId)
+      : getAllLoadableServerConfigs();
+    await bootstrapMCPServers(servers);
+    return getMCPRuntimeSnapshot(servers);
+  });
 }

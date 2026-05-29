@@ -215,6 +215,57 @@ export interface MCPImportResult {
   skipped: string[];
 }
 
+export type MCPServerRuntimeState = "idle" | "loading" | "ready" | "error";
+
+export interface MCPServerRuntimeStatus {
+  serverId: string;
+  serverName: string;
+  state: MCPServerRuntimeState;
+  toolCount: number;
+  toolNames?: string[];
+  error?: string;
+  updatedAt: string | null;
+}
+
+export interface MCPRuntimeSnapshot {
+  servers: MCPServerRuntimeStatus[];
+  enabledServerCount: number;
+  readyServerCount: number;
+  loadingServerCount: number;
+  failedServerCount: number;
+  toolCount: number;
+}
+
+export interface ResourceStatsSnapshot {
+  skills: {
+    loaded: number;
+    failed: number;
+    items: Array<{
+      folderName: string;
+      description: string;
+    }>;
+  };
+  memories: {
+    loaded: number;
+    failed: number;
+    items: Array<{
+      routePath: string;
+      title: string;
+      summary: string;
+    }>;
+  };
+  mcp: {
+    loaded: number;
+    failed: number;
+    loading: number;
+    enabledServers: number;
+    items: Array<{
+      toolName: string;
+      serverName: string;
+    }>;
+  };
+}
+
 export interface ThreadMetadata {
   model?: string;
   workspacePath?: string;

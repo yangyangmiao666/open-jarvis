@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/lib/toast";
 import i18n from "@/lib/locales";
+import { copyImageDataUrlToClipboard } from "@/lib/image-clipboard";
 
 const HTML_LANGUAGES = new Set(["html", "htm"]);
 const ECHARTS_LANGUAGES = new Set(["echarts", "echart", "chart"]);
@@ -429,6 +430,7 @@ interface DiagramViewportProps {
   contentClassName?: string;
   controlsClassName?: string;
   onSaveImage?: () => void;
+  onCopyImage?: () => void;
 }
 
 function DiagramViewport({
@@ -438,6 +440,7 @@ function DiagramViewport({
   contentClassName,
   controlsClassName,
   onSaveImage,
+  onCopyImage,
 }: DiagramViewportProps): React.JSX.Element {
   const [state, setState] = useState<DiagramViewportState>({
     scale: 1,
@@ -488,6 +491,11 @@ function DiagramViewport({
         {onSaveImage ? (
           <Button type="button" variant="ghost" size="icon-sm" onClick={onSaveImage} title="保存图片">
             <Download className="size-3.5" />
+          </Button>
+        ) : null}
+        {onCopyImage ? (
+          <Button type="button" variant="ghost" size="icon-sm" onClick={onCopyImage} title="复制图片">
+            <Copy className="size-3.5" />
           </Button>
         ) : null}
       </div>
@@ -666,6 +674,25 @@ function EChartsPreview({
     }
   }, []);
 
+  const handleCopyImage = useCallback(() => {
+    const chart = chartInstanceRef.current;
+    if (!chart) {
+      toast.error("图表尚未渲染，无法复制");
+      return;
+    }
+
+    try {
+      chart.resize();
+      const url = chart.getDataURL({
+        type: "png",
+        pixelRatio: 4,
+      });
+      void copyImageDataUrlToClipboard(url);
+    } catch {
+      toast.error("图片复制失败");
+    }
+  }, []);
+
   if (error) {
     return (
       <div className="flex min-h-55 items-center gap-3 rounded-[18px] border border-status-warning/30 bg-status-warning/8 px-4 py-5 text-sm text-status-warning">
@@ -680,6 +707,7 @@ function EChartsPreview({
       minHeight={expanded ? 640 : 320}
       contentClassName={expanded ? "p-6" : undefined}
       onSaveImage={handleSaveImage}
+      onCopyImage={handleCopyImage}
     >
       <div
         ref={containerRef}
@@ -703,6 +731,75 @@ function MermaidPreview({
   const svgStringRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasSvg, setHasSvg] = useState(false);
+
+  const renderMermaidPngDataUrl = useCallback((): Promise<string> => {
+    const container = containerRef.current;
+    if (!container) {
+      return Promise.reject(new Error("暂无可复制的图表"));
+    }
+
+    const renderedSvg = container.querySelector("svg");
+    if (!renderedSvg) {
+      return Promise.reject(new Error("暂无可复制的图表"));
+    }
+
+    const svgClone = renderedSvg.cloneNode(true) as SVGSVGElement;
+    svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+    let width = 0;
+    let height = 0;
+    const viewBox = svgClone.getAttribute("viewBox");
+    if (viewBox) {
+      const parts = viewBox.trim().split(/[\s,]+/);
+      width = parseFloat(parts[2] ?? "0") || 0;
+      height = parseFloat(parts[3] ?? "0") || 0;
+    }
+
+    if (!width || !height) {
+      try {
+        const bbox = renderedSvg.getBBox();
+        width = bbox.width || width;
+        height = bbox.height || height;
+      } catch {
+        // fall through to attribute fallback
+      }
+    }
+
+    if (!width || !height) {
+      width = parseFloat(svgClone.getAttribute("width") ?? "0") || 1600;
+      height = parseFloat(svgClone.getAttribute("height") ?? "0") || 1200;
+    }
+
+    svgClone.setAttribute("width", String(width));
+    svgClone.setAttribute("height", String(height));
+
+    const serialized = new XMLSerializer().serializeToString(svgClone);
+    const dataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
+    const scale = 10;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(width * scale);
+    canvas.height = Math.ceil(height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return Promise.reject(new Error("图片渲染失败"));
+    }
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => reject(new Error("图片渲染失败"));
+      img.src = dataUri;
+    });
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -769,93 +866,25 @@ function MermaidPreview({
   }, [code]);
 
   const handleSaveImage = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) {
-      toast.error("暂无可保存的图表");
-      return;
-    }
-
-    // 从 DOM 中获取实际渲染的 SVG（包含所有计算后的样式）
-    const renderedSvg = container.querySelector("svg");
-    if (!renderedSvg) {
-      toast.error("暂无可保存的图表");
-      return;
-    }
-
-    // 克隆 SVG 以避免影响显示
-    const svgClone = renderedSvg.cloneNode(true) as SVGSVGElement;
-
-    // 确保 xmlns 属性存在
-    svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-    // 优先使用 viewBox / bbox 获取真实逻辑尺寸，避免 width="100%" 导致导出变糊
-    let width = 0;
-    let height = 0;
-    const viewBox = svgClone.getAttribute("viewBox");
-    if (viewBox) {
-      const parts = viewBox.trim().split(/[\s,]+/);
-      width = parseFloat(parts[2] ?? "0") || 0;
-      height = parseFloat(parts[3] ?? "0") || 0;
-    }
-
-    if (!width || !height) {
-      try {
-        const bbox = renderedSvg.getBBox();
-        width = bbox.width || width;
-        height = bbox.height || height;
-      } catch {
-        // ignore and continue to attribute fallback
-      }
-    }
-
-    if (!width || !height) {
-      const attrWidth = svgClone.getAttribute("width") ?? "0";
-      const attrHeight = svgClone.getAttribute("height") ?? "0";
-      width = parseFloat(attrWidth) || 0;
-      height = parseFloat(attrHeight) || 0;
-    }
-
-    // 确保尺寸有效
-    if (width === 0 || height === 0) {
-      width = 1600;
-      height = 1200;
-    }
-
-    svgClone.setAttribute("width", String(width));
-    svgClone.setAttribute("height", String(height));
-
-    // 序列化 SVG
-    const serialized = new XMLSerializer().serializeToString(svgClone);
-    const dataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
-
-    const SCALE = 10;
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.ceil(width * SCALE);
-    canvas.height = Math.ceil(height * SCALE);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      toast.error("图片保存失败");
-      return;
-    }
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.scale(SCALE, SCALE);
-
-    const img = new Image();
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, width, height);
+    void renderMermaidPngDataUrl()
+      .then((dataUrl) => {
       const link = document.createElement("a");
-      link.href = canvas.toDataURL("image/png");
+        link.href = dataUrl;
       link.download = "mermaid-diagram.png";
       link.click();
-    };
-    img.onerror = () => {
-      toast.error("图片保存失败");
-    };
-    img.src = dataUri;
-  }, []);
+      })
+      .catch(() => {
+        toast.error("图片保存失败");
+      });
+  }, [renderMermaidPngDataUrl]);
+
+  const handleCopyImage = useCallback(() => {
+    void renderMermaidPngDataUrl()
+      .then((dataUrl) => copyImageDataUrlToClipboard(dataUrl))
+      .catch(() => {
+        toast.error("图片复制失败");
+      });
+  }, [renderMermaidPngDataUrl]);
 
   if (error) {
     return (
@@ -871,6 +900,7 @@ function MermaidPreview({
       minHeight={expanded ? 540 : 260}
       contentClassName={expanded ? "p-8" : undefined}
       onSaveImage={hasSvg ? handleSaveImage : undefined}
+      onCopyImage={hasSvg ? handleCopyImage : undefined}
     >
       <div
         ref={containerRef}
