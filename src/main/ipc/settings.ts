@@ -7,7 +7,11 @@ import {
   applyGlobalProxyDispatcher,
   getProxyConfigFromEnv,
 } from "../proxy-config";
-import { getProxyConfig, setProxyConfig } from "../storage";
+import {
+  clearProxyEnvFromProcess,
+  getProxyConfig,
+  setProxyConfig,
+} from "../storage";
 import { exportGlobalConfig, importGlobalConfig } from "../global-config";
 import { getMemorySettings, setMemorySettings } from "../memory-settings";
 import {
@@ -70,7 +74,12 @@ export function registerSettingsHandlers(ipcMain: IpcMain): void {
     "settings:setProxyConfig",
     async (_event, config: ProxyConfig): Promise<ProxyConfig> => {
       const nextConfig = setProxyConfig(config);
-      await applyGlobalProxyDispatcher(getProxyConfigFromEnv());
+      if (nextConfig.proxyMode !== "custom") {
+        clearProxyEnvFromProcess();
+      }
+      await applyGlobalProxyDispatcher(
+        nextConfig.proxyMode === "custom" ? nextConfig : getProxyConfigFromEnv(),
+      );
       return nextConfig;
     },
   );
