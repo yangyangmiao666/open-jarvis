@@ -70,10 +70,18 @@ export function normalizeLocalFilePath(rawPath: string): string {
   if (rawPath.startsWith("file://")) {
     try {
       const url = new URL(rawPath);
-      return decodeURIComponent(url.pathname);
+      let pathname = decodeURIComponent(url.pathname);
+      if (/^\/[A-Za-z]:/.test(pathname)) {
+        pathname = pathname.slice(1);
+      }
+      return pathname;
     } catch {
       return rawPath;
     }
+  }
+
+  if (/^\/[A-Za-z]:[\\/]/.test(rawPath)) {
+    return rawPath.slice(1);
   }
 
   if (!rawPath.includes("%")) {
