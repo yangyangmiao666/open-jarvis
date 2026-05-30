@@ -129,12 +129,13 @@ interruption queue, and full local sandbox execution.
 ### Skill System
 
 - Global skill directory `~/.open-jarvis/skills/`
+- 24 bundled skill packs in repo `skills/` — synced on first launch (non-destructive)
 - Markdown + YAML frontmatter format
 - Skill import, create, edit, rename
 
 ### Memory & Skill Precipitation
 
-- Per-workspace memory directory `.open-jarvis/memories/` — auto-consolidated after each conversation
+- Per-workspace memory directory `.open-jarvis/memories/` — consolidation **opt-in** (disabled by default; enable in Settings → Memory)
 - Agent auto-recalls relevant memories before planning (passive `ls` + `read_file` guidance)
 - Token Jaccard similarity matching (threshold 0.35) for smart memory merge vs. create
 - Skill promotion: memories reaching recall threshold (default 3) are prompted for precipitation into global skills
@@ -154,6 +155,22 @@ interruption queue, and full local sandbox execution.
 - Conversation export to Markdown
 - Light / dark theme toggle
 - macOS custom title bar
+- **i18n**: Chinese / English UI (`localStorage openwork-language`)
+- **Rich Markdown preview**: interactive HTML / ECharts / Mermaid in chat
+- **Notifications & sounds**: configurable desktop alerts and chimes
+- **Bundled skills**: 24 default skill packs synced to `~/.open-jarvis/skills/` on first launch
+- **Token usage logs**: historical token stats in Settings → Usage Logs
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Technical overview (中文)](docs/技术方案与项目介绍.md) | Architecture, subsystems, interaction flows |
+| [Source code guide (中文)](docs/源码导览.md) | Directory map and control points for humans |
+| [Memory & skills (中文)](docs/记忆与技能沉淀技术方案.md) | Memory consolidation and skill promotion |
+| [AGENTS.md](AGENTS.md) | AI collaborator map and modification routes |
 
 ---
 
@@ -161,16 +178,18 @@ interruption queue, and full local sandbox execution.
 
 | Layer | Tech |
 |-------|------|
-| Shell | Electron 42 + electron-vite 5 |
+| Shell | Electron 42.3 + electron-vite 5 |
 | Main Process | TypeScript, Node.js 24+ |
 | Renderer | React 19 + Tailwind CSS 4 + Radix UI + Zustand 5 |
-| Agent | deepagents + LangGraph |
-| Model Integration | @langchain/anthropic, @langchain/openai, @langchain/google-genai |
-| MCP | @modelcontextprotocol/sdk |
-| Checkpoint | sql.js (per-thread SQLite) |
-| Code Highlight | Shiki |
+| Agent | deepagents ^1.10.2 + LangGraph ^1.3.2 |
+| Model Integration | @langchain/anthropic ^1.4.0, @langchain/openai ^1.4.7, @langchain/google-genai ^2.1.31 |
+| i18n | i18next ^26.3.0 + react-i18next ^17.0.8 |
+| Rich Preview | echarts ^6.1.0, mermaid ^11.15.0 |
+| MCP | @modelcontextprotocol/sdk ^1.29.0 |
+| Checkpoint | sql.js ^1.14.1 (per-thread SQLite) |
+| Code Highlight | Shiki ^4.1.0 |
 | Markdown | react-markdown + remark-gfm + remark-math + rehype-katex |
-| Package Manager | Bun |
+| Package Manager | Bun 1.3.13 |
 | Build | Vite 8 + electron-builder 26 |
 
 ---
@@ -285,6 +304,7 @@ open-jarvis/
 │   │   │   ├── store.ts         # Global Zustand store
 │   │   │   ├── thread-context.tsx  # Thread state + stream subscription
 │   │   │   ├── electron-transport.ts  # IPC → LangGraph Transport
+│   │   │   ├── locales/         # i18n (zh-CN / en-US)
 │   │   │   └── ...
 │   │   └── components/          # UI components
 │   │       ├── chat/            # Chat area
@@ -297,6 +317,8 @@ open-jarvis/
 │   ├── model-context.ts         # Model context window config
 │   └── types.ts                 # Renderer shared types
 ├── resources/tooling/           # Embedded toolchain (per platform)
+├── skills/                      # Bundled skill packs (packed as default-skills)
+├── docs/                        # Technical docs and screenshots
 ├── scripts/
 │   └── prepare-embedded-tooling.mjs  # Toolchain preparation script
 ├── bin/cli.js                   # CLI entry
@@ -353,7 +375,8 @@ open-jarvis/
 | Thread Checkpoints | `~/.open-jarvis/threads/{threadId}.sqlite` |
 | API Keys | `~/.open-jarvis/.env` |
 | Approval Rules | `{workspace}/.open-jarvis/approval-rules.json` |
-| MCP Config | electron-store `settings.json` |
+| MCP Config | electron-store `~/.open-jarvis/settings.json` |
+| Workspace memories | `{workspace}/.open-jarvis/memories/` |
 | Skills (global) | `~/.open-jarvis/skills/` |
 
 > Note: The app automatically migrates data from the old path `~/.openwork` to `~/.open-jarvis`.
@@ -508,12 +531,13 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 ### 技能系统
 
 - 全局技能目录 `~/.open-jarvis/skills/`
+- 仓库内置 24 个技能包（`skills/`），首次启动同步到用户目录（不覆盖已有）
 - 支持 Markdown + YAML frontmatter 格式
 - 技能导入、创建、编辑、重命名
 
 ### 记忆与技能沉淀
 
-- 工作区记忆目录 `.open-jarvis/memories/`，对话结束后自动沉淀关键经验
+- 工作区记忆目录 `.open-jarvis/memories/`，**可在设置中开启记忆沉淀（默认关闭）**
 - Agent 在规划前自动检索相关记忆（被动引导：`ls` + `read_file`）
 - Token Jaccard 相似度匹配（阈值 0.35），智能判断合并到已有记忆或创建新文件
 - 技能晋升：记忆召回次数达到阈值（默认 3 次）后自动提示沉淀为全局技能
@@ -533,6 +557,21 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 - 对话导出 Markdown
 - 亮色 / 深色主题切换
 - macOS 自定义标题栏
+- **国际化**：中/英文 UI（`localStorage openwork-language`）
+- **富 Markdown 预览**：对话内 HTML / ECharts / Mermaid 交互预览
+- **通知与音效**：可配置桌面通知与提示音
+- **Token 使用日志**：设置面板查看历史 token 统计
+
+---
+
+## 文档
+
+| 文档 | 说明 |
+|------|------|
+| [技术方案与项目介绍](docs/技术方案与项目介绍.md) | 架构、子系统与交互流程 |
+| [源码导览](docs/源码导览.md) | 目录地图与控制点（人类读者） |
+| [记忆与技能沉淀](docs/记忆与技能沉淀技术方案.md) | 记忆沉淀与技能晋升 |
+| [AGENTS.md](AGENTS.md) | AI/协作者修改入口 |
 
 ---
 
@@ -540,16 +579,18 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 
 | 层级 | 技术 |
 |------|------|
-| Shell | Electron 42 + electron-vite 5 |
+| Shell | Electron 42.3 + electron-vite 5 |
 | 主进程 | TypeScript, Node.js 24+ |
 | 渲染层 | React 19 + Tailwind CSS 4 + Radix UI + Zustand 5 |
-| 智能体 | deepagents + LangGraph |
-| 模型集成 | @langchain/anthropic, @langchain/openai, @langchain/google-genai |
-| MCP | @modelcontextprotocol/sdk |
-| 检查点 | sql.js（每线程独立 SQLite） |
-| 代码高亮 | Shiki |
+| 智能体 | deepagents ^1.10.2 + LangGraph ^1.3.2 |
+| 模型集成 | @langchain/anthropic ^1.4.0, @langchain/openai ^1.4.7, @langchain/google-genai ^2.1.31 |
+| 国际化 | i18next ^26.3.0 + react-i18next ^17.0.8 |
+| 富预览 | echarts ^6.1.0, mermaid ^11.15.0 |
+| MCP | @modelcontextprotocol/sdk ^1.29.0 |
+| 检查点 | sql.js ^1.14.1（每线程独立 SQLite） |
+| 代码高亮 | Shiki ^4.1.0 |
 | Markdown | react-markdown + remark-gfm + remark-math + rehype-katex |
-| 包管理 | Bun |
+| 包管理 | Bun 1.3.13 |
 | 构建 | Vite 8 + electron-builder 26 |
 
 ---
@@ -668,6 +709,7 @@ open-jarvis/
 │   │   │   ├── store.ts         # 全局 Zustand store
 │   │   │   ├── thread-context.tsx  # 线程状态 + 流订阅
 │   │   │   ├── electron-transport.ts  # IPC → LangGraph Transport
+│   │   │   ├── locales/         # i18n（zh-CN / en-US）
 │   │   │   └── ...
 │   │   └── components/          # UI 组件
 │   │       ├── chat/            # 对话区
@@ -680,6 +722,8 @@ open-jarvis/
 │   ├── model-context.ts         # 模型上下文窗口配置
 │   └── types.ts                 # 渲染层共享类型
 ├── resources/tooling/           # 嵌入式工具链（按平台）
+├── skills/                      # 内置技能包（打包为 default-skills）
+├── docs/                        # 技术文档与截图
 ├── scripts/
 │   └── prepare-embedded-tooling.mjs  # 工具链准备脚本
 ├── bin/cli.js                   # CLI 入口
@@ -736,7 +780,8 @@ open-jarvis/
 | 线程检查点 | `~/.open-jarvis/threads/{threadId}.sqlite` |
 | API Keys | `~/.open-jarvis/.env` |
 | 审批规则 | `{workspace}/.open-jarvis/approval-rules.json` |
-| MCP 配置 | electron-store `settings.json` |
+| MCP / 记忆设置 | electron-store `~/.open-jarvis/settings.json` |
+| 工作区记忆 | `{workspace}/.open-jarvis/memories/` |
 | 技能（全局） | `~/.open-jarvis/skills/` |
 
 > 注：应用会自动从旧路径 `~/.openwork` 迁移数据到 `~/.open-jarvis`。

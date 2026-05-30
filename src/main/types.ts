@@ -6,12 +6,21 @@ export type ThreadStatus = "idle" | "busy" | "interrupted" | "error";
 // =============================================================================
 
 // Agent IPC
+export interface MessageSkillRef {
+  folderName: string;
+  description?: string;
+}
+
 export interface AgentInvokeParams {
   threadId: string;
   message: string;
   modelId?: string;
   /** Workspace-relative paths (e.g. /src/foo.ts) the user @-referenced */
   referencedPaths?: string[];
+  /** Skills explicitly selected via / mention */
+  selectedSkills?: MessageSkillRef[];
+  /** User-visible text without skill prompt prefix (for bubble display after reload) */
+  displayContent?: string;
 }
 
 export interface AgentResumeParams {
@@ -377,6 +386,10 @@ export interface Message {
   name?: string;
   is_error?: boolean;
   created_at: Date;
+  /** @-referenced workspace paths attached to a user message */
+  referenced_paths?: string[];
+  /** /-selected skills attached to a user message */
+  selected_skills?: MessageSkillRef[];
 }
 
 export interface ContentBlock {

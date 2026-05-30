@@ -140,6 +140,10 @@
   "copyMarkdown": "Copy Markdown",
   "copyMarkdownTitle": "Copy all messages in this session as Markdown (including tool calls and results)",
   "clickToRemove": "Click to remove",
+  "referenceChips": {
+    "openFile": "Preview file: {{path}}",
+    "openSkill": "Preview skill: {{name}}"
+  },
   "inputPlaceholder": {
     "idle": "Type a message... Enter to send, Shift+Enter for new line, @ for files, / for skills",
     "loading": "Type to interrupt... Enter to queue, will auto-submit after current reply completes"

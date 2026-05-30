@@ -230,6 +230,71 @@ function extractCheckpointReasoning(message: Record<string, unknown>): string {
   return "";
 }
 
+function extractUserMessageAttachments(
+  message: Record<string, unknown>,
+): Pick<Message, "referenced_paths" | "selected_skills"> {
+  const additionalKwargs =
+    message.additional_kwargs && typeof message.additional_kwargs === "object"
+      ? (message.additional_kwargs as Record<string, unknown>)
+      : undefined;
+
+  const referenced_paths = Array.isArray(additionalKwargs?.referenced_paths)
+    ? additionalKwargs.referenced_paths.filter(
+        (path): path is string => typeof path === "string" && path.length > 0,
+      )
+    : undefined;
+
+  const selected_skills = Array.isArray(additionalKwargs?.selected_skills)
+    ? additionalKwargs.selected_skills
+        .map((skill) => {
+          if (!skill || typeof skill !== "object") {
+            return null;
+          }
+          const record = skill as Record<string, unknown>;
+          if (typeof record.folderName !== "string") {
+            return null;
+          }
+          return {
+            folderName: record.folderName,
+            ...(typeof record.description === "string"
+              ? { description: record.description }
+              : {}),
+          };
+        })
+        .filter((skill): skill is NonNullable<typeof skill> => skill !== null)
+    : undefined;
+
+  return {
+    ...(referenced_paths && referenced_paths.length > 0
+      ? { referenced_paths }
+      : {}),
+    ...(selected_skills && selected_skills.length > 0 ? { selected_skills } : {}),
+  };
+}
+
+function resolveUserMessageContent(
+  message: Record<string, unknown>,
+): Message["content"] {
+  const additionalKwargs =
+    message.additional_kwargs && typeof message.additional_kwargs === "object"
+      ? (message.additional_kwargs as Record<string, unknown>)
+      : undefined;
+
+  if (typeof additionalKwargs?.display_content === "string") {
+    return additionalKwargs.display_content;
+  }
+
+  if (typeof message.content === "string") {
+    return message.content;
+  }
+
+  if (Array.isArray(message.content)) {
+    return message.content as Message["content"];
+  }
+
+  return "";
+}
+
 function buildCheckpointMessageContent(message: Record<string, unknown>): Message["content"] {
   const reasoning = extractCheckpointReasoning(message);
   const content = extractCheckpointTextContent(
@@ -1290,6 +1355,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                   name?: string;
                   status?: string;
                   is_error?: boolean;
+                  additional_kwargs?: Record<string, unknown>;
                 }>;
                 todos?: Array<{
                   id?: string;
@@ -1345,17 +1411,22 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
                     ? buildCheckpointMessageContent(
                         msg as Record<string, unknown>,
                       )
-                    : typeof msg.content === "string"
-                      ? msg.content
-                      : Array.isArray(msg.content)
-                        ? (msg.content as Message["content"])
-                        : "";
+                    : role === "user"
+                      ? resolveUserMessageContent(msg as Record<string, unknown>)
+                      : typeof msg.content === "string"
+                        ? msg.content
+                        : Array.isArray(msg.content)
+                          ? (msg.content as Message["content"])
+                          : "";
 
                 return {
                   id: msg.id || `msg-${index}`,
                   role,
                   content,
                   tool_calls: msg.tool_calls as Message["tool_calls"],
+                  ...(role === "user"
+                    ? extractUserMessageAttachments(msg as Record<string, unknown>)
+                    : {}),
                   ...(role === "tool" &&
                     msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
                   ...(role === "tool" && msg.name && { name: msg.name }),

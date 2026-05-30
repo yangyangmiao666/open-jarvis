@@ -322,6 +322,11 @@ export type StreamEvent =
   | { type: "done"; result: unknown }
   | { type: "error"; error: string };
 
+export interface MessageSkillRef {
+  folderName: string;
+  description?: string;
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system" | "tool";
@@ -336,6 +341,10 @@ export interface Message {
   created_at: Date;
   // Interruption queue marker - true while message is queued waiting for current stream to finish
   _queued?: boolean;
+  /** @-referenced workspace paths shown on the user bubble */
+  referenced_paths?: string[];
+  /** /-selected skills shown on the user bubble */
+  selected_skills?: MessageSkillRef[];
 }
 
 export interface ContentBlock {

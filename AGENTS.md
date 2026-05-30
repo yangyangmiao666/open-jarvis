@@ -2,21 +2,29 @@
 
 本文档面向在本仓库内协作的开发者与代码代理，目标是提供一份可直接落地的定位图：哪些目录决定行为，哪些文件只是桥接层，改动时有哪些同步点，以及提交前最小验证动作是什么。
 
+**相关文档**：[README.md](README.md) · [docs/技术方案与项目介绍.md](docs/技术方案与项目介绍.md) · [docs/源码导览.md](docs/源码导览.md) · [docs/记忆与技能沉淀技术方案.md](docs/记忆与技能沉淀技术方案.md)
+
+> 最后与代码同步版本：**0.1.0**
+
 ## 1. 总体架构
 
 ### 1.1 技术栈
 
 | 层级 | 技术选型 | 版本 |
 |------|----------|------|
-| **Shell** | Electron + electron-vite | 42 / 5 |
+| **Shell** | Electron + electron-vite | 42.3 / 5 |
 | **主进程** | TypeScript, Node.js | 6 / 24+ |
 | **渲染层** | React + Tailwind CSS + Radix UI + Zustand | 19 / 4 / 10+ / 5 |
-| **智能体运行时** | deepagents `createDeepAgent` + LangGraph | ^1.10.0 / ^1.3.0 |
+| **智能体运行时** | deepagents `createDeepAgent` + LangGraph | ^1.10.2 / ^1.3.2 |
+| **LangChain 核心** | @langchain/core, langchain, @langchain/langgraph-sdk | ^1.1.48 / ^1.4.2 / ^1.9.10 |
 | **检查点存储** | SqlJsSaver（每线程独立 SQLite） | sql.js ^1.14.1 |
-| **模型集成** | @langchain/anthropic, @langchain/openai, @langchain/google-genai | ^1.3.29 / ^1.4.5 / ^2.1.30 |
+| **模型集成** | @langchain/anthropic, @langchain/openai, @langchain/google-genai | ^1.4.0 / ^1.4.7 / ^2.1.31 |
 | **MCP 集成** | @modelcontextprotocol/sdk | ^1.29.0 |
-| **代码高亮** | Shiki | ^4.0.2 |
+| **代码高亮** | Shiki | ^4.1.0 |
 | **Markdown** | react-markdown + remark-gfm + remark-math + rehype-katex | ^10.1.0 |
+| **富内容预览** | echarts, mermaid | ^6.1.0 / ^11.15.0 |
+| **国际化** | i18next + react-i18next | ^26.3.0 / ^17.0.8 |
+| **主进程配置** | electron-store | ^11.0.2 |
 | **包管理** | Bun（固定版本） | 1.3.13 |
 | **构建** | Vite + electron-builder | 8 / 26 |
 | **类型检查** | TypeScript | 6 |
@@ -69,10 +77,11 @@ open-jarvis/
     model-context.ts      # 模型上下文窗口配置
     types.ts              # 渲染层共享类型
   resources/tooling/      # 按平台打包的 bun / uv / Python 嵌入式工具链
+  skills/                 # 内置技能包源目录（24 包，打包为 default-skills）
   scripts/prepare-embedded-tooling.mjs  # 准备嵌入式工具链并生成 manifest
   bin/cli.js              # CLI 入口（openwork / open-jarvis 二进制）
   release/                # electron-builder 产物
-  docs/                   # 截图与源码导览
+  docs/                   # 技术文档、截图与源码导览
   out/                    # 构建输出（main / preload / renderer）
 ```
 
@@ -80,13 +89,11 @@ open-jarvis/
 
 ### 3.1 启动入口
 
-- **`src/main/index.ts`**（245 行）
+- **`src/main/index.ts`**（263 行）
   - 创建 BrowserWindow，macOS `hiddenInset` 标题栏 + `trafficLightPosition`。
   - 窗口状态持久化（bounds、maximized）到 electron-store。
   - 首次启动自动最大化；F12 在 dev 模式下切换 DevTools。
-  - 初始化数据库 `initializeDatabase()`。
-  - 加载 `.env` 文件到 `process.env`（`loadEnvFileToProcessEnv`）。
-  - 配置全局代理 `applyGlobalProxyDispatcher()`。
+  - 启动顺序（`app.whenReady()` 内）：`loadEnvFileToProcessEnv()` → `applyGlobalProxyDispatcher()` → `initializeDatabase()` → **`await syncBundledSkillsToGlobalRoot()`** → 注册 7 组 IPC → **`bootstrapMCPServers(getMCPServers())`**。
   - 注册全部 IPC：approval / agent / threads / models(workspace) / mcp / skills / settings。
   - 退出前调用 `closeAllRuntimeResources()`，清理 agent checkpointers 与 MCP 连接。
 
@@ -109,10 +116,10 @@ open-jarvis/
   - `RuntimeToolErrorMiddleware`：全局工具调用错误中间件，捕获异常后返回 `ToolMessage` 而非崩溃。
 
 - **`src/main/agent/system-prompt.ts`**（180 行）
-  - Agent 基础行为约束：简洁回复、文件分页读取、shell 执行规则（必须用嵌入式 uv/bun）、HITL 审批处理、todo 管理、子代理委派、代码引用格式。
+  - Agent 基础行为约束：简洁回复、文件分页读取、shell 执行规则（必须用嵌入式 uv/bun）、HITL 审批处理、todo 管理、子代理委派、代码引用格式、**Inline HTML/ECharts/Mermaid 输出约定**。
   - 需要改智能体默认策略时，**优先改这里**而不是散落在 UI 文案中。
 
-- **`src/main/agent/local-sandbox.ts`**（1557 行）
+- **`src/main/agent/local-sandbox.ts`**（1553 行）
   - 继承 `FilesystemBackend`，实现 `SandboxBackendProtocolV2`。
   - **文件读取**：`read()` / `readRaw()` 使用 `decodeTextBuffer()`（UTF-8 优先 + GB18030 回退），与主进程 `workspace:readFile` 保持一致。
   - **命令执行**：`execute()` 是核心方法。
@@ -128,12 +135,13 @@ open-jarvis/
   - **macOS textutil**：`.doc/.docx/.odt/.rtf` 通过 `/usr/bin/textutil` 提取文本。
   - **符号链接安全**：支持 `O_NOFOLLOW` 的系统上拒绝符号链接读取。
 
-- **`src/main/agent/mcp-runtime.ts`**（197 行）
+- **`src/main/agent/mcp-runtime.ts`**（594 行）
   - 管理 MCP 连接与工具包装。
   - 支持 `stdio`、`streamable_http`、`sse` 三种传输；远程连接支持自定义 headers。
   - 连接缓存按 `server.id + 配置签名` 维度失效。
   - 工具命名归一化：`{serverName}_{toolName}`。
   - MCP 工具自动附加 `__approvalAliases` 标记，供 HITL 审批使用。
+  - `bootstrapMCPServers()`：应用启动及 MCP 配置变更后预连接已启用服务器。
   - `closeAllMCPConnections()`：应用退出时清理所有连接。
 
 - **`src/main/agent/types.ts`**
@@ -141,7 +149,7 @@ open-jarvis/
 
 ### 3.3 线程、存储与配置
 
-- **`src/main/db/index.ts`**（259 行）
+- **`src/main/db/index.ts`**（261 行）
   - SQLite 持久化访问层：线程、运行、助手的 CRUD。
   - 数据库文件：`~/.open-jarvis/openwork.sqlite`。
 
@@ -150,7 +158,7 @@ open-jarvis/
   - 提供 `truncateThread()` 方法用于消息回滚（配合 `threads:rewindToMessage`）。
   - Checkpointer 实例缓存在 `runtime.ts` 的 `Map<string, SqlJsSaver>` 中。
 
-- **`src/main/storage.ts`**（227 行）
+- **`src/main/storage.ts`**（250 行）
   - `~/.open-jarvis` 目录管理（含从 `~/.openwork` 的自动迁移）。
   - API Key 读写（ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY）到 `.env` 文件。
   - 线程 checkpoint 路径、默认模型、代理配置等持久化入口。
@@ -166,11 +174,13 @@ open-jarvis/
   - MCP server 配置 CRUD、导入导出、线程启用状态。
   - 配置存储在 electron-store `settings.json`。
 
-- **`src/main/skill-config.ts`**（91 行）
-  - 解析全局 skill 源目录（固定目录）。
-  - 全局技能目录：`~/.open-jarvis/skills/`。
+- **`src/main/skill-config.ts`**（75 行）
+  - 全局技能目录：`~/.open-jarvis/skills/`；`resolveSkillSourcesForWorkspace()` 无条件返回该绝对路径。
+  - `getBundledSkillsRoot()`：打包版读 `process.resourcesPath/default-skills`，开发态读仓库 `skills/`。
+  - `syncBundledSkillsToGlobalRoot()`：启动时将 bundled 子目录复制到全局目录（**仅当目标不存在**，不覆盖用户修改）。
+  - `setSkillSources()`：兼容 IPC 的空操作，始终强制全局目录。
 
-- **`src/main/openai-compatible-profiles.ts`**（74 行）
+- **`src/main/openai-compatible-profiles.ts`**（88 行）
   - 自定义 OpenAI 兼容模型配置 CRUD。
   - 支持 `apiFormat`（openai/anthropic）、`thinkingType`、`thinkingEffort`、`contextWindow`。
 
@@ -199,29 +209,36 @@ open-jarvis/
   - 监听工作区文件变化（`fs.watch` + 500ms debounce）。
   - 通过 `workspace:files-changed` 事件驱动 UI 刷新。
 
-- **`src/main/services/memory-service.ts`**（1703 行）
+- **`src/main/services/memory-service.ts`**（1732 行）
   - **记忆核心服务**：沉淀(consolidate)、召回追踪(extractRecalledMemoryPaths/updateRecallCounts)、晋升检测(maybeBuildPromotionCandidate)、相似度计算(calculateMemorySimilarity/tokenizeForSimilarity)、快照构建(buildMemoryRecallSnapshot/buildSkillUsageSnapshot)、路径解析(resolveMemoryRoutePath 四级匹配)。
   - MEMORY_SYSTEM_PROMPT：指导后台 LLM 生成通用化、可复用的记忆 JSON。
   - 前端展示数据全部由此服务构建。
 
-- **`src/main/memory-config.ts`**（90 行）
+- **`src/main/memory-config.ts`**（98 行）
   - 记忆目录路径配置：`MEMORY_ROUTE_PREFIX = "/memories/"`、存储目录 `.open-jarvis/memories/`。
   - 遗留布局迁移 `migrateLegacyMemoryLayout()`：删除旧 AGENTS.md、提升 topics/ 子目录。
 
-- **`src/main/memory-settings.ts`**（20 行）
-  - 晋升阈值存取：`getSkillPromotionThreshold()` / `setMemorySettings()`，默认 3，范围 1-50。
-  - 使用 electron-store `settings.memorySettings` 键。
+- **`src/main/memory-settings.ts`**（54 行）
+  - `memoryConsolidationEnabled`：对话结束后是否触发沉淀（**默认 false**，opt-in）。
+  - `isMemoryConsolidationEnabled()` / `getSkillPromotionThreshold()` / `setMemorySettings()`。
+  - 晋升阈值默认 3，范围 1-50；使用 electron-store `settings.memorySettings` 键。
 
-- **`src/main/skill-config.ts`**（91 行）
-  - 全局技能源目录解析：固定为 `~/.open-jarvis/skills/`。
-  - `resolveSkillSourcesForWorkspace()` 无条件返回全局绝对路径，所有工作区共享技能。
+- **`src/main/global-config.ts`**（209 行）
+  - 全局配置导入/导出：OpenAI 兼容 profile、MCP servers、代理、默认模型、skills 源。
+  - 由 `settings:exportGlobalConfigToFile` / `importGlobalConfigFromFile` 调用。
 
-- **`src/main/types.ts`**（307 行）
+- **`src/main/memory-runtime.ts`**（8 行，遗留 stub）
+  - `initializePersistentMemoryStore()` 空实现；记忆已迁移到工作区文件系统（`.open-jarvis/memories/`）。
+
+- **`src/main/json-file-store.ts`**（275 行，未接入）
+  - 实现 LangGraph `BaseStore` 的 JSON 文件持久化；**当前代码库内无 import**。
+
+- **`src/main/types.ts`**（468 行）
   - 主进程共享类型：Thread、StreamEvent、ModelConfig、MCPServerConfig、ProxyConfig、HITLRequest、HITLDecision、OpenAICompatibleProfile、CustomModelApiFormat、CustomModelThinkingType、CustomModelThinkingEffort、WorkspaceApprovalRule、Subagent、Todo、FileInfo 等。
 
 ### 3.4 IPC 入口
 
-- **`src/main/ipc/agent.ts`**（664 行）
+- **`src/main/ipc/agent.ts`**（858 行）
   - `agent:invoke`：发送消息，启动流式对话。自动中止同线程已有流。
   - `agent:resume`：HITL 审批后恢复执行。支持 `rememberForWorkspace` 写入工作区规则。
   - `agent:interrupt`：HITL 中断响应（approve/reject/edit）。
@@ -234,23 +251,23 @@ open-jarvis/
   - `approval:getMode`、`approval:setMode`、`approval:shouldAutoApprove`。
   - 审批模式切换与工作区自动批准判断。
 
-- **`src/main/ipc/threads.ts`**（272 行）
+- **`src/main/ipc/threads.ts`**（336 行）
   - 线程列表、读取、创建、更新、批量删除、历史、标题生成。
   - `threads:rewindToMessage`：消息回滚，通过 `SqlJsSaver.truncateThread()` 截断检查点。
 
-- **`src/main/ipc/models.ts`**（487 行）
+- **`src/main/ipc/models.ts`**（571 行）
   - 模型列表、默认模型、API Key、provider 列表。
   - **同时承载** `workspace:get/set/select/loadFromDisk/readFile/readBinaryFile/openCurrentFolder`。
   - 这是工作区相关 IPC 的真实入口，不在单独的 workspace 文件里。
 
-- **`src/main/ipc/mcp.ts`**（95 行）
+- **`src/main/ipc/mcp.ts`**（143 行）
   - MCP server 的列表、增删改、导入导出、线程启用状态。
 
-- **`src/main/ipc/skills.ts`**（271 行）
+- **`src/main/ipc/skills.ts`**（425 行）
   - 技能源目录、导入、创建（含 Markdown + YAML frontmatter）、读写 SKILL.md、重命名、删除（带确认）。
   - **记忆晋升相关**: `skills:confirmPromotion`（确认晋升）、`skills:settleMemoryAsSkill`（手动沉淀）、`skills:undoMemorySettlement`（撤销沉淀，删技能文件夹+重置状态）、`skills:rejectPromotion`（拒绝晋升，标记 rejected）。
 
-- **`src/main/ipc/settings.ts`**（393 行）
+- **`src/main/ipc/settings.ts`**（539 行）
   - 代理：`settings:getProxyConfig`、`settings:setProxyConfig`（设置后自动调用 `applyGlobalProxyDispatcher()`）。
   - 记忆：`settings:getMemorySettings`、`settings:setMemorySettings`、`settings:listWorkspaceMemories`、`settings:getWorkspaceMemoryDocument`、`settings:updateWorkspaceMemoryDocument`（含重命名）、`settings:deleteWorkspaceMemoryDocument`。
   - 全局配置：`settings:exportGlobalConfigToFile`、`settings:importGlobalConfigFromFile`。
@@ -292,13 +309,13 @@ open-jarvis/
 
 ### 5.2 状态层
 
-- **`src/renderer/src/lib/store.ts`**（303 行）
+- **`src/renderer/src/lib/store.ts`**（368 行）
   - 全局 Zustand store。
-  - 保存：线程列表、当前线程 id、模型列表、provider 列表、设置弹窗状态、看板开关、侧栏折叠、右面板 tab、亮色/深色模式。
+  - 保存：线程列表、当前线程 id、模型列表、provider 列表、设置弹窗状态、看板开关、侧栏折叠、右面板 tab、亮色/深色模式、**语言**（`language`，持久化 `openwork-language`）、**通知/音效**偏好。
   - `createThread()` 会继承当前线程的 `model`、`workspacePath`、`approvalMode`。
   - 删除最后一个线程时会立刻补一个新线程，避免 `currentThreadId === null` 造成工作区相关状态悬空。
 
-- **`src/renderer/src/lib/thread-context.tsx`**（1597 行）
+- **`src/renderer/src/lib/thread-context.tsx`**（1616 行）
   - 线程内状态源：`messages`、`todos`、`workspaceFiles`、`workspacePath`、`subagents`、`pendingApproval`、`currentModel`、`tokenUsage`、`openFiles`、`activeTab`、`fileContents`、`draftInput`、`approvalMode`、`interruptionQueue` 等。
   - `ThreadProvider` 为每个活跃线程挂接 `useStream()` + `ElectronIPCTransport`。
   - 新线程默认状态：消息空数组、草稿空字符串、无工作区文件、审批模式 `manual`、插嘴队列空数组。
@@ -332,7 +349,11 @@ open-jarvis/
   - 支持"记住此决定"复选框，勾选后写入工作区审批规则。
 
 - **`src/renderer/src/components/chat/StreamingMarkdown.tsx`**
-  - 流式 Markdown 展示，支持 GFM、数学公式（KaTeX）。
+  - 流式 Markdown 展示，支持 GFM、数学公式（KaTeX）；流式期间检测 `html` / `echarts` / `mermaid` fence 并交给富预览组件。
+
+- **`src/renderer/src/components/chat/MarkdownRichCodeBlock.tsx`**（1131 行）
+  - 对话内 **HTML / ECharts / Mermaid** 交互预览（sandbox iframe、ECharts 实例、Mermaid 渲染）。
+  - 由 `StreamingMarkdown` 与 `ThinkAwareMarkdown` 共同消费。
 
 - **`src/renderer/src/components/chat/ThinkAwareMarkdown.tsx`**
   - 对 reasoning / think 类内容做可折叠展示处理。
@@ -389,13 +410,19 @@ open-jarvis/
   - 记忆管理 UI（列表/编辑/沉淀/撤销/删除）。
 
 - **`src/renderer/src/components/chat/settings/GeneralPanel.tsx`**
-  - 通用设置面板。
+  - 通用设置面板：主题、**语言切换**（中/英）、桌面通知与提示音。
 
 - **`src/renderer/src/components/chat/settings/AboutPanel.tsx`**
   - 关于面板。
 
 - **`src/renderer/src/components/chat/settings/UsageLogsPanel.tsx`**
-  - 使用日志面板。
+  - Token 使用日志面板（数据源 `lib/token-usage.ts`）。
+
+- **`src/renderer/src/components/chat/settings/primitives/`**
+  - 10 个设置 UI 原语：`SettingsCard`、`SettingsRow`、`SettingsInput`、`SettingsToggle` 等。
+
+- **`src/renderer/src/components/chat/LanguageSelector.tsx`**
+  - 独立语言选择组件；**当前未被引用**，实际语言入口在 `GeneralPanel`。
 
 - **`src/renderer/src/components/panels/TodoPanel.tsx`**
   - todo 面板组件。
@@ -466,7 +493,7 @@ open-jarvis/
 - **`src/renderer/src/lib/media-blob.ts`**（35 行）
   - `useObjectUrlFromBase64()`：将 base64 文件数据转为 Object URL，组件卸载时自动释放。
 
-- **`src/renderer/src/lib/utils.ts`**（57 行）
+- **`src/renderer/src/lib/utils.ts`**（96 行）
   - `cn()`（className 合并）、日期格式化（zh-CN）、截断、`generateId()` 等。
 
 ### 5.9 UI 基础组件
@@ -481,6 +508,25 @@ open-jarvis/
   - Tailwind CSS 4 + 完整 CSS 变量设计系统。
   - 亮色/深色主题变量、自定义滚动条、动画、组件样式。
   - 主题 key 持久化到 localStorage `openwork-theme`，默认亮色。
+
+### 5.11 国际化
+
+- **`src/renderer/src/lib/locales/index.ts`** + **`lib/locales/{zh-CN,en-US}/`**
+  - i18next 初始化：7 命名空间（common, sidebar, chat, settings, panels, kanban, tabs）。
+  - 默认语言 `zh-CN`；fallback `en-US`；持久化 key `openwork-language`。
+  - `main.tsx` 导入 `./lib/locales`；`store.setLanguage()` 调用 `i18n.changeLanguage()`。
+  - 约 40+ 组件使用 `useTranslation`；`MarkdownRichCodeBlock` 等少数组件仍有硬编码中文。
+
+### 5.12 通知与音效
+
+- **`src/renderer/src/lib/notifications.ts`**（190 行）
+  - 桌面通知封装 + 8 种提示音（`assets/sound/*.mp3`）。
+  - 主进程 `settings:showDesktopNotification` 与 General 设置联动。
+
+### 5.13 Token 使用日志
+
+- **`src/renderer/src/lib/token-usage.ts`**（375 行）
+  - 按线程/模型持久化 token 统计；供 `UsageLogsPanel` 与 `ContextUsageIndicator` 消费。
 
 ## 6. 模型上下文窗口
 
@@ -528,11 +574,12 @@ open-jarvis/
   - 支持 6 个平台目标：darwin-arm64/x64, linux-arm64/x64, win32-arm64/x64。
 - 打包后工具链位于应用资源目录下的 `tooling/<platform-arch>`。
 - **`src/main/tooling.ts`** 是运行时**唯一可信**的工具链定位入口。
+- **内置技能打包**：electron-builder `extraResources` 将仓库 `skills/` 复制为 `default-skills`；启动时 `syncBundledSkillsToGlobalRoot()` 种子同步到 `~/.open-jarvis/skills/`。
 - 仓库记忆补充：本项目曾验证过 macOS 打包时 Python 绝对符号链接会破坏 bundle 校验，需要在准备阶段改写或移除。
 
 ## 9. 类型与契约
 
-- **`src/main/types.ts`**（307 行）定义主进程共享类型：Thread、StreamEvent、ModelConfig、MCPServerConfig、ProxyConfig、HITLRequest、HITLDecision、OpenAICompatibleProfile、CustomModelApiFormat、CustomModelThinkingType、CustomModelThinkingEffort、WorkspaceApprovalRule、Subagent、Todo、FileInfo、GrepMatch 等。
+- **`src/main/types.ts`**（468 行）定义主进程共享类型：Thread、StreamEvent、ModelConfig、MCPServerConfig、ProxyConfig、HITLRequest、HITLDecision、OpenAICompatibleProfile、CustomModelApiFormat、CustomModelThinkingType、CustomModelThinkingEffort、WorkspaceApprovalRule、Subagent、Todo、FileInfo、GrepMatch、MemorySettings 等。
 - **`src/types.ts`** 与 **`src/renderer/src/types.ts`** 负责渲染层消费的类型出口。
 - 新增 IPC 时，至少要同步**三处**：主进程 handler、preload 暴露、preload 类型声明。
 
@@ -792,8 +839,8 @@ stream.stop() + agent.cancel()
 1. 核心服务在 `src/main/services/memory-service.ts`（`consolidateTaskMemory`、`generateMemoryDraft`、`resolveMemoryRoutePath`）。
 2. 沉淀提示词在同文件的 `MEMORY_SYSTEM_PROMPT`。
 3. 相似度算法在同文件的 `calculateMemorySimilarity` / `tokenizeForSimilarity`（Jaccard 系数，阈值 0.35）。
-4. 晋升阈值在 `src/main/memory-settings.ts`（默认 3，范围 1-50）。
-5. 沉淀触发在 `src/main/ipc/agent.ts`（流结束后调用 `consolidateTaskMemory`）。
+4. 沉淀开关与晋升阈值在 `src/main/memory-settings.ts`（`memoryConsolidationEnabled` **默认 false**；晋升阈值默认 3，范围 1-50）。
+5. 沉淀触发在 `src/main/ipc/agent.ts`（流结束后调用 `consolidateTaskMemory`，**须先通过 `isMemoryConsolidationEnabled()`**）。
 6. 晋升/撤销/拒绝 IPC 在 `src/main/ipc/skills.ts`（`confirmPromotion`、`undoMemorySettlement`、`rejectPromotion`）。
 
 ### 12.14 改记忆召回行为
@@ -810,6 +857,24 @@ stream.stop() + agent.cancel()
 1. 记忆面板在 `src/renderer/src/components/chat/settings/MemoryPanel.tsx`（列表/编辑/沉淀/撤销/删除）。
 2. 技能面板在 `src/renderer/src/components/chat/settings/SkillsPanel.tsx`（列表/创建/编辑/导入/删除）。
 3. IPC 桥接在 `src/preload/index.ts`（`window.api.settings` 记忆方法 + `window.api.skills` 沉淀方法）。
+
+### 12.16 改 i18n
+
+1. 文案资源在 `src/renderer/src/lib/locales/{zh-CN,en-US}/`（按命名空间分 JSON）。
+2. 初始化与 fallback 在 `lib/locales/index.ts`；切换入口在 `GeneralPanel` + `store.setLanguage()`。
+3. 新增 UI 文案优先走 `useTranslation`，避免硬编码；改后同步两个语言包。
+
+### 12.17 改富 Markdown 预览
+
+1. Agent 输出约定在 `src/main/agent/system-prompt.ts`（HTML / ECharts / Mermaid fence 格式）。
+2. 渲染入口：`StreamingMarkdown.tsx` → `MarkdownRichCodeBlock.tsx`。
+3. 依赖 `echarts`、`mermaid`；改 fence 语言标识或 sandbox 策略时同步两处。
+
+### 12.18 改 bundled skills 同步
+
+1. 技能源目录：仓库 `skills/`（开发）→ 打包 `default-skills`（`package.json` `extraResources`）。
+2. 同步逻辑在 `src/main/skill-config.ts` 的 `syncBundledSkillsToGlobalRoot()`；启动调用在 `index.ts`。
+3. 运行时 Agent 始终读 `~/.open-jarvis/skills/`；新增内置技能时在 `skills/` 下添加文件夹并确保打包 filter 包含。
 
 ## 13. 验证命令
 
@@ -872,3 +937,10 @@ bun run typecheck:node
 - 改嵌入式工具链版本时，需同步 `prepare-embedded-tooling.mjs`、`system-prompt.ts`、`local-sandbox.ts` 三处。
 - 代理环境变量需同时设置大小写形式（`HTTP_PROXY` / `http_proxy`），由 `withProxyEnvAliases()` 处理。
 - Windows 命令执行使用 `.cmd` shim 文件，不要假设系统 PATH 中有 `uv` / `bun`。
+
+### 文档一致性维护
+
+- **版本号**：以 `package.json` `version` 与 §1.1 依赖 caret 为准；升级大版本时同步 README 技术栈表。
+- **行数**：AGENTS 与 `docs/源码导览.md` 保留行数；README 不写行数。
+- **新 IPC**：必须同步 main handler、preload、`index.d.ts`、§11 与本节修改路线。
+- **新用户可见特性**：同步 README Features、`docs/技术方案与项目介绍.md` 对应章节与 §12 修改路线。

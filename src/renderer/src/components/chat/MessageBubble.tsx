@@ -10,6 +10,8 @@ import { JarvisMark } from "@/components/branding/JarvisMark";
 import { ToolCallRenderer } from "./ToolCallRenderer";
 import { ThinkAwareMarkdown } from "./ThinkAwareMarkdown";
 import { InlineImagePreview } from "./InlineImagePreview";
+import { MessageReferenceChips } from "./MessageReferenceChips";
+import type { MessageSkillRef } from "@/types";
 
 interface ToolResultInfo {
   content: string | unknown;
@@ -33,6 +35,7 @@ interface MessageBubbleProps {
   message: Message;
   threadId: string;
   onOpenFile?: (path: string, name: string) => void;
+  onOpenSkill?: (skill: MessageSkillRef) => void;
   isStreaming?: boolean;
   canResend?: boolean;
   canEdit?: boolean;
@@ -59,6 +62,7 @@ export function MessageBubble({
   message,
   threadId,
   onOpenFile,
+  onOpenSkill,
   isStreaming,
   canResend,
   canEdit,
@@ -183,6 +187,10 @@ export function MessageBubble({
   };
 
   const content = renderContent();
+  const hasReferenceChips =
+    isUser &&
+    ((message.referenced_paths?.length ?? 0) > 0 ||
+      (message.selected_skills?.length ?? 0) > 0);
   const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
   const hasRichPreview = !isUser && hasRichPreviewContent(message.content);
   const pendingApprovalIds = new Set(
@@ -401,7 +409,7 @@ export function MessageBubble({
 
           {isEditing && isUser ? (
             renderEditableComposer()
-          ) : content && (
+          ) : (content || hasReferenceChips) && (
             <div className="space-y-2">
               <div
                 className={cn(
@@ -413,6 +421,15 @@ export function MessageBubble({
                 )}
               >
                 {content}
+                {hasReferenceChips && (
+                  <MessageReferenceChips
+                    referencedPaths={message.referenced_paths}
+                    selectedSkills={message.selected_skills}
+                    onOpenFile={onOpenFile}
+                    onOpenSkill={onOpenSkill}
+                    className={cn(content ? "mt-2 border-t border-border/40 pt-2" : "")}
+                  />
+                )}
               </div>
               {!isUser && isStreaming && (
                 <div className="inline-flex items-center gap-1.5 pl-1 text-muted-foreground">

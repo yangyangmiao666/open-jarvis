@@ -357,6 +357,14 @@ export class ElectronIPCTransport implements UseStreamTransport {
     const referencedPaths = (
       payload.config?.configurable as Record<string, unknown> | undefined
     )?.referenced_paths as string[] | undefined;
+    const selectedSkills = (
+      payload.config?.configurable as Record<string, unknown> | undefined
+    )?.selected_skills as
+      | Array<{ folderName: string; description?: string }>
+      | undefined;
+    const displayContent = (
+      payload.config?.configurable as Record<string, unknown> | undefined
+    )?.display_content as string | undefined;
     if (!threadId) {
       return this.createErrorGenerator(
         "MISSING_THREAD_ID",
@@ -392,6 +400,8 @@ export class ElectronIPCTransport implements UseStreamTransport {
       payload.signal,
       modelId,
       referencedPaths,
+      selectedSkills,
+      displayContent,
     );
   }
 
@@ -412,6 +422,8 @@ export class ElectronIPCTransport implements UseStreamTransport {
     signal: AbortSignal,
     modelId?: string,
     referencedPaths?: string[],
+    selectedSkills?: Array<{ folderName: string; description?: string }>,
+    displayContent?: string,
   ): AsyncGenerator<StreamEvent> {
     // Create a queue to buffer events from IPC
     const eventQueue: StreamEvent[] = [];
@@ -462,6 +474,8 @@ export class ElectronIPCTransport implements UseStreamTransport {
       },
       modelId,
       referencedPaths,
+      selectedSkills,
+      displayContent,
     );
 
     // Handle abort signal

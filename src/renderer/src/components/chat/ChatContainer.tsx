@@ -635,6 +635,31 @@ export function ChatContainer({
           .filter(Boolean)
           .join("\n\n");
 
+        const mergedPaths = [
+          ...new Set(
+            interruptionQueue.flatMap((message) => message.referenced_paths ?? []),
+          ),
+        ];
+        const mergedSkillsByFolder = new Map<
+          string,
+          { folderName: string; description?: string }
+        >();
+        for (const queuedMessage of interruptionQueue) {
+          for (const skill of queuedMessage.selected_skills ?? []) {
+            mergedSkillsByFolder.set(skill.folderName, skill);
+          }
+        }
+        const mergedSkills = [...mergedSkillsByFolder.values()];
+        const explicitSkillsPrompt =
+          mergedSkills.length > 0
+            ? `请优先使用以下指定技能，不要忽略它们：\n${mergedSkills
+                .map(
+                  (skill) =>
+                    `- ${skill.folderName}${skill.description ? `：${skill.description}` : ""}`,
+                )
+                .join("\n")}\n\n`
+            : "";
+
         // Promote queued messages to normal messages
         for (const qm of interruptionQueue) {
           appendMessage({ ...qm, _queued: false });
@@ -643,12 +668,21 @@ export function ChatContainer({
 
         // Submit merged content as a single message
         stream.submit(
-          { messages: [{ type: "human", content: queuedContent }] },
+          {
+            messages: [
+              { type: "human", content: `${explicitSkillsPrompt}${queuedContent}` },
+            ],
+          },
           {
             config: {
               configurable: {
                 thread_id: threadId,
                 model_id: currentModel,
+                ...(mergedPaths.length > 0 ? { referenced_paths: mergedPaths } : {}),
+                ...(mergedSkills.length > 0
+                  ? { selected_skills: mergedSkills }
+                  : {}),
+                display_content: queuedContent,
               },
             },
           },
@@ -971,6 +1005,17 @@ export function ChatContainer({
         role: "user",
         content: messageText,
         created_at: new Date(),
+        ...(referencedPaths.length > 0
+          ? { referenced_paths: [...referencedPaths] }
+          : {}),
+        ...(selectedSkills.length > 0
+          ? {
+              selected_skills: selectedSkills.map((skill) => ({
+                folderName: skill.folderName,
+                description: skill.description,
+              })),
+            }
+          : {}),
       };
 
       if (isLoading) {
@@ -978,6 +1023,8 @@ export function ChatContainer({
         userMessage._queued = true;
         enqueueInterruption(userMessage);
         setInput("");
+        setReferencedPaths([]);
+        setSelectedSkills([]);
         return;
       }
 
@@ -1017,6 +1064,15 @@ export function ChatContainer({
               ...(referencedPaths.length > 0
                 ? { referenced_paths: referencedPaths }
                 : {}),
+              ...(selectedSkills.length > 0
+                ? {
+                    selected_skills: selectedSkills.map((skill) => ({
+                      folderName: skill.folderName,
+                      description: skill.description,
+                    })),
+                  }
+                : {}),
+              display_content: messageText,
             },
           },
         },
@@ -1033,6 +1089,7 @@ export function ChatContainer({
       isLoading,
       pendingApproval,
       referencedPaths,
+      selectedSkills,
       setError,
       setInput,
       setPendingApproval,
@@ -1376,6 +1433,17 @@ export function ChatContainer({
     [openFile, setFileContents, threadId],
   );
 
+  const handleOpenSkillRef = useCallback(
+    (skill: { folderName: string; description?: string }) => {
+      void handleOpenUsedSkill(
+        skill.folderName,
+        `/skills/${skill.folderName}/SKILL.md`,
+        skill.folderName,
+      );
+    },
+    [handleOpenUsedSkill],
+  );
+
   const hasMemoryRecall = Boolean(memoryRecall && memoryRecall.items.length > 0);
   const hasSkillUsage = Boolean(skillUsage && skillUsage.items.length > 0);
   const hasContextAssist = hasMemoryRecall || hasSkillUsage;
@@ -1452,6 +1520,7 @@ export function ChatContainer({
                 message={message}
                 threadId={threadId}
                 onOpenFile={handleOpenFile}
+                onOpenSkill={handleOpenSkillRef}
                 isStreaming={streamingAssistantIds.has(message.id)}
                 canResend={!isLoading && message.role === "user"}
                 canEdit={!isLoading && message.role === "user"}

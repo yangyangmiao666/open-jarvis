@@ -232,7 +232,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
     "agent:invoke",
     async (
       event,
-      { threadId, message, modelId, referencedPaths }: AgentInvokeParams,
+      { threadId, message, modelId, referencedPaths, selectedSkills, displayContent }: AgentInvokeParams,
     ) => {
       const requestStartedAt = Date.now();
       const channel = `agent:stream:${threadId}`;
@@ -243,6 +243,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         message: message.substring(0, 50),
         modelId,
         referencedPathsCount: referencedPaths?.length ?? 0,
+        selectedSkillsCount: selectedSkills?.length ?? 0,
       });
       logConversationMessage(threadId, "user", message);
 
@@ -316,7 +317,20 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         if (referencedPathsPrompt.length > 0) {
           text = `${referencedPathsPrompt}${message}`;
         }
-        const humanMessage = new HumanMessage(text);
+        const humanMessage = new HumanMessage({
+          content: text,
+          additional_kwargs: {
+            ...(referencedPaths && referencedPaths.length > 0
+              ? { referenced_paths: referencedPaths }
+              : {}),
+            ...(selectedSkills && selectedSkills.length > 0
+              ? { selected_skills: selectedSkills }
+              : {}),
+            ...(message.trim().length > 0
+              ? { display_content: displayContent?.trim() || message }
+              : {}),
+          },
+        });
 
         // Stream with both modes:
         // - 'messages' for real-time token streaming

@@ -49,6 +49,8 @@ interface CustomAPI {
       onEvent: (event: StreamEvent) => void,
       modelId?: string,
       referencedPaths?: string[],
+      selectedSkills?: Array<{ folderName: string; description?: string }>,
+      displayContent?: string,
     ) => () => void;
     interrupt: (
       threadId: string,

@@ -79,6 +79,8 @@ const api = {
       onEvent: (event: StreamEvent) => void,
       modelId?: string,
       referencedPaths?: string[],
+      selectedSkills?: Array<{ folderName: string; description?: string }>,
+      displayContent?: string,
     ): (() => void) => {
       const channel = `agent:stream:${threadId}`;
 
@@ -100,6 +102,8 @@ const api = {
           message,
           modelId,
           referencedPaths,
+          selectedSkills,
+          displayContent,
         });
       }
 
