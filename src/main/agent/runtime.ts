@@ -57,6 +57,100 @@ export interface PromptTokenEstimate {
 }
 
 type TodoStatus = "pending" | "in_progress" | "completed";
+type ToolArgsRecord = Record<string, unknown>;
+
+function tryParseJsonRecord(value: string): ToolArgsRecord | undefined {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as ToolArgsRecord)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function coerceToolArgsRecord(args: unknown): ToolArgsRecord | undefined {
+  if (typeof args === "string") {
+    return tryParseJsonRecord(args);
+  }
+
+  if (!args || typeof args !== "object" || Array.isArray(args)) {
+    return undefined;
+  }
+
+  let record = args as ToolArgsRecord;
+  for (const nestedKey of ["input", "kwargs", "arguments", "payload"]) {
+    const nestedValue = record[nestedKey];
+    const nestedRecord =
+      typeof nestedValue === "string"
+        ? tryParseJsonRecord(nestedValue)
+        : nestedValue && typeof nestedValue === "object" && !Array.isArray(nestedValue)
+          ? (nestedValue as ToolArgsRecord)
+          : undefined;
+    if (nestedRecord) {
+      record = {
+        ...record,
+        ...nestedRecord,
+      };
+    }
+  }
+
+  return record;
+}
+
+function pickFirstString(
+  record: ToolArgsRecord,
+  keys: string[],
+): string | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function pickFirstBoolean(
+  record: ToolArgsRecord,
+  keys: string[],
+): boolean | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "boolean") {
+      return value;
+    }
+    if (value === "true") {
+      return true;
+    }
+    if (value === "false") {
+      return false;
+    }
+  }
+  return undefined;
+}
+
+function pickFirstInteger(
+  record: ToolArgsRecord,
+  keys: string[],
+): number | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isInteger(value)) {
+      return value;
+    }
+    if (typeof value === "string" && /^-?\d+$/.test(value.trim())) {
+      return Number.parseInt(value, 10);
+    }
+  }
+  return undefined;
+}
 
 function normalizeTodoStatus(status: unknown): TodoStatus {
   switch (status) {
@@ -72,11 +166,11 @@ function normalizeTodoStatus(status: unknown): TodoStatus {
 }
 
 function normalizeWriteTodosArgs(args: unknown): unknown {
-  if (!args || typeof args !== "object") {
+  const record = coerceToolArgsRecord(args);
+  if (!record) {
     return args;
   }
 
-  const record = args as Record<string, unknown>;
   const rawTodos = record["todos"];
 
   let parsedTodos = rawTodos;
@@ -128,24 +222,118 @@ function normalizeWriteTodosArgs(args: unknown): unknown {
   };
 }
 
+function normalizeReadFileArgs(args: unknown): unknown {
+  const record = coerceToolArgsRecord(args);
+  if (!record) {
+    return args;
+  }
+
+  const filePath = pickFirstString(record, ["file_path", "filePath", "path", "filename"]);
+  const offset = pickFirstInteger(record, ["offset", "line_offset", "lineOffset"]);
+  const limit = pickFirstInteger(record, ["limit", "max_lines", "maxLines"]);
+
+  if (!filePath) {
+    return record;
+  }
+
+  return {
+    ...record,
+    file_path: filePath,
+    ...(offset !== undefined ? { offset } : {}),
+    ...(limit !== undefined ? { limit } : {}),
+  };
+}
+
+function normalizeWriteFileArgs(args: unknown): unknown {
+  const record = coerceToolArgsRecord(args);
+  if (!record) {
+    return args;
+  }
+
+  const filePath = pickFirstString(record, ["file_path", "filePath", "path", "filename"]);
+  const content = pickFirstString(record, ["content", "contents", "text", "value"]);
+
+  if (!filePath && content === undefined) {
+    return record;
+  }
+
+  return {
+    ...record,
+    ...(filePath ? { file_path: filePath } : {}),
+    ...(content !== undefined ? { content } : {}),
+  };
+}
+
+function normalizeEditFileArgs(args: unknown): unknown {
+  const record = coerceToolArgsRecord(args);
+  if (!record) {
+    return args;
+  }
+
+  const filePath = pickFirstString(record, ["file_path", "filePath", "path", "filename"]);
+  const oldString = pickFirstString(record, [
+    "old_string",
+    "oldString",
+    "old_text",
+    "oldText",
+  ]);
+  const newString = pickFirstString(record, [
+    "new_string",
+    "newString",
+    "new_text",
+    "newText",
+  ]);
+  const replaceAll = pickFirstBoolean(record, ["replace_all", "replaceAll"]);
+
+  if (!filePath && oldString === undefined && newString === undefined) {
+    return record;
+  }
+
+  return {
+    ...record,
+    ...(filePath ? { file_path: filePath } : {}),
+    ...(oldString !== undefined ? { old_string: oldString } : {}),
+    ...(newString !== undefined ? { new_string: newString } : {}),
+    ...(replaceAll !== undefined ? { replace_all: replaceAll } : {}),
+  };
+}
+
+function normalizeToolCallArgs(
+  toolName: string | undefined,
+  args: unknown,
+): unknown {
+  switch (toolName) {
+    case "write_todos":
+      return normalizeWriteTodosArgs(args);
+    case "read_file":
+      return normalizeReadFileArgs(args);
+    case "write_file":
+      return normalizeWriteFileArgs(args);
+    case "edit_file":
+      return normalizeEditFileArgs(args);
+    default:
+      return args;
+  }
+}
+
 function normalizeToolCallRequestArgs<TRequest extends { toolCall: { name?: string; args?: unknown } }>(
   request: TRequest,
 ): TRequest {
-  if (request.toolCall.name !== "write_todos") {
-    return request;
-  }
-
-  const normalizedArgs = normalizeWriteTodosArgs(request.toolCall.args);
+  const normalizedArgs = normalizeToolCallArgs(
+    request.toolCall.name,
+    request.toolCall.args,
+  );
   if (normalizedArgs === request.toolCall.args) {
     return request;
   }
 
-  logInfo("Runtime", "Normalized write_todos arguments", {
+  logInfo("Runtime", "Normalized tool call arguments", {
+    toolName: request.toolCall.name ?? "unknown_tool",
     originalType: typeof request.toolCall.args,
-    normalizedTodoCount:
-      Array.isArray((normalizedArgs as { todos?: unknown }).todos)
-        ? ((normalizedArgs as { todos: unknown[] }).todos.length ?? 0)
-        : 0,
+    normalizedKeys:
+      normalizedArgs && typeof normalizedArgs === "object"
+        ? Object.keys(normalizedArgs as ToolArgsRecord).sort()
+        : [],
   });
 
   return {
